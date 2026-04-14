@@ -1,0 +1,6 @@
+bootloader: grub
+init_system: systemd
+
+home_assistant:
+  base_url: "https://homeassistant.local:8123"
+  auth_token: "your_long_lived_access_token"
