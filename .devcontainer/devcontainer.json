@@ -1,0 +1,19 @@
+{
+    "name": "Go",
+    "image": "mcr.microsoft.com/devcontainers/go:1.25-bookworm",
+    "features": {},
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "go.toolsManagement.checkForUpdates": "local",
+                "go.useLanguageServer": true,
+                "go.gopath": "/go",
+                "go.goroot": "/usr/local/go"
+            },
+            "extensions": [
+                "golang.Go"
+            ]
+        }
+    },
+    "remoteUser": "vscode"
+}
