@@ -1,16 +1,13 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
-	"strings"
 
 	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/bootloader/grub"
 	"github.com/jjack/remote-boot-agent/internal/config"
+	"github.com/jjack/remote-boot-agent/internal/homeassistant"
 	"github.com/jjack/remote-boot-agent/internal/initsystem"
 	"github.com/jjack/remote-boot-agent/internal/initsystem/systemd"
 	"github.com/spf13/cobra"
@@ -42,20 +39,13 @@ func buildCommands(blReg *bootloader.Registry, initReg *initsystem.Registry) *co
 			}
 			setDefaults(cfg, blReg, initReg)
 
-			endpoint := fmt.Sprintf("%s/api/remote_boot_manager/%s", strings.TrimRight(cfg.HomeAssistant.BaseURL, "/"), cfg.Host.MACAddress)
-			resp, err := http.Get(endpoint)
+			haClient := homeassistant.NewClient(cfg.HomeAssistant)
+			osName, err := haClient.GetSelectedOS(cfg.Host.MACAddress)
 			if err != nil {
-				return fmt.Errorf("error communicating with Home Assistant: %w", err)
+				return err
 			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				var buf bytes.Buffer
-				buf.ReadFrom(resp.Body)
-				fmt.Printf("%s\n", buf.String())
-				return nil
-			}
-			return fmt.Errorf("received HTTP %d from Home Assistant", resp.StatusCode)
+			fmt.Printf("%s\n", osName)
+			return nil
 		},
 	}
 
@@ -106,36 +96,19 @@ func buildCommands(blReg *bootloader.Registry, initReg *initsystem.Registry) *co
 				return fmt.Errorf("error parsing bootloader config: %w", err)
 			}
 
-			webhookURL := fmt.Sprintf("%s/api/webhook/remote_boot_manager_ingest", strings.TrimRight(cfg.HomeAssistant.BaseURL, "/"))
-
-			type HAPayload struct {
-				MACAddress string   `json:"mac_address"`
-				Hostname   string   `json:"hostname"`
-				Bootloader string   `json:"bootloader"`
-				OSList     []string `json:"os_list"`
-			}
-			payload := HAPayload{
+			haClient := homeassistant.NewClient(cfg.HomeAssistant)
+			payload := homeassistant.HAPayload{
 				MACAddress: cfg.Host.MACAddress,
 				Hostname:   cfg.Host.Hostname,
 				Bootloader: cfg.Host.Bootloader,
 				OSList:     opts.AvailableOSes,
 			}
 
-			jsonData, err := json.Marshal(payload)
-			if err != nil {
-				return fmt.Errorf("error marshaling payload: %w", err)
+			if err := haClient.PushAvailableOSes(payload); err != nil {
+				return err
 			}
 
-			resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
-			if err != nil {
-				return fmt.Errorf("error posting to Home Assistant: %w", err)
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				return nil
-			}
-			return fmt.Errorf("received HTTP %d from Home Assistant", resp.StatusCode)
+			return nil
 		},
 	}
 
