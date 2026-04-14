@@ -5,7 +5,7 @@ import "github.com/jjack/remote-boot-agent/internal/config"
 // BootOptions represents the parsed boot configuration.
 type BootOptions struct {
 	AvailableOSes []string
-	Parameters  map[string]string
+	Parameters    map[string]string
 	// Add other relevant fields
 }
 
