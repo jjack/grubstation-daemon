@@ -74,7 +74,23 @@ var getAvailableOSesCmd = &cobra.Command{
 			log.Fatalf("Error loading config: %v", err)
 		}
 		ensureAutoDetect(cfg)
-		
+
+		fmt.Printf("Action: Getting available OSes (bootloader=%s)...\n", cfg.BootloaderName)
+		bl, ok := bootloader.Get(cfg.BootloaderName)
+		if !ok {
+			log.Fatalf("Bootloader plugin %q not found or not registered", cfg.BootloaderName)
+		}
+
+		opts, err := bl.Parse(cfg)
+		if err != nil {
+			log.Fatalf("Error parsing bootloader config: %v", err)
+		}
+
+		fmt.Printf("Available OSes (via %s):\n", cfg.BootloaderName)
+		for _, osName := range opts.AvailableOSes {
+			fmt.Printf("  - %s\n", osName)
+		}
+
 	},
 }
 
