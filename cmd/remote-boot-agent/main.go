@@ -97,11 +97,7 @@ func buildCommands(blReg *bootloader.Registry, initReg *initsystem.Registry) *co
 				OSList:     opts.AvailableOSes,
 			}
 
-			if err := haClient.PushAvailableOSes(payload); err != nil {
-				return err
-			}
-
-			return nil
+			return haClient.PushAvailableOSes(payload)
 		},
 	}
 
