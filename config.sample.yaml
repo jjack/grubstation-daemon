@@ -1,10 +1,10 @@
 # remote-boot-agent will try to automatically determine these values
-#
-# bootloader: grub
-# init_system: systemd
-# mac_address: "00:11:22:33:44:55"
-# hostname: "my-remote-pc"
+# host:
+#   bootloader:  "grub"
+#   initsystem:  "systemd"
+#   mac_address: "00:11:22:33:44:55"
+#   hostname:    "my-remote-pc"
 
-home_assistant:
-  base_url: "https://homeassistant.local:8123"
-#  auth_token: "your_long_lived_access_token"
+homeassistant:
+  url: "https://homeassistant.local:8123"
+  token: "your_long_lived_access_token"

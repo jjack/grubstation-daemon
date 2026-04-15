@@ -9,11 +9,19 @@ import (
 
 // Config represents the loaded configuration from file or env vars
 type Config struct {
-	BootloaderName string `mapstructure:"bootloader"`
-	InitSystemName string `mapstructure:"init_system"`
-	HAWebhookURL   string `mapstructure:"ha_webhook_url"`
-	Hostname       string `mapstructure:"hostname"`
-	MACAddress     string `mapstructure:"mac_address"`
+	HomeAssistant  HAConfig    `mapstructure:"homeassistant"`
+	Host           HostConfig  `mapstructure:"host"`}
+
+type HostConfig struct {
+	Bootloader string `mapstructure:"bootloader"`
+	InitSystem string `mapstructure:"initsystem"`
+	MACAddress string `mapstructure:"mac_address"`
+	Hostname   string `mapstructure:"hostname"`
+}
+
+type HAConfig struct {
+	BaseURL string `mapstructure:"url"`
+	Token   string `mapstructure:"token"`
 }
 
 func InitFlags(flags *pflag.FlagSet) {
@@ -26,12 +34,12 @@ func InitFlags(flags *pflag.FlagSet) {
 	flags.String("homeassistant-url", "", "Home Assistant Base URL")
 	flags.String("homeassistant-token", "", "Home Assistant Long-Lived Access Token")
 
-	viper.BindPFlag("bootloader", flags.Lookup("bootloader"))
-	viper.BindPFlag("init_system", flags.Lookup("init-system"))
-	viper.BindPFlag("mac_address", flags.Lookup("mac-address"))
-	viper.BindPFlag("hostname", flags.Lookup("hostname"))
-	viper.BindPFlag("home_assistant_url", flags.Lookup("homeassistant-url"))
-	viper.BindPFlag("home_assistant_auth_token", flags.Lookup("homeassistant-token"))
+	viper.BindPFlag("host.bootloader", flags.Lookup("bootloader"))
+	viper.BindPFlag("host.initsystem", flags.Lookup("init-system"))
+	viper.BindPFlag("host.mac_address", flags.Lookup("mac-address"))
+	viper.BindPFlag("host.hostname", flags.Lookup("hostname"))
+	viper.BindPFlag("homeassistant.url", flags.Lookup("homeassistant-url"))
+	viper.BindPFlag("homeassistant.token", flags.Lookup("homeassistant-token"))
 }
 
 // Load reads and parses configuration for the CLI application
@@ -71,13 +79,13 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	// from main instead, or inject callbacks).
 	
 	// Discover Hardware network info if missing
-	if cfg.Hostname == "" || cfg.MACAddress == "" {
+	if cfg.Host.Hostname == "" || cfg.Host.MACAddress == "" {
 		host, mac := discoverNetworkInfo()
-		if cfg.Hostname == "" {
-			cfg.Hostname = host
+		if cfg.Host.Hostname == "" {
+			cfg.Host.Hostname = host
 		}
-		if cfg.MACAddress == "" {
-			cfg.MACAddress = mac
+		if cfg.Host.MACAddress == "" {
+			cfg.Host.MACAddress = mac
 		}
 	}
 
