@@ -14,10 +14,11 @@ type Config struct {
 }
 
 type HostConfig struct {
-	Bootloader string `mapstructure:"bootloader"`
-	InitSystem string `mapstructure:"initsystem"`
-	MACAddress string `mapstructure:"mac_address"`
-	Hostname   string `mapstructure:"hostname"`
+	Bootloader           string `mapstructure:"bootloader"`
+	BootloaderConfigPath string `mapstructure:"bootloader_config_path"`
+	InitSystem           string `mapstructure:"initsystem"`
+	MACAddress           string `mapstructure:"mac_address"`
+	Hostname             string `mapstructure:"hostname"`
 }
 
 type HAConfig struct {
@@ -28,6 +29,7 @@ type HAConfig struct {
 func InitFlags(flags *pflag.FlagSet) {
 	flags.String("config", "", "Explicit config file path (default is /etc/remote-boot-agent/config.yaml)")
 	flags.String("bootloader", "", "Name of the bootloader to use (optional, will be auto-detected if not provided)")
+	flags.String("bootloader-config-path", "", "Explicit path to the bootloader configuration file")
 	flags.String("init-system", "", "Name of the init system to use (optional, will be auto-detected if not provided)")
 	flags.String("mac-address", "", "MAC address of the device (optional, will be auto-detected if not provided)")
 	flags.String("hostname", "", "Hostname of the device (optional, will be auto-detected if not provided)")
@@ -41,6 +43,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	v := viper.New()
 
 	v.BindPFlag("host.bootloader", flags.Lookup("bootloader"))
+	v.BindPFlag("host.bootloader_config_path", flags.Lookup("bootloader-config-path"))
 	v.BindPFlag("host.initsystem", flags.Lookup("init-system"))
 	v.BindPFlag("host.mac_address", flags.Lookup("mac-address"))
 	v.BindPFlag("host.hostname", flags.Lookup("hostname"))
