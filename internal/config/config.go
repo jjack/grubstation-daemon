@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -69,11 +70,16 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 		// Use config file from the flag
 		v.SetConfigFile(cfgFile)
 	} else {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get user home directory: %w", err)
+		}
+
 		// Search for config in common locations
 		v.SetConfigName("config")
 		v.SetConfigType("yaml")
 		v.AddConfigPath("/etc/remote-boot-agent/")
-		v.AddConfigPath("$HOME/.config/remote-boot-agent/")
+		v.AddConfigPath(fmt.Sprintf("%s/.config/remote-boot-agent/", homeDir))
 		v.AddConfigPath(".")
 	}
 
