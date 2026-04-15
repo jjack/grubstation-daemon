@@ -51,15 +51,15 @@ func findGrubConfig() (string, error) {
 func (p *GrubPlugin) Parse(cfg *config.Config) (*bootloader.BootOptions, error) {
 	log.Println("Parsing GRUB boot options...")
 
-	grub_path, err := findGrubConfig()
+	grubPath, err := findGrubConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to find grub config: %w", err)
+		return nil, fmt.Errorf("failed to locate grub config: %w", err)
 	}
-	log.Printf("Found GRUB config at: %s\n", grub_path)
+	log.Printf("Found GRUB config at: %s\n", grubPath)
 
-	file, err := os.Open(grub_path)
+	file, err := os.Open(grubPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open grub config %s: %w", grub_path, err)
+		return nil, fmt.Errorf("failed to open grub config %s: %w", grubPath, err)
 	}
 	defer file.Close()
 
