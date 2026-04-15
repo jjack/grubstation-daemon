@@ -9,8 +9,9 @@ import (
 
 // Config represents the loaded configuration from file or env vars
 type Config struct {
-	HomeAssistant  HAConfig    `mapstructure:"homeassistant"`
-	Host           HostConfig  `mapstructure:"host"`}
+	HomeAssistant HAConfig   `mapstructure:"homeassistant"`
+	Host          HostConfig `mapstructure:"host"`
+}
 
 type HostConfig struct {
 	Bootloader string `mapstructure:"bootloader"`
@@ -33,31 +34,33 @@ func InitFlags(flags *pflag.FlagSet) {
 
 	flags.String("homeassistant-url", "", "Home Assistant Base URL")
 	flags.String("homeassistant-token", "", "Home Assistant Long-Lived Access Token")
-
-	viper.BindPFlag("host.bootloader", flags.Lookup("bootloader"))
-	viper.BindPFlag("host.initsystem", flags.Lookup("init-system"))
-	viper.BindPFlag("host.mac_address", flags.Lookup("mac-address"))
-	viper.BindPFlag("host.hostname", flags.Lookup("hostname"))
-	viper.BindPFlag("homeassistant.url", flags.Lookup("homeassistant-url"))
-	viper.BindPFlag("homeassistant.token", flags.Lookup("homeassistant-token"))
 }
 
 // Load reads and parses configuration for the CLI application
 func Load(flags *pflag.FlagSet) (*Config, error) {
+	v := viper.New()
+
+	v.BindPFlag("host.bootloader", flags.Lookup("bootloader"))
+	v.BindPFlag("host.initsystem", flags.Lookup("init-system"))
+	v.BindPFlag("host.mac_address", flags.Lookup("mac-address"))
+	v.BindPFlag("host.hostname", flags.Lookup("hostname"))
+	v.BindPFlag("homeassistant.url", flags.Lookup("homeassistant-url"))
+	v.BindPFlag("homeassistant.token", flags.Lookup("homeassistant-token"))
+
 	cfgFile, _ := flags.GetString("config")
 	if cfgFile != "" {
 		// Use config file from the flag
-		viper.SetConfigFile(cfgFile)
+		v.SetConfigFile(cfgFile)
 	} else {
 		// Search for config in common locations
-		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
-		viper.AddConfigPath("/etc/remote-boot-agent/")
-		viper.AddConfigPath("$HOME/.config/remote-boot-agent/")
-		viper.AddConfigPath(".")
+		v.SetConfigName("config")
+		v.SetConfigType("yaml")
+		v.AddConfigPath("/etc/remote-boot-agent/")
+		v.AddConfigPath("$HOME/.config/remote-boot-agent/")
+		v.AddConfigPath(".")
 	}
 
-	if err := viper.ReadInConfig(); err != nil {
+	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			// File was found but contained errors
 			return nil, fmt.Errorf("failed to read config file: %w", err)
@@ -66,18 +69,10 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	}
 
 	var cfg Config
-	if err := viper.Unmarshal(&cfg); err != nil {
+	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unable to decode into config struct: %w", err)
 	}
 
-	// ----------------------------------------------------
-	// Auto-discovery logic for omitted essential fields
-	// ----------------------------------------------------
-
-	// (We import bootloader conceptually here. Since this is the config package,
-	// depending on bootloader/initsystem causes import cycles. We will auto-detect
-	// from main instead, or inject callbacks).
-	
 	// Discover Hardware network info if missing
 	if cfg.Host.Hostname == "" || cfg.Host.MACAddress == "" {
 		host, mac := discoverNetworkInfo()
