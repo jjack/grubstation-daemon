@@ -1,7 +1,5 @@
 package bootloader
 
-import "github.com/jjack/remote-boot-agent/internal/config"
-
 // BootOptions represents the parsed boot configuration.
 type BootOptions struct {
 	AvailableOSes []string
@@ -16,7 +14,7 @@ type Plugin interface {
 	// Detect returns true if this bootloader is detected as the active/available one on the system.
 	Detect() bool
 	// Parse parses the bootloader configuration and returns the options.
-	Parse(cfg *config.Config) (*BootOptions, error)
+	Parse(configPath string) (*BootOptions, error)
 	// Add other necessary methods (e.g., SetNextBoot)
 }
 

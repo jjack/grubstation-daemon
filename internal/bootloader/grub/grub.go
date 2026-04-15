@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/jjack/remote-boot-agent/internal/bootloader"
-	"github.com/jjack/remote-boot-agent/internal/config"
 )
 
 var grubPaths = []string{
@@ -48,14 +47,14 @@ func findGrubConfig() (string, error) {
 	return "", fmt.Errorf("no grub config found in known locations")
 }
 
-func (p *GrubPlugin) Parse(cfg *config.Config) (*bootloader.BootOptions, error) {
+func (p *GrubPlugin) Parse(configPath string) (*bootloader.BootOptions, error) {
 	slog.Info("Parsing GRUB boot options...")
 
 	var grubPath string
 	var err error
 
-	if cfg != nil && cfg.Host.BootloaderConfigPath != "" {
-		grubPath = cfg.Host.BootloaderConfigPath
+	if configPath != "" {
+		grubPath = configPath
 		slog.Info("Using explicit GRUB config path", slog.String("path", grubPath))
 	} else {
 		grubPath, err = findGrubConfig()

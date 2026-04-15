@@ -63,7 +63,7 @@ func buildCommands(blReg *bootloader.Registry, initReg *initsystem.Registry) *co
 				return fmt.Errorf("bootloader plugin %q not found or not registered", loadedConfig.Host.Bootloader)
 			}
 
-			opts, err := bl.Parse(loadedConfig)
+			opts, err := bl.Parse(loadedConfig.Host.BootloaderConfigPath)
 			if err != nil {
 				return fmt.Errorf("error parsing bootloader config: %w", err)
 			}
@@ -84,7 +84,7 @@ func buildCommands(blReg *bootloader.Registry, initReg *initsystem.Registry) *co
 				return fmt.Errorf("bootloader plugin %q not found or not registered", loadedConfig.Host.Bootloader)
 			}
 
-			opts, err := bl.Parse(loadedConfig)
+			opts, err := bl.Parse(loadedConfig.Host.BootloaderConfigPath)
 			if err != nil {
 				return fmt.Errorf("error parsing bootloader config: %w", err)
 			}
