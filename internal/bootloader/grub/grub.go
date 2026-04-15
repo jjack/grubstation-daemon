@@ -12,7 +12,7 @@ import (
 	"github.com/jjack/remote-boot-agent/internal/config"
 )
 
-var GRUB_PATHS = []string{
+var grubPaths = []string{
 	"/boot/grub/grub.cfg",
 	"/boot/grub2/grub.cfg",
 	"/boot/efi/EFI/fedora/grub.cfg",
@@ -40,7 +40,7 @@ func (p *GrubPlugin) Detect() bool {
 }
 
 func findGrubConfig() (string, error) {
-	for _, path := range GRUB_PATHS {
+	for _, path := range grubPaths {
 		if _, err := os.Stat(path); err == nil {
 			return path, nil
 		}

@@ -4,7 +4,7 @@ import (
 	"os"
 )
 
-const SYSTEMD_PATH = "/run/systemd/system"
+const systemdPath = "/run/systemd/system"
 
 type SystemdPlugin struct {
 	// configuration fields
@@ -19,7 +19,7 @@ func (p *SystemdPlugin) Name() string {
 }
 
 func (p *SystemdPlugin) Detect() bool {
-	if _, err := os.Stat(SYSTEMD_PATH); err == nil {
+	if _, err := os.Stat(systemdPath); err == nil {
 		return true
 	}
 
