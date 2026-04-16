@@ -8,4 +8,4 @@ bootloader:
 
 homeassistant:
   url: "https://homeassistant.local:8123"
-  webhook_id: "remote_boot_agent_ingest"
+  webhook_id: "your-generated-webhook-id"
