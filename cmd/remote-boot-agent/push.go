@@ -1,37 +1,53 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
-	"github.com/jjack/remote-boot-agent/internal/homeassistant"
+	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
+
 	"github.com/spf13/cobra"
 )
 
-func newPushAvailableOSesCmd(blReg *bootloader.Registry) *cobra.Command {
+func PushOSes(cli *CLI) *cobra.Command {
 	return &cobra.Command{
 		Use:   "push",
 		Short: "Push the list of available OSes to Home Assistant",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			bl, ok := blReg.Get(loadedConfig.Host.Bootloader)
-			if !ok {
-				return fmt.Errorf("bootloader plugin %q not found or not registered", loadedConfig.Host.Bootloader)
-			}
-
-			opts, err := bl.Parse(loadedConfig.Host.BootloaderConfigPath)
+			bl, err := ResolveBootloader(cli.Config)
 			if err != nil {
-				return fmt.Errorf("error parsing bootloader config: %w", err)
+				return err
 			}
 
-			haClient := homeassistant.NewClient(loadedConfig.HomeAssistant)
-			payload := homeassistant.HAPayload{
-				MACAddress: loadedConfig.Host.MACAddress,
-				Hostname:   loadedConfig.Host.Hostname,
-				Bootloader: loadedConfig.Host.Bootloader,
-				OSList:     opts.AvailableOSes,
+			osList, err := bl.GetOSList(cli.Config.Bootloader.ConfigPath)
+			if err != nil {
+				return fmt.Errorf("failed to get OS list: %w", err)
 			}
 
-			return haClient.PushAvailableOSes(payload)
+			payload := ha.PushPayload{
+				MACAddress: cli.Config.Host.MACAddress,
+				Bootloader: bl.Name(),
+				Hostname:   cli.Config.Host.Hostname,
+				OSList:     osList,
+			}
+
+			if cli.Config.HomeAssistant.URL == "" || cli.Config.HomeAssistant.WebhookID == "" {
+				return fmt.Errorf("homeassistant url and webhook_id must be configured")
+			}
+
+			haClient := ha.NewClient(
+				cli.Config.HomeAssistant.URL,
+				cli.Config.HomeAssistant.WebhookID,
+			)
+
+			fmt.Printf("Pushing state to Home Assistant (Webhook ID: %s)\n", cli.Config.HomeAssistant.WebhookID)
+
+			if err := haClient.Push(context.Background(), payload); err != nil {
+				return fmt.Errorf("failed to push state to HA webhook: %w", err)
+			}
+
+			fmt.Println("Successfully pushed bootloader state.")
+			return nil
 		},
 	}
 }

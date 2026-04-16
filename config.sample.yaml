@@ -1,7 +1,10 @@
 host:
-  bootloader:  "grub"
   mac_address: "00:11:22:33:44:55"
   hostname:    "my-remote-pc"
+
+bootloader:
+  name: "grub"
+  config_path: "/boot/grub/grub.cfg"
 
 homeassistant:
   url: "https://homeassistant.local:8123"

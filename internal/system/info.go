@@ -6,14 +6,14 @@ import (
 	"os"
 )
 
-func DetectMacAddress() (string, error) {
+func DetectMACAddress() (string, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		return "", fmt.Errorf("failed to list network interfaces: %w", err)
 	}
 
 	for _, interf := range interfaces {
-		if interf.HardwareAddr != nil && len(interf.HardwareAddr) > 0 {
+		if len(interf.HardwareAddr) > 0 {
 			if interf.Flags&net.FlagUp != 0 && interf.Flags&net.FlagLoopback == 0 {
 				return interf.HardwareAddr.String(), nil
 			}
