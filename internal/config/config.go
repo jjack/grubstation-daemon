@@ -34,8 +34,8 @@ func LoadConfig(cfgFile string) (*Config, error) {
 	if cfgFile != "" {
 		v.SetConfigFile(cfgFile)
 	} else {
-		v.AddConfigPath("/etc/remote-boot-agent/")
-		v.AddConfigPath(os.ExpandEnv("$HOME/.config/remote-boot-agent/"))
+		v.AddConfigPath("/etc/ha-remote-boot-agent/")
+		v.AddConfigPath(os.ExpandEnv("$HOME/.config/ha-remote-boot-agent/"))
 		v.AddConfigPath(".")
 		v.SetConfigName("config")
 		v.SetConfigType("yaml")

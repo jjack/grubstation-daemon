@@ -11,8 +11,8 @@ config.yaml
 # Test binary, built with `go test -c`
 *.test
 
-# Test binary, built with `go build -o remote-boot-agent ./cmd/remote-boot-agent`
-/remote-boot-agent
+# Test binary, built with `go build -o ha-remote-boot-agent ./cmd/ha-remote-boot-agent`
+/ha-remote-boot-agent
 
 # Output directory for locally built binaries
 /bin/

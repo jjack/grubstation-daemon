@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
+	ha "github.com/jjack/ha-remote-boot-agent/internal/homeassistant"
 
 	"github.com/spf13/cobra"
 )

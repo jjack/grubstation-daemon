@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
+	"github.com/jjack/ha-remote-boot-agent/internal/config"
 )
 
 func TestGetSelectedOSCommand(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/jjack/remote-boot-agent
+module github.com/jjack/ha-remote-boot-agent
 
 go 1.24.4
 

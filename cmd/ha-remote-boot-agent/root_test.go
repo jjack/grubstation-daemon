@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
+	"github.com/jjack/ha-remote-boot-agent/internal/config"
 )
 
 func TestNewCLI(t *testing.T) {
@@ -16,8 +16,8 @@ func TestNewCLI(t *testing.T) {
 	if cli.RootCmd == nil {
 		t.Fatal("expected RootCmd to be initialized")
 	}
-	if cli.RootCmd.Use != "remote-boot-agent" {
-		t.Errorf("expected use 'remote-boot-agent', got %s", cli.RootCmd.Use)
+	if cli.RootCmd.Use != "ha-remote-boot-agent" {
+		t.Errorf("expected use 'ha-remote-boot-agent', got %s", cli.RootCmd.Use)
 	}
 }
 

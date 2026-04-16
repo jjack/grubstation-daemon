@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
-	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
+	"github.com/jjack/ha-remote-boot-agent/internal/config"
+	ha "github.com/jjack/ha-remote-boot-agent/internal/homeassistant"
 )
 
 func TestPushOSesCommand(t *testing.T) {

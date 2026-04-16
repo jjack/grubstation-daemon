@@ -1,0 +1,9 @@
+---
+- name: Install HA Remote Boot Agent systemd shutdown service
+  ansible.builtin.template:
+    src: ha-ha-remote-boot-agent.service.j2
+    dest: /etc/systemd/system/ha-ha-remote-boot-agent.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Enable systemd service

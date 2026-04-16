@@ -10,8 +10,8 @@ func TestMainExecutesWithoutError(t *testing.T) {
 	originalArgs := os.Args
 	defer func() { os.Args = originalArgs }()
 
-	// Overwrite args, "remote-boot-agent help" will exit 0
-	os.Args = []string{"remote-boot-agent", "--help"}
+	// Overwrite args, "ha-remote-boot-agent help" will exit 0
+	os.Args = []string{"ha-remote-boot-agent", "--help"}
 
 	// main normally prints to os.Stderr or calls os.Exit.
 	// Since help succeeds, it shouldn't call os.Exit(1).

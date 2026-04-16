@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
-	"github.com/jjack/remote-boot-agent/internal/config"
-	"github.com/jjack/remote-boot-agent/internal/system"
+	"github.com/jjack/ha-remote-boot-agent/internal/bootloader"
+	"github.com/jjack/ha-remote-boot-agent/internal/config"
+	"github.com/jjack/ha-remote-boot-agent/internal/system"
 	"github.com/spf13/cobra"
 )
 
@@ -19,8 +19,8 @@ func NewCLI() *CLI {
 	cli := &CLI{}
 
 	rootCmd := &cobra.Command{
-		Use:   "remote-boot-agent",
-		Short: "remote-boot-agent reads boot configurations and posts them to Home Assistant",
+		Use:   "ha-remote-boot-agent",
+		Short: "ha-remote-boot-agent reads boot configurations and posts them to Home Assistant",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.LoadConfig(cli.CfgFile)
 			if err != nil {

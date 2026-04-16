@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/jjack/remote-boot-agent/internal/bootloader"
-	"github.com/jjack/remote-boot-agent/internal/config"
+	_ "github.com/jjack/ha-remote-boot-agent/internal/bootloader"
+	"github.com/jjack/ha-remote-boot-agent/internal/config"
 )
 
 func TestGetOSListCommand(t *testing.T) {

@@ -1,9 +1,0 @@
----
-- name: Install HA Remote Boot Manager script to grub.d
-  ansible.builtin.template:
-    src: 99_ha_remote_boot_manager.j2
-    dest: /etc/grub.d/99_ha_remote_boot_manager
-    owner: root
-    group: root
-    mode: '0755'
-  notify: Update grub configuration

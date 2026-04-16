@@ -6,7 +6,7 @@
 
 The system is built with a strictly pluggable architecture in mind. While GRUB and systemd are the default implementations, the CLI and core logic are agnostic to the underlying bootloader and init system. They should (hopefully!) be adaptable to other systems.
 
-### `remote-boot-agent`
+### `ha-remote-boot-agent`
 #### Lightweight CLI that runs on each bare-metal server at shutdown time
 - Parses the local boot menu to report available OS options to Home Assistant
 
@@ -16,7 +16,7 @@ The system is built with a strictly pluggable architecture in mind. While GRUB a
 
 ### Installation & Deployment
 
-You can deploy the `remote-boot-agent` using Ansible or via manual installation.
+You can deploy the `ha-remote-boot-agent` using Ansible or via manual installation.
 
 #### Ansible (Recommended)
 An extensible set of Ansible playbooks and roles are provided in the `ansible/` directory.
@@ -38,7 +38,7 @@ If you prefer to configure your machine manually without Ansible, you can follow
 Build the agent and copy the resultant binary to your system's path:
 ```bash
 go build ./...
-sudo cp remote-boot-agent /usr/local/bin/
+sudo cp ha-remote-boot-agent /usr/local/bin/
 ```
 
 **2. Configure GRUB**
@@ -69,7 +69,7 @@ sudo grub2-mkconfig -o /boot/grub2/grub.cfg
 ```
 
 **3. Configure the Init Manager Shutdown Hook**
-To run the `push` command on every system shutdown, create a systemd service file at `/etc/systemd/system/remote-boot-agent.service`:
+To run the `push` command on every system shutdown, create a systemd service file at `/etc/systemd/system/ha-remote-boot-agent.service`:
 
 ```ini
 [Unit]
@@ -80,7 +80,7 @@ Requires=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/remote-boot-agent push --config /etc/remote-boot-agent/config.yaml
+ExecStart=/usr/local/bin/ha-remote-boot-agent push --config /etc/ha-remote-boot-agent/config.yaml
 TimeoutSec=10
 
 [Install]
@@ -90,4 +90,4 @@ WantedBy=halt.target reboot.target poweroff.target
 Enable and reload the daemon:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable remote-boot-agent.service
+sudo systemctl enable ha-remote-boot-agent.service

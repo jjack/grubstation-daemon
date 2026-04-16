@@ -1,0 +1,20 @@
+---
+- name: Deploy Remote Boot Agent
+  hosts: all
+  become: true
+  vars:
+    # Set to 'grub' by default
+    bootloader: grub
+    
+    # Set to 'systemd' by default
+    initmanager: systemd
+    
+    # Target Home Assistant settings for the grub config
+    ha_protocol: http
+    ha_host: homeassistant.local:8123
+    
+    # Use ansible facts by default, override when needed
+    agent_mac_address: "{{ ansible_default_ipv4.macaddress }}"
+    
+  roles:
+    - remote_boot_agent

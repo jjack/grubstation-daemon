@@ -9,6 +9,6 @@
 
 - name: Enable systemd service
   ansible.builtin.systemd:
-    name: remote-boot-agent.service
+    name: ha-remote-boot-agent.service
     enabled: true
     daemon_reload: true
