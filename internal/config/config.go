@@ -96,14 +96,19 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 	}
 
 	// Discover Hardware network info if missing
-	if cfg.Host.Hostname == "" || cfg.Host.MACAddress == "" {
-		host, mac := discoverNetworkInfo()
-		if cfg.Host.Hostname == "" {
-			cfg.Host.Hostname = host
+	if cfg.Host.Hostname == "" {
+		host, err := DetectHostname()
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect hostname: %w", err)
 		}
-		if cfg.Host.MACAddress == "" {
-			cfg.Host.MACAddress = mac
+		cfg.Host.Hostname = host
+	}
+	if cfg.Host.MACAddress == "" {
+		mac, err := DetectMacAddress()
+		if err != nil {
+			return nil, fmt.Errorf("failed to detect MAC address: %w", err)
 		}
+		cfg.Host.MACAddress = mac
 	}
 
 	return &cfg, nil
