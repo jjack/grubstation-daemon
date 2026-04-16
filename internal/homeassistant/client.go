@@ -20,7 +20,7 @@ type Client struct {
 }
 
 type PushPayload struct {
-	MACAddress string   `json:"mac_address"`
+	MACAddress string   `json:"mac"`
 	Hostname   string   `json:"hostname"`
 	Bootloader string   `json:"bootloader"`
 	OSList     []string `json:"os_list"`
