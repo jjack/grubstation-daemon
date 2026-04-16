@@ -11,7 +11,7 @@ import (
 	"github.com/jjack/ha-remote-boot-agent/internal/config"
 )
 
-func TestGetSelectedOSCommand(t *testing.T) {
+func TestGetSelectedBootOptionCommand(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("Ubuntu"))
 	}))
@@ -33,7 +33,7 @@ func TestGetSelectedOSCommand(t *testing.T) {
 		},
 	}
 
-	cmd := GetSelectedOS(cli)
+	cmd := GetSelectedBootOption(cli)
 
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
@@ -52,11 +52,11 @@ func TestGetSelectedOSCommand(t *testing.T) {
 	output := string(out)
 
 	if !strings.Contains(output, "Ubuntu") {
-		t.Errorf("output missing selected OS name Ubuntu: %s", output)
+		t.Errorf("output missing selected boot option name Ubuntu: %s", output)
 	}
 }
 
-func TestGetSelectedOSCommand_MissingHAConfig(t *testing.T) {
+func TestGetSelectedBootOptionCommand_MissingHAConfig(t *testing.T) {
 	cli := &CLI{
 		Config: &config.Config{
 			Bootloader: config.BootloaderConfig{
@@ -68,7 +68,7 @@ func TestGetSelectedOSCommand_MissingHAConfig(t *testing.T) {
 		},
 	}
 
-	cmd := GetSelectedOS(cli)
+	cmd := GetSelectedBootOption(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error due to missing HA config, got nil")
@@ -78,7 +78,7 @@ func TestGetSelectedOSCommand_MissingHAConfig(t *testing.T) {
 	}
 }
 
-func TestGetSelectedOSCommand_UnknownBootloader(t *testing.T) {
+func TestGetSelectedBootOptionCommand_UnknownBootloader(t *testing.T) {
 	cli := &CLI{
 		Config: &config.Config{
 			Bootloader: config.BootloaderConfig{
@@ -86,14 +86,14 @@ func TestGetSelectedOSCommand_UnknownBootloader(t *testing.T) {
 			},
 		},
 	}
-	cmd := GetSelectedOS(cli)
+	cmd := GetSelectedBootOption(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestGetSelectedOSCommand_APIError(t *testing.T) {
+func TestGetSelectedBootOptionCommand_APIError(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 	}))
@@ -110,7 +110,7 @@ func TestGetSelectedOSCommand_APIError(t *testing.T) {
 			},
 		},
 	}
-	cmd := GetSelectedOS(cli)
+	cmd := GetSelectedBootOption(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error")

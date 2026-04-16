@@ -38,29 +38,29 @@ submenu 'Advanced options for Ubuntu' {
 		t.Fatalf("failed to write temp grub config: %v", err)
 	}
 
-	osList, err := bl.GetOSList(grubConfigPath)
+	bootOptions, err := bl.GetBootOptions(grubConfigPath)
 	if err != nil {
-		t.Fatalf("expected no error from grub GetOSList, got: %v", err)
+		t.Fatalf("expected no error from grub GetBootOptions, got: %v", err)
 	}
 
-	if len(osList) != 3 {
-		t.Errorf("expected 3 OS entries, got %d", len(osList))
+	if len(bootOptions) != 3 {
+		t.Errorf("expected 3 OS entries, got %d", len(bootOptions))
 	} else {
-		if osList[0] != "Ubuntu" {
-			t.Errorf("expected 'Ubuntu', got '%s'", osList[0])
+		if bootOptions[0] != "Ubuntu" {
+			t.Errorf("expected 'Ubuntu', got '%s'", bootOptions[0])
 		}
-		if osList[1] != "Windows 10" {
-			t.Errorf("expected 'Windows 10', got '%s'", osList[1])
+		if bootOptions[1] != "Windows 10" {
+			t.Errorf("expected 'Windows 10', got '%s'", bootOptions[1])
 		}
-		if osList[2] != "Ubuntu, with Linux 5.15.0-generic" {
-			t.Errorf("expected 'Ubuntu, with Linux 5.15.0-generic', got '%s'", osList[2])
+		if bootOptions[2] != "Ubuntu, with Linux 5.15.0-generic" {
+			t.Errorf("expected 'Ubuntu, with Linux 5.15.0-generic', got '%s'", bootOptions[2])
 		}
 	}
 }
 
 func TestGrubBootloader_FileNotFound(t *testing.T) {
 	bl := NewGrub()
-	_, err := bl.GetOSList("/tmp/nonexistent/grub.cfg")
+	_, err := bl.GetBootOptions("/tmp/nonexistent/grub.cfg")
 	if err == nil {
 		t.Fatal("expected error on nonexistent grub config, got nil")
 	}
@@ -80,13 +80,13 @@ func TestGrubBootloader_AutoDiscovery(t *testing.T) {
 	defer func() { grubPaths = originalPaths }()
 	grubPaths = []string{fakeGrubPath}
 
-	osList, err := bl.GetOSList("")
+	bootOptions, err := bl.GetBootOptions("")
 	if err != nil {
 		t.Fatalf("expected auto-discovery to find grub config without error, got: %v", err)
 	}
 
-	if len(osList) != 1 || osList[0] != "Arch Linux" {
-		t.Errorf("expected 'Arch Linux' from auto-discovered file, got %v", osList)
+	if len(bootOptions) != 1 || bootOptions[0] != "Arch Linux" {
+		t.Errorf("expected 'Arch Linux' from auto-discovered file, got %v", bootOptions)
 	}
 }
 
@@ -97,7 +97,7 @@ func TestGrubBootloader_AutoDiscovery_Fail(t *testing.T) {
 	defer func() { grubPaths = originalPaths }()
 	grubPaths = []string{"/tmp/definitely-do-not-exist"}
 
-	_, err := bl.GetOSList("")
+	_, err := bl.GetBootOptions("")
 	if err == nil {
 		t.Fatal("expected failure to find any grub config")
 	}

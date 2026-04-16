@@ -35,10 +35,10 @@ func TestClient_Push(t *testing.T) {
 
 	client := NewClient(ts.URL, "test-webhook")
 	payload := PushPayload{
-		MACAddress: "aa:bb:cc:dd",
-		Hostname:   "test-host",
-		Bootloader: "grub",
-		OSList:     []string{"Ubuntu", "Windows"},
+		MACAddress:  "aa:bb:cc:dd",
+		Hostname:    "test-host",
+		Bootloader:  "grub",
+		BootOptions: []string{"Ubuntu", "Windows"},
 	}
 
 	err := client.Push(context.Background(), payload)
@@ -49,8 +49,8 @@ func TestClient_Push(t *testing.T) {
 	if receivedPayload.MACAddress != "aa:bb:cc:dd" {
 		t.Errorf("expected MAC aa:bb:cc:dd, got %s", receivedPayload.MACAddress)
 	}
-	if len(receivedPayload.OSList) != 2 {
-		t.Errorf("expected 2 OSs, got %d", len(receivedPayload.OSList))
+	if len(receivedPayload.BootOptions) != 2 {
+		t.Errorf("expected 2 OSs, got %d", len(receivedPayload.BootOptions))
 	}
 }
 
@@ -92,13 +92,13 @@ func TestClient_View(t *testing.T) {
 	defer ts.Close()
 
 	client := NewClient(ts.URL, "test-webhook")
-	osName, err := client.View(context.Background(), "grub", "aa:bb")
+	bootOption, err := client.View(context.Background(), "grub", "aa:bb")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 
-	if osName != "Ubuntu" {
-		t.Errorf("expected Ubuntu, got %s", osName)
+	if bootOption != "Ubuntu" {
+		t.Errorf("expected Ubuntu, got %s", bootOption)
 	}
 }
 

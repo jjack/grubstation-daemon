@@ -44,13 +44,13 @@ func TestExampleBootloader(t *testing.T) {
 		t.Error("expected example bootloader to be active")
 	}
 
-	osList, err := bl.GetOSList("")
+	bootOptions, err := bl.GetBootOptions("")
 	if err != nil {
-		t.Fatalf("expected no error from example GetOSList relative to config path, got %v", err)
+		t.Fatalf("expected no error from example GetBootOptions relative to config path, got %v", err)
 	}
 
-	if len(osList) != 2 || osList[0] != "Ubuntu" || osList[1] != "Windows" {
-		t.Errorf("expected [Ubuntu, Windows], got %v", osList)
+	if len(bootOptions) != 2 || bootOptions[0] != "Ubuntu" || bootOptions[1] != "Windows" {
+		t.Errorf("expected [Ubuntu, Windows], got %v", bootOptions)
 	}
 }
 

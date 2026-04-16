@@ -10,7 +10,7 @@ import (
 	"github.com/jjack/ha-remote-boot-agent/internal/config"
 )
 
-func TestGetOSListCommand(t *testing.T) {
+func TestGetBootOptionsCommand(t *testing.T) {
 	cli := &CLI{
 		Config: &config.Config{
 			Bootloader: config.BootloaderConfig{
@@ -19,7 +19,7 @@ func TestGetOSListCommand(t *testing.T) {
 		},
 	}
 
-	cmd := GetOSList(cli)
+	cmd := GetBootOptions(cli)
 
 	// Intercept stdout
 	oldStdout := os.Stdout
@@ -42,14 +42,14 @@ func TestGetOSListCommand(t *testing.T) {
 		t.Errorf("output missing bootloader name: %s", output)
 	}
 	if !strings.Contains(output, "- Ubuntu") {
-		t.Errorf("output missing OS 'Ubuntu': %s", output)
+		t.Errorf("output missing boot option 'Ubuntu': %s", output)
 	}
 	if !strings.Contains(output, "- Windows") {
-		t.Errorf("output missing OS 'Windows': %s", output)
+		t.Errorf("output missing boot option 'Windows': %s", output)
 	}
 }
 
-func TestGetOSListCommand_UnknownBootloader(t *testing.T) {
+func TestGetBootOptionsCommand_UnknownBootloader(t *testing.T) {
 	cli := &CLI{
 		Config: &config.Config{
 			Bootloader: config.BootloaderConfig{
@@ -58,7 +58,7 @@ func TestGetOSListCommand_UnknownBootloader(t *testing.T) {
 		},
 	}
 
-	cmd := GetOSList(cli)
+	cmd := GetBootOptions(cli)
 	err := cmd.Execute()
 
 	if err == nil {

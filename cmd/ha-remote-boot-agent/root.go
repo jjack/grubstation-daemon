@@ -75,9 +75,9 @@ func NewCLI() *CLI {
 	rootCmd.PersistentFlags().String("ha-url", "", "Home Assistant URL override")
 	rootCmd.PersistentFlags().String("ha-webhook", "", "Home Assistant Webhook ID override")
 
-	rootCmd.AddCommand(GetOSList(cli))
-	rootCmd.AddCommand(PushOSes(cli))
-	rootCmd.AddCommand(GetSelectedOS(cli))
+	rootCmd.AddCommand(GetBootOptions(cli))
+	rootCmd.AddCommand(PushBootOptions(cli))
+	rootCmd.AddCommand(GetSelectedBootOption(cli))
 
 	// get rid of the completion command because it doesn't make sense here
 	rootCmd.CompletionOptions.DisableDefaultCmd = true

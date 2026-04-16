@@ -12,7 +12,7 @@ import (
 	ha "github.com/jjack/ha-remote-boot-agent/internal/homeassistant"
 )
 
-func TestPushOSesCommand(t *testing.T) {
+func TestPushBootOptionsCommand(t *testing.T) {
 	var payload ha.PushPayload
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +43,7 @@ func TestPushOSesCommand(t *testing.T) {
 		},
 	}
 
-	cmd := PushOSes(cli)
+	cmd := PushBootOptions(cli)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -57,12 +57,12 @@ func TestPushOSesCommand(t *testing.T) {
 	if payload.Bootloader != "example" {
 		t.Errorf("expected bootloader example, got %s", payload.Bootloader)
 	}
-	if len(payload.OSList) != 2 || payload.OSList[0] != "Ubuntu" || payload.OSList[1] != "Windows" {
-		t.Errorf("expected [Ubuntu, Windows], got %v", payload.OSList)
+	if len(payload.BootOptions) != 2 || payload.BootOptions[0] != "Ubuntu" || payload.BootOptions[1] != "Windows" {
+		t.Errorf("expected [Ubuntu, Windows], got %v", payload.BootOptions)
 	}
 }
 
-func TestPushOSesCommand_MissingHAConfig(t *testing.T) {
+func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
 	cli := &CLI{
 		Config: &config.Config{
 			Bootloader: config.BootloaderConfig{
@@ -74,7 +74,7 @@ func TestPushOSesCommand_MissingHAConfig(t *testing.T) {
 		},
 	}
 
-	cmd := PushOSes(cli)
+	cmd := PushBootOptions(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error due to missing HA config, got nil")
@@ -84,7 +84,7 @@ func TestPushOSesCommand_MissingHAConfig(t *testing.T) {
 	}
 }
 
-func TestPushOSesCommand_UnknownBootloader(t *testing.T) {
+func TestPushBootOptionsCommand_UnknownBootloader(t *testing.T) {
 	cli := &CLI{
 		Config: &config.Config{
 			Bootloader: config.BootloaderConfig{
@@ -92,7 +92,7 @@ func TestPushOSesCommand_UnknownBootloader(t *testing.T) {
 			},
 		},
 	}
-	cmd := PushOSes(cli)
+	cmd := PushBootOptions(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error")

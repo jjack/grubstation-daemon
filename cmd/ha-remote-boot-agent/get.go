@@ -9,10 +9,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func GetSelectedOS(cli *CLI) *cobra.Command {
+func GetSelectedBootOption(cli *CLI) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get",
-		Short: "Output the currently selected OS from Home Assistant",
+		Short: "Output the currently selected boot option from Home Assistant",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			bl, err := ResolveBootloader(cli.Config)
 			if err != nil {
