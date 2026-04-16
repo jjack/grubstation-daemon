@@ -1,0 +1,22 @@
+{
+    // Language-specific settings for Go
+    "[go]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        },
+        "editor.defaultFormatter": "golang.go"
+    },
+    // Language Server (gopls) settings
+    "gopls": {
+        "formatting.gofumpt": true, // Use gofumpt for stricter formatting
+        "ui.semanticTokens": true // Enable better syntax highlighting
+    },
+    // General Go extension settings
+    "go.lintTool": "golangci-lint", // Recommended multi-linter tool
+    "go.lintOnSave": "package",
+    "go.testFlags": [
+        "-v"
+    ], // Use verbose output for tests
+    "go.useLanguageServer": true
+}
