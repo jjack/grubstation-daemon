@@ -1,4 +1,4 @@
-package grub
+package bootloader
 
 import (
 	"bufio"
@@ -7,9 +7,9 @@ import (
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
 )
+
+const grubBootloader = "grub"
 
 var grubPaths = []string{
 	"/boot/grub/grub.cfg",
@@ -19,21 +19,22 @@ var grubPaths = []string{
 	"/boot/efi/EFI/ubuntu/grub.cfg",
 }
 
-type GrubPlugin struct {}
+type Grub struct{}
 
-func New() *GrubPlugin {
-	return &GrubPlugin{}
+func init() {
+	Register(grubBootloader, NewGrub)
 }
 
-func (p *GrubPlugin) Name() string {
-	return "grub"
+func NewGrub() Bootloader {
+	return &Grub{}
 }
 
-func (p *GrubPlugin) Detect() bool {
-	if _, err := findGrubConfig(); err == nil {
-		return true
-	}
-	return false
+func (g *Grub) Name() string {
+	return grubBootloader
+}
+
+func (g *Grub) IsActive() bool {
+	return true
 }
 
 func findGrubConfig() (string, error) {
@@ -45,7 +46,7 @@ func findGrubConfig() (string, error) {
 	return "", fmt.Errorf("no grub config found in known locations")
 }
 
-func (p *GrubPlugin) Parse(configPath string) (*bootloader.BootOptions, error) {
+func (g *Grub) GetOSList(configPath string) ([]string, error) {
 	slog.Debug("Parsing GRUB boot options...")
 
 	var grubPath string
@@ -85,7 +86,5 @@ func (p *GrubPlugin) Parse(configPath string) (*bootloader.BootOptions, error) {
 		return nil, fmt.Errorf("error reading grub config: %w", err)
 	}
 
-	return &bootloader.BootOptions{
-		AvailableOSes: options,
-	}, nil
+	return options, nil
 }

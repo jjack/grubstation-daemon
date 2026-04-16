@@ -1,18 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"os"
-
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
-	"github.com/jjack/remote-boot-agent/internal/bootloader/grub"
 )
 
 func main() {
-	blReg := bootloader.NewRegistry(grub.New())
-
-	rootCmd := newRootCmd(blReg)
-
-	if err := rootCmd.Execute(); err != nil {
+	app := NewCLI()
+	if err := app.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
