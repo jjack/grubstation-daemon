@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newDisplayCmd(blReg *bootloader.Registry) *cobra.Command {
+func newDisplayAvailableOSesCmd(blReg *bootloader.Registry) *cobra.Command {
 	return &cobra.Command{
 		Use:   "display",
 		Short: "Output the list of available OSes from the bootloader",

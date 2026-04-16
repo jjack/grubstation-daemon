@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/homeassistant"
 	"github.com/spf13/cobra"
@@ -9,7 +10,7 @@ import (
 
 func newPushAvailableOSesCmd(blReg *bootloader.Registry) *cobra.Command {
 	return &cobra.Command{
-		Use:   "push-available-oses",
+		Use:   "push",
 		Short: "Push the list of available OSes to Home Assistant",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			bl, ok := blReg.Get(loadedConfig.Host.Bootloader)

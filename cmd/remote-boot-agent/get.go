@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/jjack/remote-boot-agent/internal/homeassistant"
 	"github.com/spf13/cobra"
 )
 
 func newGetSelectedOSCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get-selected-os",
+		Use:   "get",
 		Short: "Output the currently selected OS from Home Assistant",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			haClient := homeassistant.NewClient(loadedConfig.HomeAssistant)
