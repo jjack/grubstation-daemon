@@ -36,6 +36,9 @@ func NewCLI() *CLI {
 			if bl, _ := cmd.Flags().GetString("bootloader"); bl != "" {
 				cfg.Bootloader.Name = bl
 			}
+			if blConfig, _ := cmd.Flags().GetString("bootloader-config"); blConfig != "" {
+				cfg.Bootloader.ConfigPath = blConfig
+			}
 
 			if cfg.Host.MACAddress == "" {
 				mac, err := system.DetectMACAddress()
@@ -62,10 +65,14 @@ func NewCLI() *CLI {
 	rootCmd.PersistentFlags().String("mac", "", "MAC Address override")
 	rootCmd.PersistentFlags().String("hostname", "", "Hostname override")
 	rootCmd.PersistentFlags().String("bootloader", "", "Bootloader override (e.g., grub)")
+	rootCmd.PersistentFlags().String("bootloader-config", "", "Bootloader config path override")
 
 	rootCmd.AddCommand(GetOSList(cli))
 	rootCmd.AddCommand(PushOSes(cli))
 	rootCmd.AddCommand(GetSelectedOS(cli))
+
+	// get rid of the completion command because it doesn't make sense here
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
 	cli.RootCmd = rootCmd
 	return cli

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -42,6 +43,7 @@ func LoadConfig(cfgFile string) (*Config, error) {
 
 	v.AutomaticEnv()
 	v.SetEnvPrefix("RBA")
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok && !os.IsNotExist(err) {
