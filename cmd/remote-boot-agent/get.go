@@ -26,7 +26,7 @@ func GetSelectedOS(cli *CLI) *cobra.Command {
 			haClient := ha.NewClient(cli.Config.HomeAssistant.URL, cli.Config.HomeAssistant.WebhookID)
 			fmt.Printf("Fetching netboot configuration for hostname %s using bootloader %s...\n", cli.Config.Host.Hostname, bl.Name())
 
-			response, err := haClient.View(context.Background(), bl.Name(), cli.Config.Host.Hostname)
+			response, err := haClient.View(context.Background(), bl.Name(), cli.Config.Host.MACAddress)
 			if err != nil {
 				return fmt.Errorf("failed to view configuration via HA API: %w", err)
 			}
