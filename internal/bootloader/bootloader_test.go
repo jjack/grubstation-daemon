@@ -22,20 +22,18 @@ func TestBootloaderRegistry(t *testing.T) {
 	}
 }
 
-func TestDetectBootloader(t *testing.T) {
-	// 'example' always returns true for IsActive()
+func TestDetectBootloader_Fail(t *testing.T) {
+	// Temporarily clear the registry
+	oldRegistry := registry
+	defer func() { registry = oldRegistry }()
+	registry = make(map[string]Factory)
+
 	bl, err := Detect()
-	if err != nil {
-		t.Fatalf("unexpected error detecting bootloader: %v", err)
+	if err == nil {
+		t.Fatal("expected error detecting bootloader with empty registry, got nil")
 	}
-
-	if bl == nil {
-		t.Fatal("expected bootloader to be detected, got nil")
-	}
-
-	// Verify one of the active ones is chosen (example or grub, depending on environment, but example is guaranteed active)
-	if bl.Name() == "" {
-		t.Error("expected detected bootloader to have a name")
+	if bl != nil {
+		t.Fatal("expected nil bootloader on detect fail")
 	}
 }
 
@@ -53,5 +51,22 @@ func TestExampleBootloader(t *testing.T) {
 
 	if len(osList) != 2 || osList[0] != "Ubuntu" || osList[1] != "Windows" {
 		t.Errorf("expected [Ubuntu, Windows], got %v", osList)
+	}
+}
+
+func TestDetectBootloader(t *testing.T) {
+	// 'example' always returns true for IsActive()
+	bl, err := Detect()
+	if err != nil {
+		t.Fatalf("unexpected error detecting bootloader: %v", err)
+	}
+
+	if bl == nil {
+		t.Fatal("expected bootloader to be detected, got nil")
+	}
+
+	// Verify one of the active ones is chosen
+	if bl.Name() == "" {
+		t.Error("expected detected bootloader to have a name")
 	}
 }

@@ -125,3 +125,23 @@ func TestClient_View_ServerError(t *testing.T) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
+
+// This tests HTTP Client errors in Do() for Push
+func TestClient_Push_HttpClientError(t *testing.T) {
+	// Create client with invalid base url matching protocol scheme error
+	client := NewClient("http://127.0.0.1:0", "test")
+	err := client.Push(context.Background(), PushPayload{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+// This tests HTTP Client errors in Do() for View
+func TestClient_View_HttpClientError(t *testing.T) {
+	// Create client with invalid base url matching protocol scheme error
+	client := NewClient("http://127.0.0.1:0", "test")
+	_, err := client.View(context.Background(), "grub", "my-mac")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}

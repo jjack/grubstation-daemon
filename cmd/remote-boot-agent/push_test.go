@@ -83,3 +83,18 @@ func TestPushOSesCommand_MissingHAConfig(t *testing.T) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
+
+func TestPushOSesCommand_UnknownBootloader(t *testing.T) {
+	cli := &CLI{
+		Config: &config.Config{
+			Bootloader: config.BootloaderConfig{
+				Name: "unknown",
+			},
+		},
+	}
+	cmd := PushOSes(cli)
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
