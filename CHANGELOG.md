@@ -1,0 +1,57 @@
+# Changelog
+
+## 1.0.0 (2026-04-17)
+
+
+### Features
+
+* adding timeout for http client ([84d8e66](https://github.com/jjack/remote-boot-agent/commit/84d8e66a098240ce8bb2608d7043b7c776aa0d07))
+* adding timeout for http client ([7a7359f](https://github.com/jjack/remote-boot-agent/commit/7a7359f3082c1100309f133d5c8c55b230b05e49))
+* allowing custom webhook_ids for security ([b46975b](https://github.com/jjack/remote-boot-agent/commit/b46975ba8d337ca365e138db8dbdd01e9ef6377e))
+* allowing custom webhook_ids for security ([8c97cc3](https://github.com/jjack/remote-boot-agent/commit/8c97cc3aa1947cde6048cf21261ce85c26536ce5))
+* autodiscovery of init and bootloader, also parsing grub config ([5860459](https://github.com/jjack/remote-boot-agent/commit/58604598af79145a7341e12d748440c720b49eec))
+* autodiscovery of init and bootloader, also parsing grub config ([169edcc](https://github.com/jjack/remote-boot-agent/commit/169edcc68e621248c061249749faba2f63fe42c6))
+* autodiscovery of init and bootloader, also parsing grub config ([310350c](https://github.com/jjack/remote-boot-agent/commit/310350c9a4215000e500ad42944441d6f972e41d))
+* autodiscovery of init and bootloader, also parsing grub config ([6d0edb5](https://github.com/jjack/remote-boot-agent/commit/6d0edb595e3d4a1954385357d8b45fbbcfd5270b))
+* config file parsing ([ab0ff0b](https://github.com/jjack/remote-boot-agent/commit/ab0ff0be8b8babeb7628469472e95c6f70f810ee))
+* config file parsing ([da5af6f](https://github.com/jjack/remote-boot-agent/commit/da5af6ffc7dddb718596776e464e3c17416db014))
+* get-available-oses to print what youve got ([3cea631](https://github.com/jjack/remote-boot-agent/commit/3cea631cd9be57162fb0e27f6a61b9b7215ccaae))
+* get-available-oses to print what youve got ([2cad4ac](https://github.com/jjack/remote-boot-agent/commit/2cad4acc2d8653789cc4dd22285684364b606789))
+* initial (generated) cli layout ([8ec09c1](https://github.com/jjack/remote-boot-agent/commit/8ec09c1fcd6d05ddc02db6fc6458583c53a14639))
+* initial (generated) cli layout ([7cbd9f3](https://github.com/jjack/remote-boot-agent/commit/7cbd9f36958f2e277faab106f6329dd8875aafc5))
+* initial ansible config ([7edaf70](https://github.com/jjack/remote-boot-agent/commit/7edaf7099bd069389a961c64963bb8e581c47073))
+* initial ansible config ([1cc0b27](https://github.com/jjack/remote-boot-agent/commit/1cc0b2796edb49f4bb1a5448855cf0c671860c09))
+* switching to actual logging ([e864fd9](https://github.com/jjack/remote-boot-agent/commit/e864fd90fcf07de87a2b4d62d82a2f3e10bf169d))
+* switching to actual logging ([d8948e7](https://github.com/jjack/remote-boot-agent/commit/d8948e79c91c3ec20858557466f8a31790c9ccd0))
+
+
+### Bug Fixes
+
+* adding all the rest of the cli options to the actual cli ([b42db58](https://github.com/jjack/remote-boot-agent/commit/b42db588fb0467b04ef7188db168981d658d9305))
+* adding all the rest of the cli options to the actual cli ([f598b8f](https://github.com/jjack/remote-boot-agent/commit/f598b8f5363e426a3a9e60b74a8fc53b5f44dfd2))
+* adding error-handling for BindPFlag ([98acfb8](https://github.com/jjack/remote-boot-agent/commit/98acfb84753a5f176f4cee90be5ecc639a625bd5))
+* adding error-handling for BindPFlag ([a43f155](https://github.com/jjack/remote-boot-agent/commit/a43f1557e5dc51d1a7fbf8f042e436cd7d87eb94))
+* allowing bootloader config overrides on the cli ([7100d03](https://github.com/jjack/remote-boot-agent/commit/7100d039439ce1edef1726597134ac36b882a5a9))
+* allowing bootloader config overrides on the cli ([66dbbdd](https://github.com/jjack/remote-boot-agent/commit/66dbbddf054441f4220705964acd0344b387258b))
+* allowing overrides for grub config path ([a14e61a](https://github.com/jjack/remote-boot-agent/commit/a14e61a20e77f7cf310ab909897372cdd0cefb38))
+* allowing overrides for grub config path ([82408c7](https://github.com/jjack/remote-boot-agent/commit/82408c7cb5cb7e55cc1063f071ec73cab2f51dc9))
+* getting/pushing oses. cleaning up config files ([0da0ecf](https://github.com/jjack/remote-boot-agent/commit/0da0ecf6a71eeeeb07190f403cb63c858f29d96d))
+* getting/pushing oses. cleaning up config files ([3f26e35](https://github.com/jjack/remote-boot-agent/commit/3f26e355bf9d1195c7482bad319e39ee87fc5cfa))
+* grub_path =&gt; grubPath ([a71d687](https://github.com/jjack/remote-boot-agent/commit/a71d687c7777753763a859daebe0fa49af0f8168))
+* grub_path =&gt; grubPath ([eb86875](https://github.com/jjack/remote-boot-agent/commit/eb86875459da17a2ed7e47ff52d20e8cf863d2f8))
+* moving logging to debug to reduce noise ([b3be744](https://github.com/jjack/remote-boot-agent/commit/b3be74476c6cd197f11ee559a02954a2fc1581b7))
+* moving logging to debug to reduce noise ([e55adae](https://github.com/jjack/remote-boot-agent/commit/e55adaede68f3601eac5093c8a170dffe0bb4efd))
+* removing tokens because everything is unauthenticated ([c8322df](https://github.com/jjack/remote-boot-agent/commit/c8322dfe0633dc4adf925fd35a2e708e3f28c516))
+* removing tokens because everything is unauthenticated ([4d96c41](https://github.com/jjack/remote-boot-agent/commit/4d96c412c1654510dffe59004dcfb42f71e64a2a))
+* removing useless error handling ([26aa5ea](https://github.com/jjack/remote-boot-agent/commit/26aa5ea7e325ed3c151284ac9ffb3c3491170d3f))
+* removing useless error handling ([5a15aff](https://github.com/jjack/remote-boot-agent/commit/5a15aff4a306f21d3692d1925c2b052fda844127))
+* suppressing some warnings for unchecked return values ([5a8a741](https://github.com/jjack/remote-boot-agent/commit/5a8a74198cb7e8e2363f36769d536d540b074782))
+* suppressing some warnings for unchecked return values ([589343e](https://github.com/jjack/remote-boot-agent/commit/589343e5972aa2541d8a5911a665d41ddfcaea53))
+* switching to os.UserHomeDir() beacuse Viper doesn't expand $HOME ([5853a5e](https://github.com/jjack/remote-boot-agent/commit/5853a5e3db1d7ca4f2d651c757b305d6a38cc15e))
+* switching to os.UserHomeDir() beacuse Viper doesn't expand $HOME ([15e46b5](https://github.com/jjack/remote-boot-agent/commit/15e46b54ffa310fc24ede57e1824bdb1d03b0b69))
+* using mac address instead of hostname for queries ([a95db06](https://github.com/jjack/remote-boot-agent/commit/a95db06969a56746e59f014574d8c4523adf665d))
+* using mac address instead of hostname for queries ([4497f3d](https://github.com/jjack/remote-boot-agent/commit/4497f3d7bbf37e4555a463331fda35fe2343355d))
+* using mac instead of mac_address to match HA's format ([e4032ad](https://github.com/jjack/remote-boot-agent/commit/e4032ad0cd712f15a35e53d30cd375dfa2d6ee8a))
+* using mac instead of mac_address to match HA's format ([f2a8ed0](https://github.com/jjack/remote-boot-agent/commit/f2a8ed0fc74f55cf73ca11761d71ec3668f4ac4e))
+* using println for prettier stdout ([1c075e8](https://github.com/jjack/remote-boot-agent/commit/1c075e8a6302da914c55cb5e241dc0ba54669085))
+* using println for prettier stdout ([c439c64](https://github.com/jjack/remote-boot-agent/commit/c439c64d643ef076b8079a902f96f98bacf31263))
