@@ -1,6 +1,9 @@
 package bootloader
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 type Bootloader interface {
 	IsActive() bool
@@ -24,7 +27,14 @@ func Get(name string) Bootloader {
 }
 
 func Detect() (Bootloader, error) {
-	for _, factory := range registry {
+	var names []string
+	for name := range registry {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		factory := registry[name]
 		bl := factory()
 		if bl.IsActive() {
 			return bl, nil

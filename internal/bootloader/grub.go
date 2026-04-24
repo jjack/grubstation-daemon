@@ -34,7 +34,8 @@ func (g *Grub) Name() string {
 }
 
 func (g *Grub) IsActive() bool {
-	return true
+	_, err := findGrubConfig()
+	return err == nil
 }
 
 func findGrubConfig() (string, error) {

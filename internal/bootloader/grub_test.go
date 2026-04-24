@@ -13,10 +13,6 @@ func TestGrubBootloader(t *testing.T) {
 		t.Errorf("expected bootloader name 'grub', got %s", bl.Name())
 	}
 
-	if !bl.IsActive() {
-		t.Error("expected grub bootloader to be logically active (based on stub IsActive implementation)")
-	}
-
 	tempDir := t.TempDir()
 	grubConfigPath := filepath.Join(tempDir, "grub.cfg")
 
@@ -36,6 +32,14 @@ submenu 'Advanced options for Ubuntu' {
 `
 	if err := os.WriteFile(grubConfigPath, []byte(grubContent), 0o644); err != nil {
 		t.Fatalf("failed to write temp grub config: %v", err)
+	}
+
+	originalPaths := grubPaths
+	defer func() { grubPaths = originalPaths }()
+	grubPaths = []string{grubConfigPath}
+
+	if !bl.IsActive() {
+		t.Error("expected grub bootloader to be logically active")
 	}
 
 	bootOptions, err := bl.NewGetBootOptions(grubConfigPath)

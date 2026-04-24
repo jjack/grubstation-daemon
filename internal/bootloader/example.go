@@ -13,6 +13,7 @@ func NewExample() Bootloader {
 }
 
 func (s *Example) IsActive() bool {
+	// you should implement your own logic here to determine if this bootloader is active
 	return true
 }
 
