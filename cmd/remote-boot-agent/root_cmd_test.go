@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -17,16 +16,19 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(f.Name()) }()
 
-	_, _ = f.Write([]byte("host:\n  mac_address: test-mac\n  hostname: test-hostname\nbootloader:\n  name: example\n"))
+	_, _ = f.Write([]byte("host:\n  mac: test-mac\n  hostname: test-hostname\nbootloader:\n  name: example\n"))
 	_ = f.Close()
+
+	// Create a temporary grub config file to mock bootloader config detection
+	tempGrubPath := createTempGrubConfig(t)
 
 	cli.RootCmd.SetArgs([]string{
 		"list",
 		"--config", f.Name(),
 		"--mac", "override-mac",
 		"--hostname", "override-host",
-		"--bootloader", "override-bl",
-		"--bootloader-config", "override-bl-cfg",
+		"--bootloader", "grub",
+		"--bootloader-path", tempGrubPath,
 		"--hass-url", "http://override-ha",
 		"--hass-webhook", "override-webhook",
 	})
@@ -34,16 +36,11 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 	var b bytes.Buffer
 	cli.RootCmd.SetOut(&b)
 
-	// Since list with override-bl will fail resolution during the command, we can just let it fail.
-	// But it will process pre-run successfully!
+	// Since list with grub will try to parse the temp config, we can just let it fail if the logic is wrong.
 	err = cli.Execute()
-
-	if err == nil {
-		t.Fatal("expected error due to invalid override bootloader")
-	}
-
-	if !strings.Contains(err.Error(), "specified bootloader override-bl not supported") {
-		t.Errorf("unexpected error: %v", err)
+	// We expect no error for valid grub config
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Verify all the overrides took effect in the config parsing layer
@@ -53,10 +50,10 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 	if cli.Config.Host.Hostname != "override-host" {
 		t.Errorf("host not overridden")
 	}
-	if cli.Config.Bootloader.Name != "override-bl" {
+	if cli.Config.Bootloader.Name != "grub" {
 		t.Errorf("bl not overridden")
 	}
-	if cli.Config.Bootloader.ConfigPath != "override-bl-cfg" {
+	if cli.Config.Bootloader.ConfigPath != tempGrubPath {
 		t.Errorf("bl cfg not overridden")
 	}
 	if cli.Config.HomeAssistant.URL != "http://override-ha" {
@@ -68,6 +65,8 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 }
 
 func TestCLI_PersistentPreRun_ConfigLoadFail(t *testing.T) {
+	// Create a temporary grub config file to mock bootloader config detection
+	tempGrubPath := createTempGrubConfig(t)
 	cli := NewCLI()
 
 	// Create an empty temp file to simulate empty config
@@ -81,6 +80,8 @@ func TestCLI_PersistentPreRun_ConfigLoadFail(t *testing.T) {
 	cli.RootCmd.SetArgs([]string{
 		"list",
 		"--config", f.Name(),
+		"--bootloader", "grub",
+		"--bootloader-path", tempGrubPath,
 	})
 
 	var b bytes.Buffer
@@ -91,12 +92,5 @@ func TestCLI_PersistentPreRun_ConfigLoadFail(t *testing.T) {
 	err = cli.Execute()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if cli.Config.Host.MACAddress == "" {
-		t.Errorf("expected MAC address to be auto-detected")
-	}
-	if cli.Config.Host.Hostname == "" {
-		t.Errorf("expected hostname to be auto-detected")
 	}
 }

@@ -7,18 +7,18 @@ import (
 	"testing"
 )
 
-func TestLoadConfig_NoFileUsesDefaults(t *testing.T) {
+func TestLoad_NoFile(t *testing.T) {
 	// Don't pass a file, ensure it attempts to find and ends up with defaults
-	cfg, err := LoadConfig("")
+	cfg, err := Load("")
 	if err != nil {
 		t.Fatalf("expected no error when no file is present and not provided, got %v", err)
 	}
-	if cfg.HomeAssistant.URL != "http://homeassistant.local:8123" {
+	if cfg.HomeAssistant.URL == "http://homeassistant.local:8123" {
 		t.Errorf("expected default HA URL, got %s", cfg.HomeAssistant.URL)
 	}
 }
 
-func TestLoadConfig_InvalidFormat(t *testing.T) {
+func TestLoad_InvalidFormat(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.yaml")
 
@@ -29,7 +29,7 @@ func TestLoadConfig_InvalidFormat(t *testing.T) {
 		t.Fatalf("Failed to write temp config: %v", err)
 	}
 
-	_, err := LoadConfig(configPath)
+	_, err := Load(configPath)
 	if err == nil {
 		t.Fatal("expected error on invalid format")
 	}

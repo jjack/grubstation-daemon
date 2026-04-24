@@ -5,12 +5,25 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/jjack/remote-boot-agent/internal/config"
 	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
 )
+
+// createTempGrubConfig creates a temporary grub config file and returns its path and a cleanup function.
+func createTempGrubConfig(t *testing.T) string {
+	tempGrub, err := os.CreateTemp("", "grub.cfg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = tempGrub.Write([]byte("menuentry 'Test OS' {}\n"))
+	_ = tempGrub.Close()
+	t.Cleanup(func() { _ = os.Remove(tempGrub.Name()) })
+	return tempGrub.Name()
+}
 
 func TestPushBootOptionsCommand(t *testing.T) {
 	var payload ha.PushPayload
@@ -27,6 +40,7 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	tempGrubPath := createTempGrubConfig(t)
 	cli := &CLI{
 		Config: &config.Config{
 			Host: config.HostConfig{
@@ -34,7 +48,8 @@ func TestPushBootOptionsCommand(t *testing.T) {
 				Hostname:   "test-host",
 			},
 			Bootloader: config.BootloaderConfig{
-				Name: "example",
+				Name:       "grub",
+				ConfigPath: tempGrubPath,
 			},
 			HomeAssistant: config.HomeAssistantConfig{
 				URL:       ts.URL,
