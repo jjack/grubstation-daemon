@@ -58,3 +58,16 @@ func Load(cfgFile string) (*Config, error) {
 
 	return &cfg, nil
 }
+
+func Save(cfg *Config, path string) error {
+	v := viper.New()
+	v.Set("host.mac", cfg.Host.MACAddress)
+	v.Set("host.hostname", cfg.Host.Hostname)
+	v.Set("homeassistant.url", cfg.HomeAssistant.URL)
+	v.Set("homeassistant.webhook_id", cfg.HomeAssistant.WebhookID)
+
+	if err := v.WriteConfigAs(path); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+	return nil
+}
