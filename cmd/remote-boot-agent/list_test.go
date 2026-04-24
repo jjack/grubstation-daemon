@@ -19,7 +19,7 @@ func TestGetBootOptionsCommand(t *testing.T) {
 		},
 	}
 
-	cmd := GetBootOptions(cli)
+	cmd := NewGetBootOptions(cli)
 
 	// Intercept stdout
 	oldStdout := os.Stdout
@@ -58,7 +58,7 @@ func TestGetBootOptionsCommand_UnknownBootloader(t *testing.T) {
 		},
 	}
 
-	cmd := GetBootOptions(cli)
+	cmd := NewGetBootOptions(cli)
 	err := cmd.Execute()
 
 	if err == nil {

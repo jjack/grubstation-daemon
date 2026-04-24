@@ -4,7 +4,7 @@ import "fmt"
 
 type Bootloader interface {
 	IsActive() bool
-	GetBootOptions(configPath string) ([]string, error)
+	NewGetBootOptions(configPath string) ([]string, error)
 	Name() string
 }
 

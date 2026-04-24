@@ -44,9 +44,9 @@ func TestExampleBootloader(t *testing.T) {
 		t.Error("expected example bootloader to be active")
 	}
 
-	bootOptions, err := bl.GetBootOptions("")
+	bootOptions, err := bl.NewGetBootOptions("")
 	if err != nil {
-		t.Fatalf("expected no error from example GetBootOptions relative to config path, got %v", err)
+		t.Fatalf("expected no error from example NewGetBootOptions relative to config path, got %v", err)
 	}
 
 	if len(bootOptions) != 2 || bootOptions[0] != "Ubuntu" || bootOptions[1] != "Windows" {

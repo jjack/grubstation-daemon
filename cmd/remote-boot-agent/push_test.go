@@ -58,7 +58,7 @@ func TestPushBootOptionsCommand(t *testing.T) {
 		},
 	}
 
-	cmd := PushBootOptions(cli)
+	cmd := NewPushBootOptions(cli)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
 		},
 	}
 
-	cmd := PushBootOptions(cli)
+	cmd := NewPushBootOptions(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error due to missing HA config, got nil")
@@ -107,7 +107,7 @@ func TestPushBootOptionsCommand_UnknownBootloader(t *testing.T) {
 			},
 		},
 	}
-	cmd := PushBootOptions(cli)
+	cmd := NewPushBootOptions(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error")

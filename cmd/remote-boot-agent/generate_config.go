@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RunGenerateConfig walks the user through generating a config interactively
-func RunGenerateConfig(cli *CLI) *cobra.Command {
+// NewGenerateConfigCmd walks the user through generating a config interactively
+func NewGenerateConfigCmd(cli *CLI) *cobra.Command {
 	return &cobra.Command{
 		Use:   "generate-config",
 		Short: "Interactively generate a config file",

@@ -38,9 +38,9 @@ submenu 'Advanced options for Ubuntu' {
 		t.Fatalf("failed to write temp grub config: %v", err)
 	}
 
-	bootOptions, err := bl.GetBootOptions(grubConfigPath)
+	bootOptions, err := bl.NewGetBootOptions(grubConfigPath)
 	if err != nil {
-		t.Fatalf("expected no error from grub GetBootOptions, got: %v", err)
+		t.Fatalf("expected no error from grub NewGetBootOptions, got: %v", err)
 	}
 
 	if len(bootOptions) != 3 {
@@ -60,7 +60,7 @@ submenu 'Advanced options for Ubuntu' {
 
 func TestGrubBootloader_FileNotFound(t *testing.T) {
 	bl := NewGrub()
-	_, err := bl.GetBootOptions("/tmp/nonexistent/grub.cfg")
+	_, err := bl.NewGetBootOptions("/tmp/nonexistent/grub.cfg")
 	if err == nil {
 		t.Fatal("expected error on nonexistent grub config, got nil")
 	}
@@ -80,7 +80,7 @@ func TestGrubBootloader_AutoDiscovery(t *testing.T) {
 	defer func() { grubPaths = originalPaths }()
 	grubPaths = []string{fakeGrubPath}
 
-	bootOptions, err := bl.GetBootOptions("")
+	bootOptions, err := bl.NewGetBootOptions("")
 	if err != nil {
 		t.Fatalf("expected auto-discovery to find grub config without error, got: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestGrubBootloader_AutoDiscovery_Fail(t *testing.T) {
 	defer func() { grubPaths = originalPaths }()
 	grubPaths = []string{"/tmp/definitely-do-not-exist"}
 
-	_, err := bl.GetBootOptions("")
+	_, err := bl.NewGetBootOptions("")
 	if err == nil {
 		t.Fatal("expected failure to find any grub config")
 	}

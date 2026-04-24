@@ -33,7 +33,7 @@ func TestGetSelectedBootOptionCommand(t *testing.T) {
 		},
 	}
 
-	cmd := GetSelectedBootOption(cli)
+	cmd := NewGetRemoteBootOption(cli)
 
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
@@ -68,7 +68,7 @@ func TestGetSelectedBootOptionCommand_MissingHAConfig(t *testing.T) {
 		},
 	}
 
-	cmd := GetSelectedBootOption(cli)
+	cmd := NewGetRemoteBootOption(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error due to missing HA config, got nil")
@@ -86,7 +86,7 @@ func TestGetSelectedBootOptionCommand_UnknownBootloader(t *testing.T) {
 			},
 		},
 	}
-	cmd := GetSelectedBootOption(cli)
+	cmd := NewGetRemoteBootOption(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error")
@@ -110,7 +110,7 @@ func TestGetSelectedBootOptionCommand_APIError(t *testing.T) {
 			},
 		},
 	}
-	cmd := GetSelectedBootOption(cli)
+	cmd := NewGetRemoteBootOption(cli)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error")

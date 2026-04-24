@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func GetSelectedBootOption(cli *CLI) *cobra.Command {
+func NewGetRemoteBootOption(cli *CLI) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get",
 		Short: "Output the currently selected boot option from Home Assistant",

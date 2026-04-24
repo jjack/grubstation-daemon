@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func GetBootOptions(cli *CLI) *cobra.Command {
+func NewGetBootOptions(cli *CLI) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "Output the list of available boot options from the bootloader",
@@ -18,7 +18,7 @@ func GetBootOptions(cli *CLI) *cobra.Command {
 
 			fmt.Printf("Bootloader: %s\n", bl.Name())
 
-			bootOptions, err := bl.GetBootOptions(cli.Config.Bootloader.ConfigPath)
+			bootOptions, err := bl.NewGetBootOptions(cli.Config.Bootloader.ConfigPath)
 			if err != nil {
 				return fmt.Errorf("failed to get boot options from bootloader %s: %w", bl.Name(), err)
 			}

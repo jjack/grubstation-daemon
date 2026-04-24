@@ -16,7 +16,7 @@ func (s *Example) IsActive() bool {
 	return true
 }
 
-func (s *Example) GetBootOptions(configPath string) ([]string, error) {
+func (s *Example) NewGetBootOptions(configPath string) ([]string, error) {
 	return []string{"Ubuntu", "Windows"}, nil
 }
 

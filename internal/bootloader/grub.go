@@ -46,7 +46,7 @@ func findGrubConfig() (string, error) {
 	return "", fmt.Errorf("no grub config found in known locations")
 }
 
-func (g *Grub) GetBootOptions(configPath string) ([]string, error) {
+func (g *Grub) NewGetBootOptions(configPath string) ([]string, error) {
 	slog.Debug("Parsing GRUB boot options...")
 
 	var grubPath string
