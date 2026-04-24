@@ -69,11 +69,11 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	if payload.Hostname != "test-host" {
 		t.Errorf("expected hostname test-host, got %s", payload.Hostname)
 	}
-	if payload.Bootloader != "example" {
-		t.Errorf("expected bootloader example, got %s", payload.Bootloader)
+	if payload.Bootloader != "grub" {
+		t.Errorf("expected bootloader grub, got %s", payload.Bootloader)
 	}
-	if len(payload.BootOptions) != 2 || payload.BootOptions[0] != "Ubuntu" || payload.BootOptions[1] != "Windows" {
-		t.Errorf("expected [Ubuntu, Windows], got %v", payload.BootOptions)
+	if len(payload.BootOptions) != 1 || payload.BootOptions[0] != "Test OS" {
+		t.Errorf("expected [Test OS], got %v", payload.BootOptions)
 	}
 }
 

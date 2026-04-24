@@ -61,7 +61,7 @@ func Load(cfgFile string) (*Config, error) {
 
 func Save(cfg *Config, path string) error {
 	v := viper.New()
-	v.Set("host.mac", cfg.Host.MACAddress)
+	v.Set("host.mac_address", cfg.Host.MACAddress)
 	v.Set("host.hostname", cfg.Host.Hostname)
 	v.Set("homeassistant.url", cfg.HomeAssistant.URL)
 	v.Set("homeassistant.webhook_id", cfg.HomeAssistant.WebhookID)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
 
 	"github.com/spf13/cobra"
@@ -16,7 +15,7 @@ func NewPushBootOptions(cli *CLI) *cobra.Command {
 		Use:   "push",
 		Short: "Push the list of available OSes to Home Assistant",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			bl, err := bootloader.Detect()
+			bl, err := ResolveBootloader(cli.Config)
 			if err != nil {
 				return err
 			}

@@ -32,3 +32,42 @@ func TestLoad(t *testing.T) {
 		t.Errorf("expected HA Webhook your-generated-webhook-id, got %s", cfg.HomeAssistant.WebhookID)
 	}
 }
+
+func TestSave(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "test_config.yaml")
+
+	cfg := &Config{
+		Host: HostConfig{
+			MACAddress: "00:11:22:33:44:55",
+			Hostname:   "test-host",
+		},
+		HomeAssistant: HomeAssistantConfig{
+			URL:       "http://localhost:8123",
+			WebhookID: "test_webhook",
+		},
+	}
+
+	err := Save(cfg, configPath)
+	if err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	savedCfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load saved config failed: %v", err)
+	}
+
+	if savedCfg.Host.MACAddress != cfg.Host.MACAddress {
+		t.Errorf("expected MAC %s, got %s", cfg.Host.MACAddress, savedCfg.Host.MACAddress)
+	}
+	if savedCfg.Host.Hostname != cfg.Host.Hostname {
+		t.Errorf("expected Hostname %s, got %s", cfg.Host.Hostname, savedCfg.Host.Hostname)
+	}
+	if savedCfg.HomeAssistant.URL != cfg.HomeAssistant.URL {
+		t.Errorf("expected HA URL %s, got %s", cfg.HomeAssistant.URL, savedCfg.HomeAssistant.URL)
+	}
+	if savedCfg.HomeAssistant.WebhookID != cfg.HomeAssistant.WebhookID {
+		t.Errorf("expected HA Webhook %s, got %s", cfg.HomeAssistant.WebhookID, savedCfg.HomeAssistant.WebhookID)
+	}
+}
