@@ -37,6 +37,16 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 
+nfpms:
+  - homepage: "https://github.com/jjack/remote-boot-agent"
+    maintainer: "jjack"
+    description: "Agent to manage bare-metal OS booting via Home Assistant and WOL"
+    license: "MIT"
+    formats:
+      - deb
+      - rpm
+      - apk
+
 changelog:
   sort: asc
   filters:
