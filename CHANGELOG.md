@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/jjack/remote-boot-agent/compare/v1.1.0...v1.2.0) (2026-04-25)
+
+
+### Features
+
+* adding "install" command ([89c5f80](https://github.com/jjack/remote-boot-agent/commit/89c5f808c173ba16e7fdc4ba8bf5c3d8b673cc16))
+
+
+### Bug Fixes
+
+* adding config generation for bootloader and init system ([102151d](https://github.com/jjack/remote-boot-agent/commit/102151d39638ae00948c0bbb273d12b0532f3e1c))
+* adding initsystem and bootloader to config generation ([dc949a1](https://github.com/jjack/remote-boot-agent/commit/dc949a1d31bf458c699a497da52db3879d702c80))
+* closing grub file before update-grub runs ([babe011](https://github.com/jjack/remote-boot-agent/commit/babe011ec1e65ca8b4178f9b21963b1a63b692cc))
+* fixing  config file handling ([2590426](https://github.com/jjack/remote-boot-agent/commit/2590426a3761e672e26a3d7bc69608b033a26101))
+* updating bootloader and network stuff to accept contexes ([249dcbd](https://github.com/jjack/remote-boot-agent/commit/249dcbd26ff69791277c29207cabc9076a86d3fc))
+
 ## [1.1.0](https://github.com/jjack/remote-boot-agent/compare/v1.0.0...v1.1.0) (2026-04-25)
 
 
