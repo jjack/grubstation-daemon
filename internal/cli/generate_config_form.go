@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"charm.land/huh/v2"
