@@ -11,30 +11,40 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	discoverHomeAssistant = func() string {
+		var hassURL string
+		_ = spinner.New().
+			Title("Scanning network for Home Assistant...").
+			Action(func() {
+				url, err := homeassistant.Discover()
+				if err == nil && url != "" {
+					hassURL = url
+				}
+			}).
+			Run()
+		return hassURL
+	}
+	detectSystemHostname = system.DetectHostname
+	getSystemInterfaces  = system.GetInterfaceOptions
+	runGenerateForm      = GenerateConfigForm
+	saveConfigFile       = config.Save
+)
+
 // NewGenerateConfigCmd walks the user through generating a config interactively
 func NewGenerateConfigCmd(deps *CommandDeps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "generate-config",
 		Short: "Interactively generate a config file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var hassURL string
+			hassURL := discoverHomeAssistant()
 
-			_ = spinner.New().
-				Title("Scanning network for Home Assistant...").
-				Action(func() {
-					url, err := homeassistant.Discover()
-					if err == nil && url != "" {
-						hassURL = url
-					}
-				}).
-				Run()
-
-			hostname, err := system.DetectHostname()
+			hostname, err := detectSystemHostname()
 			if err != nil {
 				return err
 			}
 
-			interfaces, err := system.GetInterfaceOptions()
+			interfaces, err := getSystemInterfaces()
 			if err != nil {
 				return err
 			}
@@ -58,7 +68,7 @@ func NewGenerateConfigCmd(deps *CommandDeps) *cobra.Command {
 				return err
 			}
 
-			cfg, err := GenerateConfigForm(
+			cfg, err := runGenerateForm(
 				hostname,
 				hassURL,
 				interfaces,
@@ -79,7 +89,7 @@ func NewGenerateConfigCmd(deps *CommandDeps) *cobra.Command {
 			fmt.Printf("bootloader:\n  name: %s\n  config_path: %s\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
 			fmt.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)
 
-			return config.Save(cfg, "./config.yaml")
+			return saveConfigFile(cfg, "./config.yaml")
 		},
 	}
 }

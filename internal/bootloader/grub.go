@@ -21,7 +21,11 @@ const (
 
 const grubBootloader = "grub"
 
-const hassRemoteBootAgentPath = "/etc/grub.d/99_ha_remote_boot_agent"
+var (
+	hassRemoteBootAgentPath = "/etc/grub.d/99_ha_remote_boot_agent"
+	execLookPath            = exec.LookPath
+	execCommand             = exec.CommandContext
+)
 
 var grubPaths = []string{
 	"/boot/grub/grub.cfg",
@@ -220,15 +224,15 @@ func (g *Grub) Install(ctx context.Context, macAddress, haURL string) error {
 		return fmt.Errorf("failed to close grub script: %w", err)
 	}
 
-	if path, err := exec.LookPath("update-grub"); err == nil {
-		out, err := exec.CommandContext(ctx, path).CombinedOutput()
+	if path, err := execLookPath("update-grub"); err == nil {
+		out, err := execCommand(ctx, path).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("update-grub failed: %s", string(out))
 		}
 		return nil
 	}
-	if path, err := exec.LookPath("grub2-mkconfig"); err == nil {
-		out, err := exec.CommandContext(ctx, path, "-o", "/boot/grub2/grub.cfg").CombinedOutput()
+	if path, err := execLookPath("grub2-mkconfig"); err == nil {
+		out, err := execCommand(ctx, path, "-o", "/boot/grub2/grub.cfg").CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("grub2-mkconfig failed: %s", string(out))
 		}
