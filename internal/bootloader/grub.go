@@ -48,6 +48,44 @@ func findGrubConfig() (string, error) {
 	return "", fmt.Errorf("no grub config found in known locations")
 }
 
+func countStructuralBraces(line string) (int, int) {
+	opens, closes := 0, 0
+	inSingleQuote, inDoubleQuote, escapeNext := false, false, false
+
+	for _, r := range line {
+		if escapeNext {
+			escapeNext = false
+			continue
+		}
+
+		switch r {
+		case '\\':
+			escapeNext = true
+		case '\'':
+			if !inDoubleQuote {
+				inSingleQuote = !inSingleQuote
+			}
+		case '"':
+			if !inSingleQuote {
+				inDoubleQuote = !inDoubleQuote
+			}
+		case '#':
+			if !inSingleQuote && !inDoubleQuote {
+				return opens, closes // Rest of the line is a comment
+			}
+		case '{':
+			if !inSingleQuote && !inDoubleQuote {
+				opens++
+			}
+		case '}':
+			if !inSingleQuote && !inDoubleQuote {
+				closes++
+			}
+		}
+	}
+	return opens, closes
+}
+
 func (g *Grub) GetBootOptions(cfg Config) ([]string, error) {
 	slog.Debug("Parsing GRUB boot options...")
 
@@ -93,8 +131,7 @@ func (g *Grub) GetBootOptions(cfg Config) ([]string, error) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
-		opens := strings.Count(line, "{")
-		closes := strings.Count(line, "}")
+		opens, closes := countStructuralBraces(line)
 
 		if m := reSub.FindStringSubmatch(line); len(m) > 1 {
 			stack = append(stack, submenu{
