@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0](https://github.com/jjack/remote-boot-agent/compare/v1.0.0...v1.1.0) (2026-04-25)
+
+
+### Features
+
+* add config generator ([#2](https://github.com/jjack/remote-boot-agent/issues/2)) ([9ee8f1d](https://github.com/jjack/remote-boot-agent/commit/9ee8f1d946704027fcaca7252c86a78714619971))
+* making bootloader config a little more generic so that it can work with other bootloaders in the future ([bc59f73](https://github.com/jjack/remote-boot-agent/commit/bc59f7398cd63c35a161162d30ce0b07550bf840))
+
+
+### Bug Fixes
+
+* better handling of brace counting for grub bootloader ([5c7dd95](https://github.com/jjack/remote-boot-agent/commit/5c7dd952a4ff928cdb446fb66d649d41c45a5987))
+* better handling of permission issues when reading grub config ([e6702a1](https://github.com/jjack/remote-boot-agent/commit/e6702a16cfaf97dc8dab210dbb4e18a6967b30bd))
+* better parsing of grub config and handling of submenus ([721045a](https://github.com/jjack/remote-boot-agent/commit/721045a3a9ccc5eab3c60a1d0eabbf4315a690cb))
+* fixing potential memory leak if channel doesn't get closed ([aec7946](https://github.com/jjack/remote-boot-agent/commit/aec7946f503658cec13d5873d37487c4728b7ec6))
+* normalizing found mac addresses ([167be81](https://github.com/jjack/remote-boot-agent/commit/167be81a33de153afb51bbc60cd2a3589a3c8b27))
+* removing hardcoded home assistant url to let users put their own in ([e7d8ce3](https://github.com/jjack/remote-boot-agent/commit/e7d8ce3c0dccfe47270911c0b33adc56104f8d33))
+* using a custom buffer to support bootloaders &gt; 64kb ([b0de10c](https://github.com/jjack/remote-boot-agent/commit/b0de10cdb490ac1764a341c9b11a236b97daa721))
+
 ## 1.0.0 (2026-04-17)
 
 
