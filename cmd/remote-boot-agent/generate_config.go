@@ -11,7 +11,7 @@ import (
 )
 
 // NewGenerateConfigCmd walks the user through generating a config interactively
-func NewGenerateConfigCmd(cli *CLI) *cobra.Command {
+func NewGenerateConfigCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "generate-config",
 		Short: "Interactively generate a config file",

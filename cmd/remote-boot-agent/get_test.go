@@ -17,23 +17,21 @@ func TestGetSelectedBootOptionCommand(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	cli := &CLI{
-		Config: &config.Config{
-			Host: config.HostConfig{
-				MACAddress: "aa:bb:cc:dd:ee:ff",
-				Hostname:   "test-host",
-			},
-			Bootloader: config.BootloaderConfig{
-				Name: "example",
-			},
-			HomeAssistant: config.HomeAssistantConfig{
-				URL:       ts.URL,
-				WebhookID: "test-webhook",
-			},
+	cfg := &config.Config{
+		Host: config.HostConfig{
+			MACAddress: "aa:bb:cc:dd:ee:ff",
+			Hostname:   "test-host",
+		},
+		Bootloader: config.BootloaderConfig{
+			Name: "example",
+		},
+		HomeAssistant: config.HomeAssistantConfig{
+			URL:       ts.URL,
+			WebhookID: "test-webhook",
 		},
 	}
 
-	cmd := NewGetRemoteBootOption(cli)
+	cmd := NewGetRemoteBootOption(func() *config.Config { return cfg })
 
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
@@ -57,18 +55,16 @@ func TestGetSelectedBootOptionCommand(t *testing.T) {
 }
 
 func TestGetSelectedBootOptionCommand_MissingHAConfig(t *testing.T) {
-	cli := &CLI{
-		Config: &config.Config{
-			Bootloader: config.BootloaderConfig{
-				Name: "example",
-			},
-			HomeAssistant: config.HomeAssistantConfig{
-				URL: "",
-			},
+	cfg := &config.Config{
+		Bootloader: config.BootloaderConfig{
+			Name: "example",
+		},
+		HomeAssistant: config.HomeAssistantConfig{
+			URL: "",
 		},
 	}
 
-	cmd := NewGetRemoteBootOption(cli)
+	cmd := NewGetRemoteBootOption(func() *config.Config { return cfg })
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error due to missing HA config, got nil")
@@ -79,14 +75,12 @@ func TestGetSelectedBootOptionCommand_MissingHAConfig(t *testing.T) {
 }
 
 func TestGetSelectedBootOptionCommand_UnknownBootloader(t *testing.T) {
-	cli := &CLI{
-		Config: &config.Config{
-			Bootloader: config.BootloaderConfig{
-				Name: "unknown",
-			},
+	cfg := &config.Config{
+		Bootloader: config.BootloaderConfig{
+			Name: "unknown",
 		},
 	}
-	cmd := NewGetRemoteBootOption(cli)
+	cmd := NewGetRemoteBootOption(func() *config.Config { return cfg })
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error")
@@ -99,18 +93,16 @@ func TestGetSelectedBootOptionCommand_APIError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	cli := &CLI{
-		Config: &config.Config{
-			Bootloader: config.BootloaderConfig{
-				Name: "example",
-			},
-			HomeAssistant: config.HomeAssistantConfig{
-				URL:       ts.URL,
-				WebhookID: "test-webhook",
-			},
+	cfg := &config.Config{
+		Bootloader: config.BootloaderConfig{
+			Name: "example",
+		},
+		HomeAssistant: config.HomeAssistantConfig{
+			URL:       ts.URL,
+			WebhookID: "test-webhook",
 		},
 	}
-	cmd := NewGetRemoteBootOption(cli)
+	cmd := NewGetRemoteBootOption(func() *config.Config { return cfg })
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error")

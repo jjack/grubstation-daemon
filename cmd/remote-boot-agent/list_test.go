@@ -6,20 +6,22 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	_ "github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 )
 
 func TestGetBootOptionsCommand(t *testing.T) {
-	cli := &CLI{
-		Config: &config.Config{
-			Bootloader: config.BootloaderConfig{
-				Name: "example",
-			},
+	cfg := &config.Config{
+		Bootloader: config.BootloaderConfig{
+			Name: "example",
 		},
 	}
 
-	cmd := NewGetBootOptions(cli)
+	getBootloader := func() (bootloader.Bootloader, error) { return ResolveBootloader(cfg.Bootloader.Name) }
+	getConfig := func() *config.Config { return cfg }
+
+	cmd := NewGetBootOptions(getBootloader, getConfig)
 
 	// Intercept stdout
 	oldStdout := os.Stdout
@@ -50,15 +52,16 @@ func TestGetBootOptionsCommand(t *testing.T) {
 }
 
 func TestGetBootOptionsCommand_UnknownBootloader(t *testing.T) {
-	cli := &CLI{
-		Config: &config.Config{
-			Bootloader: config.BootloaderConfig{
-				Name: "unknown",
-			},
+	cfg := &config.Config{
+		Bootloader: config.BootloaderConfig{
+			Name: "unknown",
 		},
 	}
 
-	cmd := NewGetBootOptions(cli)
+	getBootloader := func() (bootloader.Bootloader, error) { return ResolveBootloader(cfg.Bootloader.Name) }
+	getConfig := func() *config.Config { return cfg }
+
+	cmd := NewGetBootOptions(getBootloader, getConfig)
 	err := cmd.Execute()
 
 	if err == nil {

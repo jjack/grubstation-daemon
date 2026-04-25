@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
 )
@@ -41,24 +42,25 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	defer ts.Close()
 
 	tempGrubPath := createTempGrubConfig(t)
-	cli := &CLI{
-		Config: &config.Config{
-			Host: config.HostConfig{
-				MACAddress: "aa:bb:cc:dd:ee:ff",
-				Hostname:   "test-host",
-			},
-			Bootloader: config.BootloaderConfig{
-				Name:       "grub",
-				ConfigPath: tempGrubPath,
-			},
-			HomeAssistant: config.HomeAssistantConfig{
-				URL:       ts.URL,
-				WebhookID: "test-webhook",
-			},
+	cfg := &config.Config{
+		Host: config.HostConfig{
+			MACAddress: "aa:bb:cc:dd:ee:ff",
+			Hostname:   "test-host",
+		},
+		Bootloader: config.BootloaderConfig{
+			Name:       "grub",
+			ConfigPath: tempGrubPath,
+		},
+		HomeAssistant: config.HomeAssistantConfig{
+			URL:       ts.URL,
+			WebhookID: "test-webhook",
 		},
 	}
 
-	cmd := NewPushBootOptions(cli)
+	getBootloader := func() (bootloader.Bootloader, error) { return ResolveBootloader(cfg.Bootloader.Name) }
+	getConfig := func() *config.Config { return cfg }
+
+	cmd := NewPushBootOptions(getBootloader, getConfig)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -78,18 +80,19 @@ func TestPushBootOptionsCommand(t *testing.T) {
 }
 
 func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
-	cli := &CLI{
-		Config: &config.Config{
-			Bootloader: config.BootloaderConfig{
-				Name: "example",
-			},
-			HomeAssistant: config.HomeAssistantConfig{
-				URL: "",
-			},
+	cfg := &config.Config{
+		Bootloader: config.BootloaderConfig{
+			Name: "example",
+		},
+		HomeAssistant: config.HomeAssistantConfig{
+			URL: "",
 		},
 	}
 
-	cmd := NewPushBootOptions(cli)
+	getBootloader := func() (bootloader.Bootloader, error) { return ResolveBootloader(cfg.Bootloader.Name) }
+	getConfig := func() *config.Config { return cfg }
+
+	cmd := NewPushBootOptions(getBootloader, getConfig)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error due to missing HA config, got nil")
@@ -100,14 +103,16 @@ func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
 }
 
 func TestPushBootOptionsCommand_UnknownBootloader(t *testing.T) {
-	cli := &CLI{
-		Config: &config.Config{
-			Bootloader: config.BootloaderConfig{
-				Name: "unknown",
-			},
+	cfg := &config.Config{
+		Bootloader: config.BootloaderConfig{
+			Name: "unknown",
 		},
 	}
-	cmd := NewPushBootOptions(cli)
+
+	getBootloader := func() (bootloader.Bootloader, error) { return ResolveBootloader(cfg.Bootloader.Name) }
+	getConfig := func() *config.Config { return cfg }
+
+	cmd := NewPushBootOptions(getBootloader, getConfig)
 	err := cmd.Execute()
 	if err == nil {
 		t.Fatal("expected error")

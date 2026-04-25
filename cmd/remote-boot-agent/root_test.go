@@ -28,7 +28,7 @@ func TestResolveBootloader(t *testing.T) {
 		},
 	}
 
-	bl, err := ResolveBootloader(cfg)
+	bl, err := ResolveBootloader(cfg.Bootloader.Name)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -42,7 +42,7 @@ func TestResolveBootloader(t *testing.T) {
 			Name: "invalid-bootloader",
 		},
 	}
-	_, errInvalid := ResolveBootloader(cfgInvalid)
+	_, errInvalid := ResolveBootloader(cfgInvalid.Bootloader.Name)
 	if errInvalid == nil {
 		t.Fatal("expected error for invalid bootloader")
 	}
@@ -54,7 +54,7 @@ func TestResolveBootloader(t *testing.T) {
 		},
 	}
 	// example always returns true for IsActive so Detect will find it
-	blDetect, errDetect := ResolveBootloader(cfgEmpty)
+	blDetect, errDetect := ResolveBootloader(cfgEmpty.Bootloader.Name)
 	if errDetect != nil {
 		t.Fatalf("expected no error detecting, got %v", errDetect)
 	}

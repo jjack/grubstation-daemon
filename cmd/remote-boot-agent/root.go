@@ -68,10 +68,18 @@ func NewCLI() *CLI {
 	rootCmd.PersistentFlags().String("hass-url", "", "Home Assistant URL override")
 	rootCmd.PersistentFlags().String("hass-webhook", "", "Home Assistant Webhook ID override")
 
-	rootCmd.AddCommand(NewGetBootOptions(cli))
-	rootCmd.AddCommand(NewPushBootOptions(cli))
-	rootCmd.AddCommand(NewGetRemoteBootOption(cli))
-	rootCmd.AddCommand(NewGenerateConfigCmd(cli))
+	// Dependency providers for lazy evaluation to avoid tight coupling in commands
+	getBootloader := func() (bootloader.Bootloader, error) {
+		return ResolveBootloader(cli.Config.Bootloader.Name)
+	}
+	getConfig := func() *config.Config {
+		return cli.Config
+	}
+
+	rootCmd.AddCommand(NewGetBootOptions(getBootloader, getConfig))
+	rootCmd.AddCommand(NewPushBootOptions(getBootloader, getConfig))
+	rootCmd.AddCommand(NewGetRemoteBootOption(getConfig))
+	rootCmd.AddCommand(NewGenerateConfigCmd())
 
 	// get rid of the completion command because it doesn't make sense here
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
@@ -84,11 +92,11 @@ func (cli *CLI) Execute() error {
 	return cli.RootCmd.Execute()
 }
 
-func ResolveBootloader(config *config.Config) (bootloader.Bootloader, error) {
-	if config.Bootloader.Name != "" {
-		bl := bootloader.Get(config.Bootloader.Name)
+func ResolveBootloader(name string) (bootloader.Bootloader, error) {
+	if name != "" {
+		bl := bootloader.Get(name)
 		if bl == nil {
-			return nil, fmt.Errorf("specified bootloader %s not supported", config.Bootloader.Name)
+			return nil, fmt.Errorf("specified bootloader %s not supported", name)
 		}
 		return bl, nil
 	}
