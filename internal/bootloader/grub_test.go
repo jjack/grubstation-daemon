@@ -2,8 +2,11 @@ package bootloader
 
 import (
 	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -53,6 +56,145 @@ func TestGrubBootloader(t *testing.T) {
 				t.Errorf("expected %s, got %s", wantedOptions[i], opt)
 			}
 		}
+	}
+}
+
+// fakeExecCommand wrappers route the exec call back to the test binary's TestHelperProcess
+func fakeExecCommandSuccess(ctx context.Context, command string, args ...string) *exec.Cmd {
+	cs := []string{"-test.run=TestHelperProcess", "--", command}
+	cs = append(cs, args...)
+	cmd := exec.CommandContext(ctx, os.Args[0], cs...)
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	return cmd
+}
+
+func fakeExecCommandFail(ctx context.Context, command string, args ...string) *exec.Cmd {
+	cs := []string{"-test.run=TestHelperProcess", "--", "fail"}
+	cmd := exec.CommandContext(ctx, os.Args[0], cs...)
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	return cmd
+}
+
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	args := os.Args
+	for len(args) > 0 {
+		if args[0] == "--" {
+			args = args[1:]
+			break
+		}
+		args = args[1:]
+	}
+	if len(args) > 0 && args[0] == "fail" {
+		os.Exit(1)
+	}
+	os.Exit(0)
+}
+
+func TestGrub_Install_Success(t *testing.T) {
+	bl := NewGrub()
+	tempDir := t.TempDir()
+	fakeScriptPath := filepath.Join(tempDir, "99_ha_remote_boot_agent")
+
+	defer func(oldPath string, oldLook func(string) (string, error), oldCmd func(context.Context, string, ...string) *exec.Cmd) {
+		hassRemoteBootAgentPath = oldPath
+		execLookPath = oldLook
+		execCommand = oldCmd
+	}(hassRemoteBootAgentPath, execLookPath, execCommand)
+
+	hassRemoteBootAgentPath = fakeScriptPath
+	execCommand = fakeExecCommandSuccess
+
+	// Test success using update-grub
+	execLookPath = func(file string) (string, error) {
+		if file == "update-grub" {
+			return "/fake/update-grub", nil
+		}
+		return "", errors.New("not found")
+	}
+
+	err := bl.Install(context.Background(), "aa:bb:cc:dd:ee:ff", "http://hass.local:8123")
+	if err != nil {
+		t.Fatalf("expected successful install, got %v", err)
+	}
+
+	content, _ := os.ReadFile(fakeScriptPath)
+	if !strings.Contains(string(content), "http://hass.local:8123") || !strings.Contains(string(content), "aa:bb:cc:dd:ee:ff") {
+		t.Errorf("template not rendered correctly: %s", string(content))
+	}
+
+	// Test fallback success using grub2-mkconfig
+	execLookPath = func(file string) (string, error) {
+		if file == "grub2-mkconfig" {
+			return "/fake/grub2-mkconfig", nil
+		}
+		return "", errors.New("not found")
+	}
+
+	err = bl.Install(context.Background(), "aa:bb:cc:dd:ee:ff", "http://hass.local:8123")
+	if err != nil {
+		t.Fatalf("expected successful install with grub2-mkconfig, got %v", err)
+	}
+}
+
+func TestGrub_Install_Errors(t *testing.T) {
+	bl := NewGrub()
+	ctx := context.Background()
+
+	defer func(oldPath string, oldLook func(string) (string, error), oldCmd func(context.Context, string, ...string) *exec.Cmd) {
+		hassRemoteBootAgentPath = oldPath
+		execLookPath = oldLook
+		execCommand = oldCmd
+	}(hassRemoteBootAgentPath, execLookPath, execCommand)
+
+	// 1. Invalid URL
+	err := bl.Install(ctx, "mac", "://bad-url")
+	if err == nil || !strings.Contains(err.Error(), "invalid home assistant url") {
+		t.Fatalf("expected url parse error, got %v", err)
+	}
+
+	// 2. File creation failure
+	hassRemoteBootAgentPath = "/this/path/does/not/exist/99_script"
+	err = bl.Install(ctx, "mac", "http://hass.local")
+	if err == nil || !strings.Contains(err.Error(), "failed to create grub script") {
+		t.Fatalf("expected file creation error, got %v", err)
+	}
+
+	// Fix path for subsequent tests
+	tempDir := t.TempDir()
+	hassRemoteBootAgentPath = filepath.Join(tempDir, "99_ha_remote_boot_agent")
+
+	// 3. No binary found in PATH
+	execLookPath = func(file string) (string, error) {
+		return "", errors.New("not found")
+	}
+	err = bl.Install(ctx, "mac", "http://hass.local")
+	if err == nil || !strings.Contains(err.Error(), "neither update-grub nor grub2-mkconfig found") {
+		t.Fatalf("expected PATH lookup error, got %v", err)
+	}
+
+	// 4. update-grub command execution fails
+	execLookPath = func(file string) (string, error) {
+		if file == "update-grub" {
+			return "/fake/update-grub", nil
+		}
+		return "", errors.New("not found")
+	}
+	execCommand = fakeExecCommandFail
+	err = bl.Install(ctx, "mac", "http://hass.local")
+	if err == nil || !strings.Contains(err.Error(), "update-grub failed") {
+		t.Fatalf("expected update-grub execution error, got %v", err)
+	}
+
+	// 5. grub2-mkconfig command execution fails
+	execLookPath = func(file string) (string, error) {
+		return "/fake/grub2-mkconfig", nil
+	}
+	err = bl.Install(ctx, "mac", "http://hass.local")
+	if err == nil || !strings.Contains(err.Error(), "grub2-mkconfig failed") {
+		t.Fatalf("expected grub2-mkconfig execution error, got %v", err)
 	}
 }
 
