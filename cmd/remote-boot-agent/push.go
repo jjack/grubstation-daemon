@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
@@ -48,7 +47,7 @@ func NewPushBootOptions(getBootloader func() (bootloader.Bootloader, error), get
 
 			slog.Info("Pushing boot options to Home Assistant", "webhook_id", haCfg.WebhookID)
 
-			if err := haClient.Push(context.Background(), payload); err != nil {
+			if err := haClient.Push(cmd.Context(), payload); err != nil {
 				return fmt.Errorf("failed to push state to HA webhook: %w", err)
 			}
 

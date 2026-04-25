@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 
@@ -30,7 +29,7 @@ func NewGetRemoteBootOption(getBootloader func() (bootloader.Bootloader, error),
 			haClient := ha.NewClient(haCfg.URL, haCfg.WebhookID)
 			slog.Debug("Fetching netboot configuration for hostname %s using bootloader %s...\n", hostCfg.Hostname, bl.Name())
 
-			response, err := haClient.View(context.Background(), bl.Name(), hostCfg.MACAddress)
+			response, err := haClient.View(cmd.Context(), bl.Name(), hostCfg.MACAddress)
 			if err != nil {
 				return fmt.Errorf("failed to view configuration via HA API: %w", err)
 			}
