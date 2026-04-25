@@ -13,27 +13,6 @@ type CLI struct {
 	RootCmd *cobra.Command
 }
 
-func applyFlagOverrides(cmd *cobra.Command, config *config.Config) {
-	if mac, _ := cmd.Flags().GetString("mac"); mac != "" {
-		config.Host.MACAddress = mac
-	}
-	if hostname, _ := cmd.Flags().GetString("hostname"); hostname != "" {
-		config.Host.Hostname = hostname
-	}
-	if bl, _ := cmd.Flags().GetString("bootloader"); bl != "" {
-		config.Bootloader.Name = bl
-	}
-	if blConfig, _ := cmd.Flags().GetString("bootloader-path"); blConfig != "" {
-		config.Bootloader.ConfigPath = blConfig
-	}
-	if haURL, _ := cmd.Flags().GetString("hass-url"); haURL != "" {
-		config.HomeAssistant.URL = haURL
-	}
-	if haWebhook, _ := cmd.Flags().GetString("hass-webhook"); haWebhook != "" {
-		config.HomeAssistant.WebhookID = haWebhook
-	}
-}
-
 func NewCLI() *CLI {
 	cli := &CLI{}
 
@@ -48,25 +27,18 @@ func NewCLI() *CLI {
 				return nil
 			}
 
-			config, err := config.Load(cfgFile)
+			cfg, err := config.Load(cfgFile, cmd.Flags())
 			if err != nil {
 				return err
 			}
 
-			applyFlagOverrides(cmd, config)
-
-			cli.Config = config
+			cli.Config = cfg
 			return nil
 		},
 	}
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./config.yaml)")
-	rootCmd.PersistentFlags().String("mac", "", "MAC Address override")
-	rootCmd.PersistentFlags().String("hostname", "", "Hostname override")
-	rootCmd.PersistentFlags().String("bootloader", "", "Bootloader type override (e.g., grub)")
-	rootCmd.PersistentFlags().String("bootloader-path", "", "Bootloader config path override")
-	rootCmd.PersistentFlags().String("hass-url", "", "Home Assistant URL override")
-	rootCmd.PersistentFlags().String("hass-webhook", "", "Home Assistant Webhook ID override")
+	config.RegisterFlags(rootCmd.PersistentFlags())
 
 	// Dependency providers for lazy evaluation to avoid tight coupling in commands
 	getBootloader := func() (bootloader.Bootloader, error) {

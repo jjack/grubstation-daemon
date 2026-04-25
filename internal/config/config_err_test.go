@@ -9,7 +9,7 @@ import (
 
 func TestLoad_NoFile(t *testing.T) {
 	// Don't pass a file, ensure it attempts to find and ends up with defaults
-	cfg, err := Load("")
+	cfg, err := Load("", nil)
 	if err != nil {
 		t.Fatalf("expected no error when no file is present and not provided, got %v", err)
 	}
@@ -29,7 +29,7 @@ func TestLoad_InvalidFormat(t *testing.T) {
 		t.Fatalf("Failed to write temp config: %v", err)
 	}
 
-	_, err := Load(configPath)
+	_, err := Load(configPath, nil)
 	if err == nil {
 		t.Fatal("expected error on invalid format")
 	}

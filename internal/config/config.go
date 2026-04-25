@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -29,7 +30,16 @@ type HomeAssistantConfig struct {
 	WebhookID string `mapstructure:"webhook_id"`
 }
 
-func Load(cfgFile string) (*Config, error) {
+func RegisterFlags(flags *pflag.FlagSet) {
+	flags.String("mac", "", "MAC Address override")
+	flags.String("hostname", "", "Hostname override")
+	flags.String("bootloader", "", "Bootloader type override (e.g., grub)")
+	flags.String("bootloader-path", "", "Bootloader config path override")
+	flags.String("hass-url", "", "Home Assistant URL override")
+	flags.String("hass-webhook", "", "Home Assistant Webhook ID override")
+}
+
+func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 	v := viper.New()
 	if cfgFile != "" {
 		v.SetConfigFile(cfgFile)
@@ -44,6 +54,15 @@ func Load(cfgFile string) (*Config, error) {
 	v.AutomaticEnv()
 	v.SetEnvPrefix("RBA")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	if flags != nil {
+		_ = v.BindPFlag("host.mac_address", flags.Lookup("mac"))
+		_ = v.BindPFlag("host.hostname", flags.Lookup("hostname"))
+		_ = v.BindPFlag("bootloader.name", flags.Lookup("bootloader"))
+		_ = v.BindPFlag("bootloader.config_path", flags.Lookup("bootloader-path"))
+		_ = v.BindPFlag("homeassistant.url", flags.Lookup("hass-url"))
+		_ = v.BindPFlag("homeassistant.webhook_id", flags.Lookup("hass-webhook"))
+	}
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok && !os.IsNotExist(err) {
