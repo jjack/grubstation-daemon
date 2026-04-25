@@ -33,7 +33,7 @@ func TestClient_Push(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "test-webhook")
+	client := NewClient(ts.URL, "test-webhook", nil)
 	payload := PushPayload{
 		MACAddress:  "aa:bb:cc:dd",
 		Hostname:    "test-host",
@@ -55,7 +55,7 @@ func TestClient_Push(t *testing.T) {
 }
 
 func TestClient_Push_InvalidURL(t *testing.T) {
-	client := NewClient(":\x00invalid%url", "test")
+	client := NewClient(":\x00invalid%url", "test", nil)
 	err := client.Push(context.Background(), PushPayload{})
 	if err == nil {
 		t.Fatal("expected error on invalid URL, got nil")
@@ -68,7 +68,7 @@ func TestClient_Push_ServerError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "test-webhook")
+	client := NewClient(ts.URL, "test-webhook", nil)
 	err := client.Push(context.Background(), PushPayload{})
 	if err == nil {
 		t.Fatal("expected error on server 500, got nil")
@@ -91,7 +91,7 @@ func TestClient_View(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "test-webhook")
+	client := NewClient(ts.URL, "test-webhook", nil)
 	bootOption, err := client.View(context.Background(), "grub", "aa:bb")
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
@@ -103,7 +103,7 @@ func TestClient_View(t *testing.T) {
 }
 
 func TestClient_View_InvalidURL(t *testing.T) {
-	client := NewClient(":\x00invalid%url", "test")
+	client := NewClient(":\x00invalid%url", "test", nil)
 	_, err := client.View(context.Background(), "grub", "aa:bb")
 	if err == nil {
 		t.Fatal("expected error on invalid URL, got nil")
@@ -116,7 +116,7 @@ func TestClient_View_ServerError(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client := NewClient(ts.URL, "test-webhook")
+	client := NewClient(ts.URL, "test-webhook", nil)
 	_, err := client.View(context.Background(), "grub", "aa:bb")
 	if err == nil {
 		t.Fatal("expected error on server 404, got nil")
@@ -129,7 +129,7 @@ func TestClient_View_ServerError(t *testing.T) {
 // This tests HTTP Client errors in Do() for Push
 func TestClient_Push_HttpClientError(t *testing.T) {
 	// Create client with invalid base url matching protocol scheme error
-	client := NewClient("http://127.0.0.1:0", "test")
+	client := NewClient("http://127.0.0.1:0", "test", nil)
 	err := client.Push(context.Background(), PushPayload{})
 	if err == nil {
 		t.Fatal("expected error")
@@ -139,7 +139,7 @@ func TestClient_Push_HttpClientError(t *testing.T) {
 // This tests HTTP Client errors in Do() for View
 func TestClient_View_HttpClientError(t *testing.T) {
 	// Create client with invalid base url matching protocol scheme error
-	client := NewClient("http://127.0.0.1:0", "test")
+	client := NewClient("http://127.0.0.1:0", "test", nil)
 	_, err := client.View(context.Background(), "grub", "my-mac")
 	if err == nil {
 		t.Fatal("expected error")

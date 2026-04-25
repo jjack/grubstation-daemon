@@ -26,11 +26,14 @@ type PushPayload struct {
 	BootOptions []string `json:"boot_options"`
 }
 
-func NewClient(baseURL, webhookID string) *Client {
+func NewClient(baseURL, webhookID string, httpClient *http.Client) *Client {
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: HTTP_CLIENT_TIMEOUT}
+	}
 	return &Client{
 		BaseURL:    baseURL,
 		WebhookID:  webhookID,
-		HTTPClient: &http.Client{Timeout: HTTP_CLIENT_TIMEOUT},
+		HTTPClient: httpClient,
 	}
 }
 

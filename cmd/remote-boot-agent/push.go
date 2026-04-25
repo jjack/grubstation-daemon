@@ -43,6 +43,7 @@ func NewPushBootOptions(getBootloader func() (bootloader.Bootloader, error), get
 			haClient := ha.NewClient(
 				haCfg.URL,
 				haCfg.WebhookID,
+				nil,
 			)
 
 			slog.Info("Pushing boot options to Home Assistant", "webhook_id", haCfg.WebhookID)

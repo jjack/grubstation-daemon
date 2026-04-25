@@ -26,7 +26,7 @@ func NewGetRemoteBootOption(getBootloader func() (bootloader.Bootloader, error),
 			}
 
 			hostCfg := getHostConfig()
-			haClient := ha.NewClient(haCfg.URL, haCfg.WebhookID)
+			haClient := ha.NewClient(haCfg.URL, haCfg.WebhookID, nil)
 			slog.Debug("Fetching netboot configuration for hostname %s using bootloader %s...\n", hostCfg.Hostname, bl.Name())
 
 			response, err := haClient.View(cmd.Context(), bl.Name(), hostCfg.MACAddress)
