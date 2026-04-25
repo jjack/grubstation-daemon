@@ -22,3 +22,7 @@ func (s *Example) GetBootOptions(ctx context.Context, cfg Config) ([]string, err
 func (s *Example) Name() string {
 	return exampleBootloader
 }
+
+func (s *Example) Install(ctx context.Context, macAddress, haURL string) error {
+	return nil
+}

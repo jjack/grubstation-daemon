@@ -3,11 +3,15 @@ package bootloader
 import (
 	"bufio"
 	"context"
+	_ "embed"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
+	"text/template"
 )
 
 const (
@@ -17,6 +21,8 @@ const (
 
 const grubBootloader = "grub"
 
+const hassRemoteBootAgentPath = "/etc/grub.d/99_ha_remote_boot_agent"
+
 var grubPaths = []string{
 	"/boot/grub/grub.cfg",
 	"/boot/grub2/grub.cfg",
@@ -24,6 +30,9 @@ var grubPaths = []string{
 	"/boot/efi/EFI/redhat/grub.cfg",
 	"/boot/efi/EFI/ubuntu/grub.cfg",
 }
+
+//go:embed templates/99_remote_boot_agent.tmpl
+var grubTemplate string
 
 type Grub struct{}
 
@@ -170,4 +179,52 @@ func (g *Grub) GetBootOptions(ctx context.Context, cfg Config) ([]string, error)
 	}
 
 	return options, nil
+}
+
+func (g *Grub) Install(ctx context.Context, macAddress, haURL string) error {
+	u, err := url.Parse(haURL)
+	if err != nil {
+		return fmt.Errorf("invalid home assistant url: %w", err)
+	}
+
+	tmpl, err := template.New("grub").Parse(grubTemplate)
+	if err != nil {
+		return fmt.Errorf("failed to parse grub template: %w", err)
+	}
+
+	data := struct {
+		Protocol   string
+		Host       string
+		MACAddress string
+	}{
+		Protocol:   u.Scheme,
+		Host:       u.Host,
+		MACAddress: macAddress,
+	}
+
+	f, err := os.OpenFile(hassRemoteBootAgentPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		return fmt.Errorf("failed to create grub script (are you running as root?): %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	if err := tmpl.Execute(f, data); err != nil {
+		return fmt.Errorf("failed to execute grub template: %w", err)
+	}
+
+	if path, err := exec.LookPath("update-grub"); err == nil {
+		out, err := exec.CommandContext(ctx, path).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("update-grub failed: %s", string(out))
+		}
+		return nil
+	}
+	if path, err := exec.LookPath("grub2-mkconfig"); err == nil {
+		out, err := exec.CommandContext(ctx, path, "-o", "/boot/grub2/grub.cfg").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("grub2-mkconfig failed: %s", string(out))
+		}
+		return nil
+	}
+	return fmt.Errorf("neither update-grub nor grub2-mkconfig found in PATH")
 }

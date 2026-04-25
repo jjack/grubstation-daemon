@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+cat << EOF
+insmod net
+insmod efinet
+insmod http
+net_bootp
+source ({{ .Protocol }},{{ .Host }})/api/remote_boot_manager/{{ .MACAddress }}
+EOF

@@ -90,6 +90,10 @@ func (m *mockPushBootloaderErr) GetBootOptions(ctx context.Context, cfg bootload
 	return nil, errors.New("mock error")
 }
 
+func (m *mockPushBootloaderErr) Install(ctx context.Context, macAddress, haURL string) error {
+	return nil
+}
+
 func TestPushBootOptionsCommand_BootloaderError(t *testing.T) {
 	cfg := &config.Config{
 		Bootloader: config.BootloaderConfig{
@@ -119,6 +123,7 @@ func (m *mockPushBootloader) IsActive(ctx context.Context) bool { return true }
 func (m *mockPushBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
 	return []string{"OS 1"}, nil
 }
+func (m *mockPushBootloader) Install(ctx context.Context, macAddress, haURL string) error { return nil }
 
 func TestPushBootOptionsCommand_HAClientError(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

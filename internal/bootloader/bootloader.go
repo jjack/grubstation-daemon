@@ -14,6 +14,7 @@ type Bootloader interface {
 	IsActive(ctx context.Context) bool
 	GetBootOptions(ctx context.Context, cfg Config) ([]string, error)
 	Name() string
+	Install(ctx context.Context, macAddress string, haURL string) error
 }
 
 type Factory func() Bootloader

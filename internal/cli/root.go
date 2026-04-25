@@ -81,6 +81,7 @@ func NewCLI() *CLI {
 	rootCmd.AddCommand(NewListCmd(deps))
 	rootCmd.AddCommand(NewPushCmd(deps))
 	rootCmd.AddCommand(NewGenerateConfigCmd(deps))
+	rootCmd.AddCommand(NewInstallCmd(deps))
 
 	// get rid of the completion command because it doesn't make sense here
 	rootCmd.CompletionOptions.DisableDefaultCmd = true

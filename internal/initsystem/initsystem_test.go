@@ -10,8 +10,9 @@ type mockInitSystem struct {
 	active bool
 }
 
-func (m *mockInitSystem) Name() string                      { return m.name }
-func (m *mockInitSystem) IsActive(ctx context.Context) bool { return m.active }
+func (m *mockInitSystem) Name() string                                         { return m.name }
+func (m *mockInitSystem) IsActive(ctx context.Context) bool                    { return m.active }
+func (m *mockInitSystem) Install(ctx context.Context, configPath string) error { return nil }
 
 func TestRegistry(t *testing.T) {
 	reg := NewRegistry()
@@ -40,5 +41,19 @@ func TestRegistry_DetectFail(t *testing.T) {
 	_, err := reg.Detect(context.Background())
 	if err == nil {
 		t.Fatal("expected error when no active init system is detected")
+	}
+}
+
+func TestRegistry_SupportedInitSystems(t *testing.T) {
+	reg := NewRegistry()
+	reg.Register("sysB", func() InitSystem { return &mockInitSystem{name: "sysB"} })
+	reg.Register("sysA", func() InitSystem { return &mockInitSystem{name: "sysA"} })
+
+	supported := reg.SupportedInitSystems()
+	if len(supported) != 2 {
+		t.Fatalf("expected 2 supported systems, got %d", len(supported))
+	}
+	if supported[0] != "sysA" || supported[1] != "sysB" {
+		t.Errorf("expected sorted list [sysA, sysB], got %v", supported)
 	}
 }

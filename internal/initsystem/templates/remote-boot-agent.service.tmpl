@@ -1,0 +1,13 @@
+[Unit]
+Description=Push boot options to Home Assistant on shutdown
+DefaultDependencies=no
+Before=shutdown.target reboot.target halt.target network-online.target
+Requires=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ .ExecPath }} push --config {{ .AbsConfigPath }}
+TimeoutSec=10
+
+[Install]
+WantedBy=halt.target reboot.target poweroff.target
