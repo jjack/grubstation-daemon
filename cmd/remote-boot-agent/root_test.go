@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 )
 
@@ -28,7 +29,8 @@ func TestResolveBootloader(t *testing.T) {
 		},
 	}
 
-	bl, err := ResolveBootloader(cfg.Bootloader.Name)
+	registry := bootloader.NewRegistry()
+	bl, err := ResolveBootloader(cfg.Bootloader.Name, registry)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -42,7 +44,7 @@ func TestResolveBootloader(t *testing.T) {
 			Name: "invalid-bootloader",
 		},
 	}
-	_, errInvalid := ResolveBootloader(cfgInvalid.Bootloader.Name)
+	_, errInvalid := ResolveBootloader(cfgInvalid.Bootloader.Name, registry)
 	if errInvalid == nil {
 		t.Fatal("expected error for invalid bootloader")
 	}
@@ -54,7 +56,7 @@ func TestResolveBootloader(t *testing.T) {
 		},
 	}
 	// example always returns true for IsActive so Detect will find it
-	blDetect, errDetect := ResolveBootloader(cfgEmpty.Bootloader.Name)
+	blDetect, errDetect := ResolveBootloader(cfgEmpty.Bootloader.Name, registry)
 	if errDetect != nil {
 		t.Fatalf("expected no error detecting, got %v", errDetect)
 	}

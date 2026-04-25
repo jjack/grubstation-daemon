@@ -66,9 +66,12 @@ func NewCLI() *CLI {
 	rootCmd.PersistentFlags().String("hass-url", "", "Home Assistant URL override")
 	rootCmd.PersistentFlags().String("hass-webhook", "", "Home Assistant Webhook ID override")
 
+	registry := bootloader.NewRegistry()
+	registry.Register("grub", bootloader.NewGrub)
+
 	// Dependency providers for lazy evaluation to avoid tight coupling in commands
 	getBootloader := func() (bootloader.Bootloader, error) {
-		return ResolveBootloader(cli.Config.Bootloader.Name)
+		return ResolveBootloader(cli.Config.Bootloader.Name, registry)
 	}
 	getBootloaderConfig := func() config.BootloaderConfig {
 		return cli.Config.Bootloader
@@ -80,8 +83,8 @@ func NewCLI() *CLI {
 		return cli.Config.Host
 	}
 
-	rootCmd.AddCommand(NewGetBootOptions(getBootloader, getBootloaderConfig))
-	rootCmd.AddCommand(NewPushBootOptions(getBootloader, getBootloaderConfig, getHAConfig, getHostConfig))
+	rootCmd.AddCommand(NewListCmd(getBootloader, getBootloaderConfig))
+	rootCmd.AddCommand(NewPushCmd(getBootloader, getBootloaderConfig, getHAConfig, getHostConfig))
 	rootCmd.AddCommand(NewGenerateConfigCmd())
 
 	// get rid of the completion command because it doesn't make sense here
@@ -95,16 +98,16 @@ func (cli *CLI) Execute() error {
 	return cli.RootCmd.Execute()
 }
 
-func ResolveBootloader(name string) (bootloader.Bootloader, error) {
+func ResolveBootloader(name string, registry *bootloader.Registry) (bootloader.Bootloader, error) {
 	if name != "" {
-		bl := bootloader.Get(name)
+		bl := registry.Get(name)
 		if bl == nil {
 			return nil, fmt.Errorf("specified bootloader %s not supported", name)
 		}
 		return bl, nil
 	}
 
-	bl, err := bootloader.Detect()
+	bl, err := registry.Detect()
 	if err != nil {
 		return nil, fmt.Errorf("bootloader detection failed: %w", err)
 	}

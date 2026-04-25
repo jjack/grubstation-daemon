@@ -5,8 +5,10 @@ import (
 )
 
 func TestBootloaderRegistry(t *testing.T) {
-	// example bootloader is registered via init() in example.go
-	bl := Get("example")
+	registry := NewRegistry()
+	registry.Register("example", NewExample)
+
+	bl := registry.Get("example")
 	if bl == nil {
 		t.Fatal("expected to retrieve 'example' bootloader, got nil")
 	}
@@ -16,19 +18,17 @@ func TestBootloaderRegistry(t *testing.T) {
 	}
 
 	// Unknown bootloader
-	blUnknown := Get("non-existent-bootloader")
+	blUnknown := registry.Get("non-existent-bootloader")
 	if blUnknown != nil {
 		t.Errorf("expected nil for 'non-existent-bootloader', got %v", blUnknown)
 	}
 }
 
 func TestDetectBootloader_Fail(t *testing.T) {
-	// Temporarily clear the registry
-	oldRegistry := registry
-	defer func() { registry = oldRegistry }()
-	registry = make(map[string]Factory)
+	// Empty registry
+	registry := NewRegistry()
 
-	bl, err := Detect()
+	bl, err := registry.Detect()
 	if err == nil {
 		t.Fatal("expected error detecting bootloader with empty registry, got nil")
 	}
@@ -44,9 +44,9 @@ func TestExampleBootloader(t *testing.T) {
 		t.Error("expected example bootloader to be active")
 	}
 
-	bootOptions, err := bl.NewGetBootOptions("")
+	bootOptions, err := bl.GetBootOptions("")
 	if err != nil {
-		t.Fatalf("expected no error from example NewGetBootOptions relative to config path, got %v", err)
+		t.Fatalf("expected no error from example GetBootOptions relative to config path, got %v", err)
 	}
 
 	if len(bootOptions) != 2 || bootOptions[0] != "Ubuntu" || bootOptions[1] != "Windows" {
@@ -55,8 +55,11 @@ func TestExampleBootloader(t *testing.T) {
 }
 
 func TestDetectBootloader(t *testing.T) {
+	registry := NewRegistry()
+	registry.Register("example", NewExample)
+
 	// 'example' always returns true for IsActive()
-	bl, err := Detect()
+	bl, err := registry.Detect()
 	if err != nil {
 		t.Fatalf("unexpected error detecting bootloader: %v", err)
 	}

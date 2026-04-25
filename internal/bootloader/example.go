@@ -2,10 +2,6 @@ package bootloader
 
 const exampleBootloader = "example"
 
-func init() {
-	Register(exampleBootloader, NewExample)
-}
-
 type Example struct{}
 
 func NewExample() Bootloader {
@@ -17,7 +13,7 @@ func (s *Example) IsActive() bool {
 	return true
 }
 
-func (s *Example) NewGetBootOptions(configPath string) ([]string, error) {
+func (s *Example) GetBootOptions(configPath string) ([]string, error) {
 	return []string{"Ubuntu", "Windows"}, nil
 }
 

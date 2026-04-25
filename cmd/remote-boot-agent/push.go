@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewPushBootOptions(getBootloader func() (bootloader.Bootloader, error), getBootloaderConfig func() config.BootloaderConfig, getHAConfig func() config.HomeAssistantConfig, getHostConfig func() config.HostConfig) *cobra.Command {
+func NewPushCmd(getBootloader func() (bootloader.Bootloader, error), getBootloaderConfig func() config.BootloaderConfig, getHAConfig func() config.HomeAssistantConfig, getHostConfig func() config.HostConfig) *cobra.Command {
 	return &cobra.Command{
 		Use:   "push",
 		Short: "Push the list of available OSes to Home Assistant",
@@ -22,7 +22,7 @@ func NewPushBootOptions(getBootloader func() (bootloader.Bootloader, error), get
 			}
 
 			blCfg := getBootloaderConfig()
-			bootOptions, err := bl.NewGetBootOptions(blCfg.ConfigPath)
+			bootOptions, err := bl.GetBootOptions(blCfg.ConfigPath)
 			if err != nil {
 				return fmt.Errorf("failed to get boot options: %w", err)
 			}

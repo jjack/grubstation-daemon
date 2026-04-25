@@ -7,9 +7,16 @@ import (
 	"testing"
 
 	"github.com/jjack/remote-boot-agent/internal/bootloader"
-	_ "github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 )
+
+type mockListBootloader struct{}
+
+func (m *mockListBootloader) Name() string   { return "example" }
+func (m *mockListBootloader) IsActive() bool { return true }
+func (m *mockListBootloader) GetBootOptions(configPath string) ([]string, error) {
+	return []string{"Ubuntu", "Windows"}, nil
+}
 
 func TestGetBootOptionsCommand(t *testing.T) {
 	cfg := &config.Config{
@@ -18,10 +25,12 @@ func TestGetBootOptionsCommand(t *testing.T) {
 		},
 	}
 
-	getBootloader := func() (bootloader.Bootloader, error) { return ResolveBootloader(cfg.Bootloader.Name) }
+	registry := bootloader.NewRegistry()
+	registry.Register("example", func() bootloader.Bootloader { return &mockListBootloader{} })
+	getBootloader := func() (bootloader.Bootloader, error) { return ResolveBootloader(cfg.Bootloader.Name, registry) }
 	getBootloaderConfig := func() config.BootloaderConfig { return cfg.Bootloader }
 
-	cmd := NewGetBootOptions(getBootloader, getBootloaderConfig)
+	cmd := NewListCmd(getBootloader, getBootloaderConfig)
 
 	// Intercept stdout
 	oldStdout := os.Stdout
@@ -58,10 +67,11 @@ func TestGetBootOptionsCommand_UnknownBootloader(t *testing.T) {
 		},
 	}
 
-	getBootloader := func() (bootloader.Bootloader, error) { return ResolveBootloader(cfg.Bootloader.Name) }
+	registry := bootloader.NewRegistry() // Empty registry for unknown bootloader
+	getBootloader := func() (bootloader.Bootloader, error) { return ResolveBootloader(cfg.Bootloader.Name, registry) }
 	getBootloaderConfig := func() config.BootloaderConfig { return cfg.Bootloader }
 
-	cmd := NewGetBootOptions(getBootloader, getBootloaderConfig)
+	cmd := NewListCmd(getBootloader, getBootloaderConfig)
 	err := cmd.Execute()
 
 	if err == nil {
