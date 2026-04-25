@@ -1,29 +1,32 @@
 package system
 
 import (
+	"net"
 	"os"
 	"strings"
 	"testing"
 )
 
-func TestDetectMACAddress(t *testing.T) {
-	macs, err := DetectUsablenterfaces()
+func TestGetInterfaceOptions(t *testing.T) {
+	opts, err := GetInterfaceOptions()
 	if err != nil {
-		if strings.Contains(err.Error(), "no suitable MAC address found") {
-			t.Skip("Skipping MAC address test: no suitable network interface found in this environment")
+		if strings.Contains(err.Error(), "no suitable interfaces found") {
+			t.Skip("Skipping interface test: no suitable network interface found in this environment")
 		} else {
-			t.Fatalf("unexpected error detecting MAC: %v", err)
+			t.Fatalf("unexpected error getting interfaces: %v", err)
 		}
 	}
 
-	if len(macs) == 0 {
-		t.Error("expected non-empty MAC address list")
+	if len(opts) == 0 {
+		t.Error("expected non-empty interface options list")
 	}
 
-	// simple validation that MACs conform to the basic shape (has colons)
-	for _, mac := range macs {
-		if !strings.Contains(mac.HardwareAddr.String(), ":") {
-			t.Errorf("unrecognized MAC address format: %s", mac.HardwareAddr.String())
+	for _, opt := range opts {
+		if !strings.Contains(opt.Value, ":") {
+			t.Errorf("unrecognized MAC address format: %s", opt.Value)
+		}
+		if opt.Label == "" {
+			t.Error("expected non-empty label")
 		}
 	}
 }
@@ -45,22 +48,12 @@ func TestDetectHostname(t *testing.T) {
 }
 
 func TestGetIPAddrs_ValidInterface(t *testing.T) {
-	macs, err := DetectUsablenterfaces()
-	if err != nil || len(macs) == 0 {
+	interfaces, err := net.Interfaces()
+	if err != nil || len(interfaces) == 0 {
 		t.Skip("No interfaces available for testing")
 	}
-	addrs := GetIPAddrs(macs[0])
+	addrs := GetIPAddrs(interfaces[0])
 	if addrs == nil {
 		t.Error("expected GetIPAddrs to return a slice, got nil")
-	}
-}
-
-func TestGetInterfaceOptions_AlwaysReturnsSlice(t *testing.T) {
-	opts, err := GetInterfaceOptions()
-	if err != nil {
-		t.Fatalf("unexpected error getting interface options: %v", err)
-	}
-	if opts == nil {
-		t.Error("expected GetInterfaceOptions to return a slice, got nil")
 	}
 }

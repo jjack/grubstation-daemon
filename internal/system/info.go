@@ -11,25 +11,6 @@ type InterfaceInfo struct {
 	Value string
 }
 
-// DetectUsablenterfaces returns all usable network interfaces (non-loopback, up, with MAC).
-func DetectUsablenterfaces() ([]net.Interface, error) {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list network interfaces: %w", err)
-	}
-
-	usable := []net.Interface{}
-	for _, interf := range interfaces {
-		if len(interf.HardwareAddr) > 0 && interf.Flags&net.FlagUp != 0 && interf.Flags&net.FlagLoopback == 0 {
-			usable = append(usable, interf)
-		}
-	}
-	if len(usable) == 0 {
-		return nil, fmt.Errorf("no suitable interfaces found")
-	}
-	return usable, nil
-}
-
 // GetIPAddrs returns all addresses for a given interface as strings.
 func GetIPAddrs(iface net.Interface) []string {
 	addrs, err := iface.Addrs()
@@ -45,21 +26,26 @@ func GetIPAddrs(iface net.Interface) []string {
 
 // GetInterfaceOptions returns a slice of label/value pairs for use in selection UIs.
 func GetInterfaceOptions() ([]InterfaceInfo, error) {
-	interfaces, err := DetectUsablenterfaces()
+	interfaces, err := net.Interfaces()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list network interfaces: %w", err)
 	}
 
-	options := make([]InterfaceInfo, len(interfaces))
-	for i, inf := range interfaces {
-		addr, err := net.ParseMAC(inf.HardwareAddr.String())
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse MAC address: %w", err)
+	var options []InterfaceInfo
+	for _, inf := range interfaces {
+		if len(inf.HardwareAddr) == 0 || inf.Flags&net.FlagUp == 0 || inf.Flags&net.FlagLoopback != 0 {
+			continue
 		}
 
-		label := fmt.Sprintf("%s (%s) [%v]", inf.Name, addr.String(), GetIPAddrs(inf))
-		options[i] = InterfaceInfo{Label: label, Value: addr.String()}
+		macStr := inf.HardwareAddr.String()
+		label := fmt.Sprintf("%s (%s) [%v]", inf.Name, macStr, GetIPAddrs(inf))
+		options = append(options, InterfaceInfo{Label: label, Value: macStr})
 	}
+
+	if len(options) == 0 {
+		return nil, fmt.Errorf("no suitable interfaces found")
+	}
+
 	return options, nil
 }
 
