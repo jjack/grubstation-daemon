@@ -210,10 +210,14 @@ func (g *Grub) Install(ctx context.Context, macAddress, haURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create grub script (are you running as root?): %w", err)
 	}
-	defer func() { _ = f.Close() }()
 
 	if err := tmpl.Execute(f, data); err != nil {
+		_ = f.Close()
 		return fmt.Errorf("failed to execute grub template: %w", err)
+	}
+
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("failed to close grub script: %w", err)
 	}
 
 	if path, err := exec.LookPath("update-grub"); err == nil {

@@ -6,7 +6,7 @@ Requires=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart={{ .ExecPath }} push --config {{ .AbsConfigPath }}
+ExecStart={{ .ExecPath }} push --config {{ .ConfigPath }}
 TimeoutSec=10
 
 [Install]
