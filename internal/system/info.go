@@ -11,8 +11,8 @@ type InterfaceInfo struct {
 	Value string
 }
 
-// DetectMACAddresses returns all usable network interfaces (non-loopback, up, with MAC).
-func DetectMACAddresses() ([]net.Interface, error) {
+// DetectUsablenterfaces returns all usable network interfaces (non-loopback, up, with MAC).
+func DetectUsablenterfaces() ([]net.Interface, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list network interfaces: %w", err)
@@ -25,7 +25,7 @@ func DetectMACAddresses() ([]net.Interface, error) {
 		}
 	}
 	if len(usable) == 0 {
-		return nil, fmt.Errorf("no suitable MAC addresses found")
+		return nil, fmt.Errorf("no suitable interfaces found")
 	}
 	return usable, nil
 }
@@ -45,17 +45,20 @@ func GetIPAddrs(iface net.Interface) []string {
 
 // GetInterfaceOptions returns a slice of label/value pairs for use in selection UIs.
 func GetInterfaceOptions() ([]InterfaceInfo, error) {
-	interfaces, err := DetectMACAddresses()
+	interfaces, err := DetectUsablenterfaces()
 	if err != nil {
 		return nil, err
 	}
+
 	options := make([]InterfaceInfo, len(interfaces))
 	for i, inf := range interfaces {
-		label := fmt.Sprintf("%s (%s) [%v]", inf.Name, inf.HardwareAddr.String(), GetIPAddrs(inf))
-		options[i] = InterfaceInfo{Label: label, Value: inf.HardwareAddr.String()}
-	}
-	if len(options) == 1 && options[0].Value == "other" {
-		return nil, fmt.Errorf("no usable network interfaces found")
+		addr, err := net.ParseMAC(inf.HardwareAddr.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse MAC address: %w", err)
+		}
+
+		label := fmt.Sprintf("%s (%s) [%v]", inf.Name, addr.String(), GetIPAddrs(inf))
+		options[i] = InterfaceInfo{Label: label, Value: addr.String()}
 	}
 	return options, nil
 }

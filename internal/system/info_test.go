@@ -7,7 +7,7 @@ import (
 )
 
 func TestDetectMACAddress(t *testing.T) {
-	macs, err := DetectMACAddresses()
+	macs, err := DetectUsablenterfaces()
 	if err != nil {
 		if strings.Contains(err.Error(), "no suitable MAC address found") {
 			t.Skip("Skipping MAC address test: no suitable network interface found in this environment")
@@ -45,7 +45,7 @@ func TestDetectHostname(t *testing.T) {
 }
 
 func TestGetIPAddrs_ValidInterface(t *testing.T) {
-	macs, err := DetectMACAddresses()
+	macs, err := DetectUsablenterfaces()
 	if err != nil || len(macs) == 0 {
 		t.Skip("No interfaces available for testing")
 	}
