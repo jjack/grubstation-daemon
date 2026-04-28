@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/jjack/remote-boot-agent/compare/v1.2.0...v1.2.1) (2026-04-25)
+
+
+### Bug Fixes
+
+* updating gorelease ([5f5a2db](https://github.com/jjack/remote-boot-agent/commit/5f5a2dbe8fb5bf44a3ecd4c32ab503eb0154aeaf))
+
 ## [1.2.0](https://github.com/jjack/remote-boot-agent/compare/v1.1.0...v1.2.0) (2026-04-25)
 
 
