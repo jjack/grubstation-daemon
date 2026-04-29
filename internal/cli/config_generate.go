@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -18,33 +19,35 @@ var (
 	saveConfigFile        = config.Save
 )
 
+func ensureSupportedSystems(ctx context.Context, deps *CommandDeps) error {
+	_, err := deps.BootloaderRegistry.Detect(ctx)
+	if err != nil {
+		if err.Error() == "no supported bootloader detected" {
+			supported := strings.Join(deps.BootloaderRegistry.SupportedBootloaders(), ", ")
+			return fmt.Errorf("no supported bootloader detected. Please ensure you have one of the following installed: %s", supported)
+		}
+		return err
+	}
+
+	_, err = deps.InitRegistry.Detect(ctx)
+	if err != nil {
+		if err.Error() == "no supported init system detected" {
+			supported := strings.Join(deps.InitRegistry.SupportedInitSystems(), ", ")
+			return fmt.Errorf("no supported init system detected. Please ensure you have one of the following installed: %s", supported)
+		}
+		return err
+	}
+	return nil
+}
+
 // NewConfigGenerateCmd walks the user through generating a config interactively
 func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "generate",
 		Short: "Interactively generate a config file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			bl, err := deps.BootloaderRegistry.Detect(cmd.Context())
-			if err != nil {
-				if err.Error() == "no supported bootloader detected" {
-					supported := strings.Join(deps.BootloaderRegistry.SupportedBootloaders(), ", ")
-					return fmt.Errorf("no supported bootloader detected. Please ensure you have one of the following installed: %s", supported)
-				}
+			if err := ensureSupportedSystems(cmd.Context(), deps); err != nil {
 				return err
-			}
-
-			sys, err := deps.InitRegistry.Detect(cmd.Context())
-			if err != nil {
-				if err.Error() == "no supported init system detected" {
-					supported := strings.Join(deps.InitRegistry.SupportedInitSystems(), ", ")
-					return fmt.Errorf("no supported init system detected. Please ensure you have one of the following installed: %s", supported)
-				}
-				return err
-			}
-
-			defaultBootloaderPath := ""
-			if path, err := bl.DiscoverConfigPath(cmd.Context()); err == nil {
-				defaultBootloaderPath = path
 			}
 
 			opts := GenerateSurveyOptions{
@@ -52,10 +55,7 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 				DetectHostname:        detectSystemHostname,
 				GetInterfaces:         getSystemInterfaces,
 				BootloaderOptions:     deps.BootloaderRegistry.SupportedBootloaders(),
-				DefaultBootloader:     bl.Name(),
-				DefaultBootloaderPath: defaultBootloaderPath,
 				InitSystemOptions:     deps.InitRegistry.SupportedInitSystems(),
-				DefaultInitSystem:     sys.Name(),
 			}
 
 			cfg, err := runGenerateSurvey(opts)
