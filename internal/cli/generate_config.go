@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"charm.land/huh/v2/spinner"
 	"github.com/jjack/remote-boot-agent/internal/config"
 	"github.com/jjack/remote-boot-agent/internal/homeassistant"
 	"github.com/jjack/remote-boot-agent/internal/system"
@@ -12,23 +11,11 @@ import (
 )
 
 var (
-	discoverHomeAssistant = func() string {
-		var hassURL string
-		_ = spinner.New().
-			Title("Scanning network for Home Assistant...").
-			Action(func() {
-				url, err := homeassistant.Discover()
-				if err == nil && url != "" {
-					hassURL = url
-				}
-			}).
-			Run()
-		return hassURL
-	}
-	detectSystemHostname = system.DetectHostname
-	getSystemInterfaces  = system.GetInterfaceOptions
-	runGenerateForm      = GenerateConfigForm
-	saveConfigFile       = config.Save
+	discoverHomeAssistant = homeassistant.Discover
+	detectSystemHostname  = system.DetectHostname
+	getSystemInterfaces   = system.GetInterfaceOptions
+	runGenerateForm       = GenerateConfigForm
+	saveConfigFile        = config.Save
 )
 
 // NewGenerateConfigCmd walks the user through generating a config interactively
@@ -37,18 +24,6 @@ func NewGenerateConfigCmd(deps *CommandDeps) *cobra.Command {
 		Use:   "generate-config",
 		Short: "Interactively generate a config file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			hassURL := discoverHomeAssistant()
-
-			hostname, err := detectSystemHostname()
-			if err != nil {
-				return err
-			}
-
-			interfaces, err := getSystemInterfaces()
-			if err != nil {
-				return err
-			}
-
 			bl, err := deps.BootloaderRegistry.Detect(cmd.Context())
 			if err != nil {
 				if err.Error() == "no supported bootloader detected" {
@@ -58,26 +33,32 @@ func NewGenerateConfigCmd(deps *CommandDeps) *cobra.Command {
 				return err
 			}
 
+			sys, err := deps.InitRegistry.Detect(cmd.Context())
+			if err != nil {
+				if err.Error() == "no supported init system detected" {
+					supported := strings.Join(deps.InitRegistry.SupportedInitSystems(), ", ")
+					return fmt.Errorf("no supported init system detected. Please ensure you have one of the following installed: %s", supported)
+				}
+				return err
+			}
+
 			defaultBootloaderPath := ""
 			if path, err := bl.DiscoverConfigPath(cmd.Context()); err == nil {
 				defaultBootloaderPath = path
 			}
 
-			sys, err := deps.InitRegistry.Detect(cmd.Context())
-			if err != nil {
-				return err
+			opts := GenerateFormOptions{
+				DiscoverHomeAssistant: discoverHomeAssistant,
+				DetectHostname:        detectSystemHostname,
+				GetInterfaces:         getSystemInterfaces,
+				BootloaderOptions:     deps.BootloaderRegistry.SupportedBootloaders(),
+				DefaultBootloader:     bl.Name(),
+				DefaultBootloaderPath: defaultBootloaderPath,
+				InitSystemOptions:     deps.InitRegistry.SupportedInitSystems(),
+				DefaultInitSystem:     sys.Name(),
 			}
 
-			cfg, err := runGenerateForm(
-				hostname,
-				hassURL,
-				interfaces,
-				deps.BootloaderRegistry.SupportedBootloaders(),
-				bl.Name(),
-				defaultBootloaderPath,
-				deps.InitRegistry.SupportedInitSystems(),
-				sys.Name(),
-			)
+			cfg, err := runGenerateForm(opts)
 			if err != nil {
 				return err
 			}

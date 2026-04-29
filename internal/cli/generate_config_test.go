@@ -19,6 +19,22 @@ func (m *mockGenInitSystem) Name() string                                       
 func (m *mockGenInitSystem) IsActive(ctx context.Context) bool                    { return m.active }
 func (m *mockGenInitSystem) Install(ctx context.Context, configPath string) error { return nil }
 
+type mockDiscoverFailBootloader struct{}
+
+func (m *mockDiscoverFailBootloader) Name() string                      { return "discover-fail" }
+func (m *mockDiscoverFailBootloader) IsActive(ctx context.Context) bool { return true }
+func (m *mockDiscoverFailBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
+	return nil, nil
+}
+
+func (m *mockDiscoverFailBootloader) Install(ctx context.Context, macAddress, haURL string) error {
+	return nil
+}
+
+func (m *mockDiscoverFailBootloader) DiscoverConfigPath(ctx context.Context) (string, error) {
+	return "", errors.New("discover fail")
+}
+
 func TestGenerateConfigCmd_Execute(t *testing.T) {
 	oldDiscover := discoverHomeAssistant
 	oldDetectHostname := detectSystemHostname
@@ -43,12 +59,18 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 		{
 			name: "Happy Path",
 			setupMocks: func(deps *CommandDeps) {
-				discoverHomeAssistant = func() string { return "http://hass.local" }
+				discoverHomeAssistant = func() (string, error) { return "http://hass.local", nil }
 				detectSystemHostname = func() (string, error) { return "test-host", nil }
 				getSystemInterfaces = func() ([]system.InterfaceInfo, error) {
 					return []system.InterfaceInfo{{Label: "eth0", Value: "00:11:22:33:44:55"}}, nil
 				}
-				runGenerateForm = func(hostname, hassURL string, ifaces []system.InterfaceInfo, blOpts []string, defaultBL, defaultBLPath string, initOpts []string, defaultInit string) (*config.Config, error) {
+				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
+					if _, err := opts.DetectHostname(); err != nil {
+						return nil, err
+					}
+					if _, err := opts.GetInterfaces(); err != nil {
+						return nil, err
+					}
 					return &config.Config{}, nil
 				}
 				saveConfigFile = func(cfg *config.Config, path string) error { return nil }
@@ -59,6 +81,12 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 			name: "Hostname Error",
 			setupMocks: func(deps *CommandDeps) {
 				detectSystemHostname = func() (string, error) { return "", errors.New("hostname fail") }
+				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
+					if _, err := opts.DetectHostname(); err != nil {
+						return nil, err
+					}
+					return &config.Config{}, nil
+				}
 			},
 			wantErr:     true,
 			errContains: "hostname fail",
@@ -68,6 +96,15 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 			setupMocks: func(deps *CommandDeps) {
 				detectSystemHostname = func() (string, error) { return "test-host", nil }
 				getSystemInterfaces = func() ([]system.InterfaceInfo, error) { return nil, errors.New("iface fail") }
+				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
+					if _, err := opts.DetectHostname(); err != nil {
+						return nil, err
+					}
+					if _, err := opts.GetInterfaces(); err != nil {
+						return nil, err
+					}
+					return &config.Config{}, nil
+				}
 			},
 			wantErr:     true,
 			errContains: "iface fail",
@@ -99,12 +136,42 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 			setupMocks: func(deps *CommandDeps) {
 				detectSystemHostname = func() (string, error) { return "test-host", nil }
 				getSystemInterfaces = func() ([]system.InterfaceInfo, error) { return []system.InterfaceInfo{}, nil }
-				runGenerateForm = func(hostname, hassURL string, ifaces []system.InterfaceInfo, blOpts []string, defaultBL, defaultBLPath string, initOpts []string, defaultInit string) (*config.Config, error) {
+				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
 					return nil, errors.New("form canceled")
 				}
 			},
 			wantErr:     true,
 			errContains: "form canceled",
+		},
+		{
+			name: "DiscoverConfigPath Fails But Proceeds",
+			setupMocks: func(deps *CommandDeps) {
+				discoverHomeAssistant = func() (string, error) { return "http://hass.local", nil }
+				detectSystemHostname = func() (string, error) { return "test-host", nil }
+				getSystemInterfaces = func() ([]system.InterfaceInfo, error) {
+					return []system.InterfaceInfo{{Label: "eth0", Value: "00:11:22:33:44:55"}}, nil
+				}
+				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
+					return &config.Config{}, nil
+				}
+				saveConfigFile = func(cfg *config.Config, path string) error { return nil }
+
+				blReg := bootloader.NewRegistry()
+				blReg.Register("discover-fail", func() bootloader.Bootloader { return &mockDiscoverFailBootloader{} })
+				deps.BootloaderRegistry = blReg
+			},
+			wantErr: false,
+		},
+		{
+			name: "Save Config Error",
+			setupMocks: func(deps *CommandDeps) {
+				detectSystemHostname = func() (string, error) { return "test-host", nil }
+				getSystemInterfaces = func() ([]system.InterfaceInfo, error) { return []system.InterfaceInfo{}, nil }
+				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) { return &config.Config{}, nil }
+				saveConfigFile = func(cfg *config.Config, path string) error { return errors.New("save fail") }
+			},
+			wantErr:     true,
+			errContains: "save fail",
 		},
 	}
 

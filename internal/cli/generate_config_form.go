@@ -1,148 +1,172 @@
 package cli
 
 import (
+	"fmt"
 	"strconv"
 
-	"charm.land/huh/v2"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/jjack/remote-boot-agent/internal/config"
 	"github.com/jjack/remote-boot-agent/internal/system"
 )
 
-func GenerateConfigForm(
-	hostname string,
-	hassURL string,
-	interfaceOptions []system.InterfaceInfo,
-	bootloaderOptions []string,
-	defaultBootloader string,
-	defaultBootloaderPath string,
-	initSystemOptions []string,
-	defaultInitSystem string,
-) (cfg *config.Config, err error) {
-	macAddress := ""
-	finalHassURL := hassURL
-	webhookID := ""
-	finalHostname := hostname
-	blName := defaultBootloader
-	blPath := defaultBootloaderPath
-	initSysName := defaultInitSystem
-	broadcastAddress := ""
-	wolPortStr := ""
-
-	var ifaceOpts []huh.Option[string]
-	for _, opt := range interfaceOptions {
-		ifaceOpts = append(ifaceOpts, huh.NewOption(opt.Label, opt.Value))
+func surveyValidator(valFunc func(string) error) survey.Validator {
+	return func(val interface{}) error {
+		if str, ok := val.(string); ok {
+			return valFunc(str)
+		}
+		return nil
 	}
+}
 
-	var blOpts []huh.Option[string]
-	for _, opt := range bootloaderOptions {
-		blOpts = append(blOpts, huh.NewOption(opt, opt))
-	}
+var (
+	surveyAskOne                = survey.AskOne
+	systemGetBroadcastAddresses = system.GetBroadcastAddresses
+)
 
-	var initSysOpts []huh.Option[string]
-	for _, opt := range initSystemOptions {
-		initSysOpts = append(initSysOpts, huh.NewOption(opt, opt))
-	}
+type GenerateFormOptions struct {
+	DiscoverHomeAssistant func() (string, error)
+	DetectHostname        func() (string, error)
+	GetInterfaces         func() ([]system.InterfaceInfo, error)
+	BootloaderOptions     []string
+	DefaultBootloader     string
+	DefaultBootloaderPath string
+	InitSystemOptions     []string
+	DefaultInitSystem     string
+}
 
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Hostname").
-				Description("This is how Home Assistant will refer to your machine.\nPress enter to accept or enter a custom hostname").
-				Placeholder("my-computer").
-				Value(&finalHostname).
-				Validate(func(v string) error {
-					return config.ValidateHostname(v)
-				}),
-
-			huh.NewSelect[string]().
-				Title("WOL Interface").
-				Options(ifaceOpts...).
-				Value(&macAddress).
-				Validate(func(v string) error {
-					return config.ValidateMACAddress(v)
-				}),
-
-			huh.NewInput().
-				Title("Wake-on-LAN Port").
-				Description("The UDP port used to send the WOL magic packet.").
-				Value(&wolPortStr).
-				Validate(func(v string) error {
-					return config.ValidateBroadcastPort(v)
-				}),
-		).Title("Host Configuration"),
-		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Bootloader").
-				Options(blOpts...).
-				Value(&blName),
-			huh.NewInput().
-				Title("Bootloader Config Path").
-				Description("Press enter to accept or enter a custom bootloader path.").
-				Value(&blPath),
-			huh.NewSelect[string]().
-				Title("Init System").
-				Options(initSysOpts...).
-				Value(&initSysName),
-		).Title("System Configuration"),
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Home Assistant URL").
-				Description("Press enter to accept (if found) or enter a custom Home Assistant URL").
-				Placeholder(hassURL).
-				Value(&finalHassURL).
-				Validate(func(v string) error {
-					return config.ValidateURL(v)
-				}),
-			huh.NewInput().
-				Title("Home Assistant Webhook ID").
-				Placeholder("").
-				Value(&webhookID).
-				Validate(func(v string) error {
-					return config.ValidateWebhookID(v)
-				}),
-		).Title("Home Assistant Configuration"),
-	)
-
-	err = form.Run()
+func GenerateConfigForm(opts GenerateFormOptions) (cfg *config.Config, err error) {
+	hostname, err := opts.DetectHostname()
 	if err != nil {
 		return nil, err
 	}
 
-	broadcastAddrs, _ := system.GetBroadcastAddresses(macAddress)
-	if len(broadcastAddrs) > 1 {
-		var bcastOpts []huh.Option[string]
-		for _, b := range broadcastAddrs {
-			bcastOpts = append(bcastOpts, huh.NewOption(b, b))
-		}
-		err = huh.NewSelect[string]().
-			Title("Select WOL Subnet").
-			Description("Multiple subnets detected. Choose the one to use for WOL.").
-			Options(bcastOpts...).
-			Value(&broadcastAddress).
-			Run()
-		if err != nil {
-			return nil, err
-		}
-	} else if len(broadcastAddrs) == 1 {
-		broadcastAddress = broadcastAddrs[0]
+	var finalHostname string
+	err = surveyAskOne(&survey.Input{
+		Message: "Hostname (how Home Assistant will refer to your machine):",
+		Default: hostname,
+	}, &finalHostname, survey.WithValidator(surveyValidator(config.ValidateHostname)))
+	if err != nil {
+		return nil, err
 	}
 
-	err = huh.NewInput().
-		Title("WOL Broadcast Address").
-		Description("Press enter to accept the discovered address or enter a custom broadcast address.").
-		Value(&broadcastAddress).
-		Run()
+	interfaceOptions, err := opts.GetInterfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	var ifaceOptions []string
+	ifaceMap := make(map[string]string)
+	for _, opt := range interfaceOptions {
+		ifaceOptions = append(ifaceOptions, opt.Label)
+		ifaceMap[opt.Label] = opt.Value
+	}
+
+	var selectedIfaceLabel string
+	err = surveyAskOne(&survey.Select{
+		Message: "Select Physical WOL Interface",
+		Options: ifaceOptions,
+	}, &selectedIfaceLabel)
+	if err != nil {
+		return nil, err
+	}
+
+	macAddress := ifaceMap[selectedIfaceLabel]
+	if err := config.ValidateMACAddress(macAddress); err != nil {
+		return nil, err
+	}
+
+	broadcastAddrs, _ := systemGetBroadcastAddresses(macAddress)
+	var chosenBroadcast string
+	if len(broadcastAddrs) > 0 {
+		if len(broadcastAddrs) == 1 {
+			chosenBroadcast = broadcastAddrs[0]
+		} else {
+			err = surveyAskOne(&survey.Select{
+				Message: "Multiple WOL Subnet/Broadcast Addresses were discovered. Please select one:",
+				Options: broadcastAddrs,
+			}, &chosenBroadcast)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	var finalBroadcast string
+	err = surveyAskOne(&survey.Input{
+		Message: "WOL Broadcast Address:",
+		Default: chosenBroadcast,
+	}, &finalBroadcast)
+	if err != nil {
+		return nil, err
+	}
+
+	var wolPortStr string
+	err = surveyAskOne(&survey.Input{
+		Message: "Wake-on-LAN Port (leave blank for default):",
+	}, &wolPortStr, survey.WithValidator(surveyValidator(config.ValidateBroadcastPort)))
+	if err != nil {
+		return nil, err
+	}
+
+	var blName string
+	err = surveyAskOne(&survey.Select{
+		Message: "Bootloader:",
+		Options: opts.BootloaderOptions,
+		Default: opts.DefaultBootloader,
+	}, &blName)
+	if err != nil {
+		return nil, err
+	}
+
+	var blPath string
+	err = surveyAskOne(&survey.Input{
+		Message: "Bootloader Config Path:",
+		Default: opts.DefaultBootloaderPath,
+	}, &blPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var initSysName string
+	err = surveyAskOne(&survey.Select{
+		Message: "Init System:",
+		Options: opts.InitSystemOptions,
+		Default: opts.DefaultInitSystem,
+	}, &initSysName)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("\nScanning network for Home Assistant...")
+	hassURL, _ := opts.DiscoverHomeAssistant()
+
+	var finalHassURL string
+	err = surveyAskOne(&survey.Input{
+		Message: "Home Assistant URL:",
+		Default: hassURL,
+	}, &finalHassURL, survey.WithValidator(surveyValidator(config.ValidateURL)))
+	if err != nil {
+		return nil, err
+	}
+
+	var webhookID string
+	err = surveyAskOne(&survey.Input{
+		Message: "Home Assistant Webhook ID:",
+	}, &webhookID, survey.WithValidator(surveyValidator(config.ValidateWebhookID)))
 	if err != nil {
 		return nil, err
 	}
 
 	wolPort, _ := strconv.Atoi(wolPortStr)
+	if wolPort == 0 {
+		wolPort = 9
+	}
 
 	cfg = &config.Config{
 		Host: config.HostConfig{
 			MACAddress:       macAddress,
 			Hostname:         finalHostname,
-			BroadcastAddress: broadcastAddress,
+			BroadcastAddress: finalBroadcast,
 			BroadcastPort:    wolPort,
 		},
 		HomeAssistant: config.HomeAssistantConfig{
