@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/jjack/remote-boot-agent/compare/v1.2.1...v1.3.0) (2026-04-29)
+
+
+### Features
+
+* adding broadcast address and port to config ([573b0d1](https://github.com/jjack/remote-boot-agent/commit/573b0d1e49fc7876713c4895103fb0f2c4c8cb79))
+
+
+### Bug Fixes
+
+* "config generate --path" now saves to the proper path ([cb15c63](https://github.com/jjack/remote-boot-agent/commit/cb15c630e27e29fa1d7c622d71800b7a5febfa67))
+* actually validating the config during config validation ([9f63b7f](https://github.com/jjack/remote-boot-agent/commit/9f63b7f047a0051e9622648b19f901b71f706f92))
+* can now cancel home assistant discovery ([d3a7964](https://github.com/jjack/remote-boot-agent/commit/d3a7964f0bbd44bbe503e8c4cc37477484e32c62))
+
 ## [1.2.1](https://github.com/jjack/remote-boot-agent/compare/v1.2.0...v1.2.1) (2026-04-25)
 
 
