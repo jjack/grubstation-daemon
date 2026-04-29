@@ -254,7 +254,7 @@ func ensureSupport(ctx context.Context, deps *CommandDeps) error {
 
 // NewConfigGenerateCmd walks the user through generating a config interactively
 func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "generate",
 		Short: "Interactively generate a config file",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -274,7 +274,7 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 			fmt.Printf("bootloader:\n  name: %s\n  config_path: %s\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
 			fmt.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)
 
-			cfgPath, err := cmd.Flags().GetString("config")
+			cfgPath, err := cmd.Flags().GetString("path")
 			if err != nil {
 				cfgPath = "./config.yaml"
 			}
@@ -282,4 +282,7 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 			return saveConfigFile(cfg, cfgPath)
 		},
 	}
+
+	cmd.Flags().String("path", "./config.yaml", "Path to save the generated config file")
+	return cmd
 }
