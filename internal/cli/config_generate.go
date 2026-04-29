@@ -168,8 +168,14 @@ func askInitSystemConfig(registry *initsystem.Registry) (config.InitSystemConfig
 	return config.InitSystemConfig{Name: initSysName}, nil
 }
 
-func askHomeAssistantConfig(discoveryChan <-chan haDiscoveryResult) (config.HomeAssistantConfig, error) {
-	discoveryResult := <-discoveryChan
+func askHomeAssistantConfig(ctx context.Context, discoveryChan <-chan haDiscoveryResult) (config.HomeAssistantConfig, error) {
+	var discoveryResult haDiscoveryResult
+	select {
+	case discoveryResult = <-discoveryChan:
+	case <-ctx.Done():
+		return config.HomeAssistantConfig{}, ctx.Err()
+	}
+
 	var finalHassURL string
 	err := surveyAskOne(&survey.Input{
 		Message: "Home Assistant URL:",
@@ -193,7 +199,7 @@ func askHomeAssistantConfig(discoveryChan <-chan haDiscoveryResult) (config.Home
 func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
 	haDiscoveryResultChan := make(chan haDiscoveryResult, 1)
 	go func() {
-		url, err := discoverHomeAssistant()
+		url, err := discoverHomeAssistant(ctx)
 		haDiscoveryResultChan <- haDiscoveryResult{url: url, err: err}
 	}()
 
@@ -212,7 +218,7 @@ func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.
 		return nil, err
 	}
 
-	haCfg, err := askHomeAssistantConfig(haDiscoveryResultChan)
+	haCfg, err := askHomeAssistantConfig(ctx, haDiscoveryResultChan)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +274,12 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 			fmt.Printf("bootloader:\n  name: %s\n  config_path: %s\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
 			fmt.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)
 
-			return saveConfigFile(cfg, "./config.yaml")
+			cfgPath, err := cmd.Flags().GetString("config")
+			if err != nil {
+				cfgPath = "./config.yaml"
+			}
+
+			return saveConfigFile(cfg, cfgPath)
 		},
 	}
 }

@@ -12,7 +12,7 @@ const homeAssistantService = "_home-assistant._tcp"
 
 const discoveryTimeout = 3 * time.Second
 
-func Discover() (string, error) {
+func Discover(ctx context.Context) (string, error) {
 	resolver, err := zeroconf.NewResolver(nil)
 	if err != nil {
 		return "", err
@@ -21,7 +21,7 @@ func Discover() (string, error) {
 	entries := make(chan *zeroconf.ServiceEntry)
 	found := make(chan string, 1) // Channel to receive the discovered URL
 
-	ctx, cancel := context.WithTimeout(context.Background(), discoveryTimeout)
+	ctx, cancel := context.WithTimeout(ctx, discoveryTimeout)
 	defer cancel()
 
 	go func(results <-chan *zeroconf.ServiceEntry) {

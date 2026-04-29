@@ -298,7 +298,7 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 		return []string{"192.168.1.255", "10.0.0.255"}, nil // Trigger multiple broadcasts path
 	}
 
-	discoverHomeAssistant = func() (string, error) { return "http://hass.local:8123", nil }
+	discoverHomeAssistant = func(ctx context.Context) (string, error) { return "http://hass.local:8123", nil }
 	detectSystemHostname = func() (string, error) { return "detected-host", nil }
 	getSystemInterfaces = func() ([]system.InterfaceInfo, error) {
 		return []system.InterfaceInfo{
@@ -341,7 +341,7 @@ func TestGenerateConfigSurvey_AskOneErrors(t *testing.T) {
 	}()
 
 	systemGetBroadcastAddresses = func(mac string) ([]string, error) { return []string{"192.168.1.255"}, nil }
-	discoverHomeAssistant = func() (string, error) { return "http://hass.local:8123", nil }
+	discoverHomeAssistant = func(ctx context.Context) (string, error) { return "http://hass.local:8123", nil }
 	detectSystemHostname = func() (string, error) { return "detected-host", nil }
 	getSystemInterfaces = func() ([]system.InterfaceInfo, error) {
 		return []system.InterfaceInfo{{Label: "eth0", Value: "00:11:22:33:44:55"}}, nil
