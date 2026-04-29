@@ -184,7 +184,7 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 
 			deps := &CommandDeps{BootloaderRegistry: blReg, InitRegistry: initReg}
 			tt.setupMocks(deps)
-			cmd := NewGenerateConfigCmd(deps)
+			cmd := NewConfigGenerateCmd(deps)
 			cmd.SetArgs([]string{}) // prevent picking up real os.Args
 
 			var b bytes.Buffer

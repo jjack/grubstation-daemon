@@ -47,7 +47,7 @@ func NewCLI() *CLI {
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Don't load the config if we're also trying to generate it
-			if cmd.Name() == "generate-config" {
+			if cmd.CommandPath() == "remote-boot-agent config generate" {
 				return nil
 			}
 
@@ -82,7 +82,7 @@ func NewCLI() *CLI {
 
 	rootCmd.AddCommand(NewListCmd(deps))
 	rootCmd.AddCommand(NewPushCmd(deps))
-	rootCmd.AddCommand(NewGenerateConfigCmd(deps))
+	rootCmd.AddCommand(NewConfigCmd(deps))
 	rootCmd.AddCommand(NewInstallCmd(deps))
 
 	// get rid of the completion command because it doesn't make sense here

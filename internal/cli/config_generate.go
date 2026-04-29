@@ -18,10 +18,10 @@ var (
 	saveConfigFile        = config.Save
 )
 
-// NewGenerateConfigCmd walks the user through generating a config interactively
-func NewGenerateConfigCmd(deps *CommandDeps) *cobra.Command {
+// NewConfigGenerateCmd walks the user through generating a config interactively
+func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 	return &cobra.Command{
-		Use:   "generate-config",
+		Use:   "generate",
 		Short: "Interactively generate a config file",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			bl, err := deps.BootloaderRegistry.Detect(cmd.Context())
