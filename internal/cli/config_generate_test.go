@@ -35,6 +35,22 @@ func (m *mockDiscoverFailBootloader) DiscoverConfigPath(ctx context.Context) (st
 	return "", errors.New("discover fail")
 }
 
+type mockInactiveBootloader struct{}
+
+func (m *mockInactiveBootloader) Name() string                      { return "inactive-bl" }
+func (m *mockInactiveBootloader) IsActive(ctx context.Context) bool { return false }
+func (m *mockInactiveBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
+	return nil, nil
+}
+
+func (m *mockInactiveBootloader) Install(ctx context.Context, macAddress, haURL string) error {
+	return nil
+}
+
+func (m *mockInactiveBootloader) DiscoverConfigPath(ctx context.Context) (string, error) {
+	return "", nil
+}
+
 func TestGenerateConfigCmd_Execute(t *testing.T) {
 	oldDiscover := discoverHomeAssistant
 	oldDetectHostname := detectSystemHostname
@@ -112,24 +128,22 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 		{
 			name: "Bootloader Detection Error",
 			setupMocks: func(deps *CommandDeps) {
-				detectSystemHostname = func() (string, error) { return "test-host", nil }
-				getSystemInterfaces = func() ([]system.InterfaceInfo, error) { return []system.InterfaceInfo{}, nil }
-				// Clear the active bootloader
-				deps.BootloaderRegistry = bootloader.NewRegistry()
+				blReg := bootloader.NewRegistry()
+				blReg.Register("inactive-bl", func() bootloader.Bootloader { return &mockInactiveBootloader{} })
+				deps.BootloaderRegistry = blReg
 			},
 			wantErr:     true,
-			errContains: "no supported bootloader detected",
+			errContains: "no supported bootloader detected. Please ensure you have one of the following installed: inactive-bl",
 		},
 		{
 			name: "Init System Detection Error",
 			setupMocks: func(deps *CommandDeps) {
-				detectSystemHostname = func() (string, error) { return "test-host", nil }
-				getSystemInterfaces = func() ([]system.InterfaceInfo, error) { return []system.InterfaceInfo{}, nil }
-				// Clear the active init system
-				deps.InitRegistry = initsystem.NewRegistry()
+				initReg := initsystem.NewRegistry()
+				initReg.Register("mock-init", func() initsystem.InitSystem { return &mockGenInitSystem{active: false} })
+				deps.InitRegistry = initReg
 			},
 			wantErr:     true,
-			errContains: "no supported init system detected",
+			errContains: "no supported init system detected. Please ensure you have one of the following installed: mock-init",
 		},
 		{
 			name: "Form Error",
