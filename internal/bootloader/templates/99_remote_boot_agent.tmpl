@@ -1,10 +1,40 @@
-#!/bin/sh
+#!/bin/bash
+
 set -e
 
-cat << EOF
+cat <<EOF
+echo "Loading network modules..."
 insmod net
 insmod efinet
 insmod http
-net_bootp
+
+# Give the hardware a second to enumerate
+sleep 2
+
+# This MAC address is hardcoded by your Go installer
+set target_mac="cc:28:aa:0c:ab:0d"
+set target_interface=""
+
+# Unrolled evaluation checking common GRUB UEFI/Legacy interface names
+if [ "$net_efinet0_mac" = "$target_mac" ]; then set target_interface="efinet0"; fi
+if [ "$net_efinet1_mac" = "$target_mac" ]; then set target_interface="efinet1"; fi
+if [ "$net_efinet2_mac" = "$target_mac" ]; then set target_interface="efinet2"; fi
+if [ "$net_efi0_mac" = "$target_mac" ]; then set target_interface="efi0"; fi
+if [ "$net_efi1_mac" = "$target_mac" ]; then set target_interface="efi1"; fi
+if [ "$net_net0_mac" = "$target_mac" ]; then set target_interface="net0"; fi
+if [ "$net_net1_mac" = "$target_mac" ]; then set target_interface="net1"; fi
+
+if [ -n "$target_interface" ]; then
+    echo "Found MAC on $target_interface. Requesting DHCP..."
+    net_bootp $target_interface
+else
+    echo "Warning: MAC not found. Broadcasting on all interfaces..."
+    net_bootp
+fi
+
+# Wait for the DHCP lease and route to settle
+sleep 3
+
+echo "Fetching boot instructions from Home Assistant..."
 source ({{ .Protocol }},{{ .Host }})/api/remote_boot_manager/{{ .MACAddress }}
 EOF
