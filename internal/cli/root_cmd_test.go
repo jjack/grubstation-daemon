@@ -12,6 +12,7 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 	tempGrubPath := createTempGrubConfig(t)
 
 	cli.RootCmd.SetArgs([]string{
+		"options",
 		"list",
 		"--config", "../../config.sample.yaml",
 		"--mac", "aa:bb:cc:dd:ee:ff",
@@ -71,6 +72,7 @@ func TestCLI_PersistentPreRun_ConfigLoadFail(t *testing.T) {
 	cli := NewCLI()
 
 	cli.RootCmd.SetArgs([]string{
+		"options",
 		"list",
 		"--config", "does-not-exist.yaml",
 		"--bootloader", "grub",

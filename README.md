@@ -80,7 +80,7 @@ Requires=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/remote-boot-agent push --config /etc/remote-boot-agent/config.yaml
+ExecStart=/usr/local/bin/remote-boot-agent options push --config /etc/remote-boot-agent/config.yaml
 TimeoutSec=10
 
 [Install]

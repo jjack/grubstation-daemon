@@ -80,8 +80,7 @@ func NewCLI() *CLI {
 	deps.BootloaderRegistry.Register("grub", bootloader.NewGrub)
 	deps.InitRegistry.Register("systemd", initsystem.NewSystemd)
 
-	rootCmd.AddCommand(NewListCmd(deps))
-	rootCmd.AddCommand(NewPushCmd(deps))
+	rootCmd.AddCommand(NewOptionsCmd(deps))
 	rootCmd.AddCommand(NewConfigCmd(deps))
 	rootCmd.AddCommand(NewInstallCmd(deps))
 

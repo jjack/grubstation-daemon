@@ -126,7 +126,7 @@ func TestCLI_Execute(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(grubFile.Name()) }()
 
-	cli.RootCmd.SetArgs([]string{"list", "--config", "../../config.sample.yaml", "--bootloader-path", grubFile.Name()})
+	cli.RootCmd.SetArgs([]string{"options", "list", "--config", "../../config.sample.yaml", "--bootloader-path", grubFile.Name()})
 
 	var b bytes.Buffer
 	cli.RootCmd.SetOut(&b)
@@ -147,7 +147,7 @@ func TestCLI_PersistentPreRun_ConfigParseFail(t *testing.T) {
 	_ = f.Close()
 
 	cli := NewCLI()
-	cli.RootCmd.SetArgs([]string{"list", "--config", f.Name()})
+	cli.RootCmd.SetArgs([]string{"options", "list", "--config", f.Name()})
 	err = cli.Execute()
 	if err == nil {
 		t.Fatal("expected error on malformed config file")
