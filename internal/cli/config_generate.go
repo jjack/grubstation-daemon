@@ -14,7 +14,7 @@ var (
 	discoverHomeAssistant = homeassistant.Discover
 	detectSystemHostname  = system.DetectHostname
 	getSystemInterfaces   = system.GetInterfaceOptions
-	runGenerateForm       = GenerateConfigForm
+	runGenerateSurvey     = GenerateConfigSurvey
 	saveConfigFile        = config.Save
 )
 
@@ -47,7 +47,7 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 				defaultBootloaderPath = path
 			}
 
-			opts := GenerateFormOptions{
+			opts := GenerateSurveyOptions{
 				DiscoverHomeAssistant: discoverHomeAssistant,
 				DetectHostname:        detectSystemHostname,
 				GetInterfaces:         getSystemInterfaces,
@@ -58,7 +58,7 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 				DefaultInitSystem:     sys.Name(),
 			}
 
-			cfg, err := runGenerateForm(opts)
+			cfg, err := runGenerateSurvey(opts)
 			if err != nil {
 				return err
 			}

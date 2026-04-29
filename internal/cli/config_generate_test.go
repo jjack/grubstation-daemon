@@ -39,14 +39,14 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 	oldDiscover := discoverHomeAssistant
 	oldDetectHostname := detectSystemHostname
 	oldGetInterfaces := getSystemInterfaces
-	oldRunForm := runGenerateForm
+	oldRunForm := runGenerateSurvey
 	oldSave := saveConfigFile
 
 	defer func() {
 		discoverHomeAssistant = oldDiscover
 		detectSystemHostname = oldDetectHostname
 		getSystemInterfaces = oldGetInterfaces
-		runGenerateForm = oldRunForm
+		runGenerateSurvey = oldRunForm
 		saveConfigFile = oldSave
 	}()
 
@@ -64,7 +64,7 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 				getSystemInterfaces = func() ([]system.InterfaceInfo, error) {
 					return []system.InterfaceInfo{{Label: "eth0", Value: "00:11:22:33:44:55"}}, nil
 				}
-				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
+				runGenerateSurvey = func(opts GenerateSurveyOptions) (*config.Config, error) {
 					if _, err := opts.DetectHostname(); err != nil {
 						return nil, err
 					}
@@ -81,7 +81,7 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 			name: "Hostname Error",
 			setupMocks: func(deps *CommandDeps) {
 				detectSystemHostname = func() (string, error) { return "", errors.New("hostname fail") }
-				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
+				runGenerateSurvey = func(opts GenerateSurveyOptions) (*config.Config, error) {
 					if _, err := opts.DetectHostname(); err != nil {
 						return nil, err
 					}
@@ -96,7 +96,7 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 			setupMocks: func(deps *CommandDeps) {
 				detectSystemHostname = func() (string, error) { return "test-host", nil }
 				getSystemInterfaces = func() ([]system.InterfaceInfo, error) { return nil, errors.New("iface fail") }
-				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
+				runGenerateSurvey = func(opts GenerateSurveyOptions) (*config.Config, error) {
 					if _, err := opts.DetectHostname(); err != nil {
 						return nil, err
 					}
@@ -136,7 +136,7 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 			setupMocks: func(deps *CommandDeps) {
 				detectSystemHostname = func() (string, error) { return "test-host", nil }
 				getSystemInterfaces = func() ([]system.InterfaceInfo, error) { return []system.InterfaceInfo{}, nil }
-				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
+				runGenerateSurvey = func(opts GenerateSurveyOptions) (*config.Config, error) {
 					return nil, errors.New("form canceled")
 				}
 			},
@@ -151,7 +151,7 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 				getSystemInterfaces = func() ([]system.InterfaceInfo, error) {
 					return []system.InterfaceInfo{{Label: "eth0", Value: "00:11:22:33:44:55"}}, nil
 				}
-				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) {
+				runGenerateSurvey = func(opts GenerateSurveyOptions) (*config.Config, error) {
 					return &config.Config{}, nil
 				}
 				saveConfigFile = func(cfg *config.Config, path string) error { return nil }
@@ -167,7 +167,7 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 			setupMocks: func(deps *CommandDeps) {
 				detectSystemHostname = func() (string, error) { return "test-host", nil }
 				getSystemInterfaces = func() ([]system.InterfaceInfo, error) { return []system.InterfaceInfo{}, nil }
-				runGenerateForm = func(opts GenerateFormOptions) (*config.Config, error) { return &config.Config{}, nil }
+				runGenerateSurvey = func(opts GenerateSurveyOptions) (*config.Config, error) { return &config.Config{}, nil }
 				saveConfigFile = func(cfg *config.Config, path string) error { return errors.New("save fail") }
 			},
 			wantErr:     true,

@@ -75,7 +75,7 @@ func buildMockSurveyAskOne(triggerErrorOn string) func(survey.Prompt, interface{
 	}
 }
 
-func TestGenerateConfigForm_Success(t *testing.T) {
+func TestGenerateConfigSurvey_Success(t *testing.T) {
 	oldSurveyAskOne := surveyAskOne
 	oldSystemGetBroadcastAddresses := systemGetBroadcastAddresses
 	defer func() {
@@ -89,7 +89,7 @@ func TestGenerateConfigForm_Success(t *testing.T) {
 		return []string{"192.168.1.255", "10.0.0.255"}, nil // Trigger multiple broadcasts path
 	}
 
-	opts := GenerateFormOptions{
+	opts := GenerateSurveyOptions{
 		DiscoverHomeAssistant: func() (string, error) { return "http://hass.local:8123", nil },
 		DetectHostname:        func() (string, error) { return "detected-host", nil },
 		GetInterfaces: func() ([]system.InterfaceInfo, error) {
@@ -104,7 +104,7 @@ func TestGenerateConfigForm_Success(t *testing.T) {
 		DefaultInitSystem:     "systemd",
 	}
 
-	cfg, err := GenerateConfigForm(opts)
+	cfg, err := GenerateConfigSurvey(opts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestGenerateConfigForm_Success(t *testing.T) {
 	}
 }
 
-func TestGenerateConfigForm_AskOneErrors(t *testing.T) {
+func TestGenerateConfigSurvey_AskOneErrors(t *testing.T) {
 	oldSurveyAskOne := surveyAskOne
 	oldSystemGetBroadcastAddresses := systemGetBroadcastAddresses
 	defer func() {
@@ -133,7 +133,7 @@ func TestGenerateConfigForm_AskOneErrors(t *testing.T) {
 
 	systemGetBroadcastAddresses = func(mac string) ([]string, error) { return []string{"192.168.1.255"}, nil }
 
-	baseOpts := GenerateFormOptions{
+	baseOpts := GenerateSurveyOptions{
 		DiscoverHomeAssistant: func() (string, error) { return "http://hass.local:8123", nil },
 		DetectHostname:        func() (string, error) { return "detected-host", nil },
 		GetInterfaces: func() ([]system.InterfaceInfo, error) {
@@ -156,7 +156,7 @@ func TestGenerateConfigForm_AskOneErrors(t *testing.T) {
 	for _, step := range errorSteps {
 		t.Run("Error at "+step, func(t *testing.T) {
 			surveyAskOne = buildMockSurveyAskOne(step)
-			_, err := GenerateConfigForm(baseOpts)
+			_, err := GenerateConfigSurvey(baseOpts)
 			if err == nil || err.Error() != "simulated survey error" {
 				t.Fatalf("expected simulated survey error at step %q, got %v", step, err)
 			}
@@ -166,26 +166,26 @@ func TestGenerateConfigForm_AskOneErrors(t *testing.T) {
 	t.Run("Multiple Subnet Selection Error", func(t *testing.T) {
 		surveyAskOne = buildMockSurveyAskOne("Multiple WOL Subnet/Broadcast Addresses were discovered. Please select one:")
 		systemGetBroadcastAddresses = func(mac string) ([]string, error) { return []string{"192.168.1.255", "10.0.0.255"}, nil }
-		_, err := GenerateConfigForm(baseOpts)
+		_, err := GenerateConfigSurvey(baseOpts)
 		if err == nil || err.Error() != "simulated survey error" {
 			t.Errorf("expected simulated survey error, got %v", err)
 		}
 	})
 }
 
-func TestGenerateConfigForm_OptErrors(t *testing.T) {
+func TestGenerateConfigSurvey_OptErrors(t *testing.T) {
 	t.Run("Invalid MAC Address", func(t *testing.T) {
 		oldSurveyAskOne := surveyAskOne
 		surveyAskOne = buildMockSurveyAskOne("")
 		defer func() { surveyAskOne = oldSurveyAskOne }()
 
-		opts := GenerateFormOptions{
+		opts := GenerateSurveyOptions{
 			DetectHostname: func() (string, error) { return "host", nil },
 			GetInterfaces: func() ([]system.InterfaceInfo, error) {
 				return []system.InterfaceInfo{{Label: "eth0", Value: "invalid-mac"}}, nil
 			},
 		}
-		_, err := GenerateConfigForm(opts)
+		_, err := GenerateConfigSurvey(opts)
 		if err == nil {
 			t.Errorf("expected mac validation error, got nil")
 		}

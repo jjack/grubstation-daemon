@@ -23,7 +23,7 @@ var (
 	systemGetBroadcastAddresses = system.GetBroadcastAddresses
 )
 
-type GenerateFormOptions struct {
+type GenerateSurveyOptions struct {
 	DiscoverHomeAssistant func() (string, error)
 	DetectHostname        func() (string, error)
 	GetInterfaces         func() ([]system.InterfaceInfo, error)
@@ -34,7 +34,7 @@ type GenerateFormOptions struct {
 	DefaultInitSystem     string
 }
 
-func GenerateConfigForm(opts GenerateFormOptions) (cfg *config.Config, err error) {
+func GenerateConfigSurvey(opts GenerateSurveyOptions) (cfg *config.Config, err error) {
 	hostname, err := opts.DetectHostname()
 	if err != nil {
 		return nil, err
