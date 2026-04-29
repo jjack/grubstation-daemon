@@ -11,7 +11,10 @@ func NewConfigValidateCmd(deps *CommandDeps) *cobra.Command {
 		Use:   "validate",
 		Short: "Validate an existing configuration file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Configuration is valid.")
+			if err := deps.Config.Validate(); err != nil {
+				return fmt.Errorf("configuration is invalid: %w", err)
+			}
+			cmd.Println("Configuration is valid.")
 			return nil
 		},
 	}
