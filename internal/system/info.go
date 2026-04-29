@@ -1,6 +1,7 @@
 package system
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -13,6 +14,12 @@ var (
 	getAddrs      = func(iface net.Interface) ([]net.Addr, error) {
 		return iface.Addrs()
 	}
+)
+
+var (
+	ErrListInterfaces       = errors.New("failed to list network interfaces")
+	ErrNoSuitableInterfaces = errors.New("no suitable interfaces found")
+	ErrDetectHostname       = errors.New("failed to detect hostname")
 )
 
 type InterfaceInfo struct {
@@ -37,7 +44,7 @@ func GetIPAddrs(iface net.Interface) []string {
 func GetInterfaceOptions() ([]InterfaceInfo, error) {
 	interfaces, err := netInterfaces()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list network interfaces: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrListInterfaces, err)
 	}
 
 	var options []InterfaceInfo
@@ -53,7 +60,7 @@ func GetInterfaceOptions() ([]InterfaceInfo, error) {
 	}
 
 	if len(options) == 0 {
-		return nil, fmt.Errorf("no suitable interfaces found")
+		return nil, ErrNoSuitableInterfaces
 	}
 
 	return options, nil
@@ -62,7 +69,7 @@ func GetInterfaceOptions() ([]InterfaceInfo, error) {
 func DetectHostname() (string, error) {
 	hostname, err := osHostname()
 	if err != nil {
-		return "", fmt.Errorf("failed to detect hostname: %w", err)
+		return "", fmt.Errorf("%w: %w", ErrDetectHostname, err)
 	}
 	return hostname, nil
 }
@@ -70,7 +77,7 @@ func DetectHostname() (string, error) {
 func GetBroadcastAddresses(mac string) ([]string, error) {
 	interfaces, err := netInterfaces()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list network interfaces: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrListInterfaces, err)
 	}
 
 	var broadcasts []string

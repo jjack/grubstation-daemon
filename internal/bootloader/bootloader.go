@@ -2,7 +2,7 @@ package bootloader
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sort"
 )
 
@@ -23,6 +23,8 @@ type Factory func() Bootloader
 type Registry struct {
 	bootloaders map[string]Factory
 }
+
+var ErrNotSupported = errors.New("no supported bootloader detected")
 
 func NewRegistry() *Registry {
 	return &Registry{
@@ -55,7 +57,7 @@ func (r *Registry) Detect(ctx context.Context) (Bootloader, error) {
 			return bl, nil
 		}
 	}
-	return nil, fmt.Errorf("no supported bootloader detected")
+	return nil, ErrNotSupported
 }
 
 func (r *Registry) SupportedBootloaders() []string {

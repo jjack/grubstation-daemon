@@ -151,8 +151,8 @@ func TestGrub_Install_Errors(t *testing.T) {
 
 	// 1. Invalid URL
 	err := bl.Install(ctx, "mac", "://bad-url")
-	if err == nil || !strings.Contains(err.Error(), "invalid home assistant url") {
-		t.Fatalf("expected url parse error, got %v", err)
+	if !errors.Is(err, ErrInvalidHAURL) {
+		t.Fatalf("expected ErrInvalidHAURL, got %v", err)
 	}
 
 	// 2. File creation failure
@@ -171,8 +171,8 @@ func TestGrub_Install_Errors(t *testing.T) {
 		return "", errors.New("not found")
 	}
 	err = bl.Install(ctx, "mac", "http://hass.local")
-	if err == nil || !strings.Contains(err.Error(), "neither update-grub nor grub2-mkconfig found") {
-		t.Fatalf("expected PATH lookup error, got %v", err)
+	if !errors.Is(err, ErrNoGrubTool) {
+		t.Fatalf("expected ErrNoGrubTool, got %v", err)
 	}
 
 	// 4. update-grub command execution fails

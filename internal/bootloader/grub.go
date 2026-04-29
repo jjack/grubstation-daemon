@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -20,6 +21,12 @@ const (
 )
 
 const grubBootloader = "grub"
+
+var (
+	ErrGrubConfigNotFound = errors.New("no grub config found in known locations")
+	ErrInvalidHAURL       = errors.New("invalid home assistant url: scheme and host are required")
+	ErrNoGrubTool         = errors.New("neither update-grub nor grub2-mkconfig found in PATH")
+)
 
 var (
 	hassRemoteBootAgentPath = "/etc/grub.d/99_ha_remote_boot_agent"
@@ -63,7 +70,7 @@ func findGrubConfig() (string, error) {
 			return path, nil
 		}
 	}
-	return "", fmt.Errorf("no grub config found in known locations")
+	return "", ErrGrubConfigNotFound
 }
 
 func countStructuralBraces(line string) (int, int) {
@@ -192,7 +199,7 @@ func (g *Grub) GetBootOptions(ctx context.Context, cfg Config) ([]string, error)
 func (g *Grub) Install(ctx context.Context, macAddress, haURL string) error {
 	u, err := url.Parse(haURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		return fmt.Errorf("invalid home assistant url: scheme and host are required")
+		return ErrInvalidHAURL
 	}
 
 	tmpl, err := template.New("grub").Parse(grubTemplate)
@@ -233,5 +240,5 @@ func (g *Grub) Install(ctx context.Context, macAddress, haURL string) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("neither update-grub nor grub2-mkconfig found in PATH")
+	return ErrNoGrubTool
 }

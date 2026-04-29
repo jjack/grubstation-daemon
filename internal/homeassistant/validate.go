@@ -1,21 +1,29 @@
 package homeassistant
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
 )
 
+var (
+	ErrWebhookIDEmpty       = errors.New("webhook id cannot be empty")
+	ErrWebhookIDInvalidChar = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
+	ErrWebhookIDTooLong     = errors.New("webhook id cannot be longer than 255 characters")
+	ErrURLEmpty             = errors.New("home assistant url cannot be empty")
+)
+
 func ValidateWebhookID(webhookID string) error {
 	if webhookID == "" {
-		return fmt.Errorf("webhook id cannot be empty")
+		return ErrWebhookIDEmpty
 	}
 
 	if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(webhookID) {
-		return fmt.Errorf("webhook id can only contain letters, numbers, hyphens, and underscores")
+		return ErrWebhookIDInvalidChar
 	}
 	if len(webhookID) > 255 {
-		return fmt.Errorf("webhook id cannot be longer than 255 characters")
+		return ErrWebhookIDTooLong
 	}
 
 	return nil
@@ -23,7 +31,7 @@ func ValidateWebhookID(webhookID string) error {
 
 func ValidateURL(hassURL string) error {
 	if hassURL == "" {
-		return fmt.Errorf("home assistant url cannot be empty")
+		return ErrURLEmpty
 	}
 
 	_, err := url.ParseRequestURI(hassURL)

@@ -2,7 +2,7 @@ package initsystem
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"sort"
 )
 
@@ -17,6 +17,8 @@ type Factory func() InitSystem
 type Registry struct {
 	initsystems map[string]Factory
 }
+
+var ErrNotSupported = errors.New("no supported init system detected")
 
 func NewRegistry() *Registry {
 	return &Registry{
@@ -49,7 +51,7 @@ func (r *Registry) Detect(ctx context.Context) (InitSystem, error) {
 			return sys, nil
 		}
 	}
-	return nil, fmt.Errorf("no supported init system detected")
+	return nil, ErrNotSupported
 }
 
 func (r *Registry) SupportedInitSystems() []string {
