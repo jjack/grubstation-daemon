@@ -1,7 +1,7 @@
 package config
 
 import (
-	"fmt"
+	"errors"
 	"log/slog"
 	"net"
 	"net/url"
@@ -9,46 +9,59 @@ import (
 	"strconv"
 )
 
+var (
+	ErrMACAddressEmpty      = errors.New("mac address cannot be empty")
+	ErrInvalidMACAddress    = errors.New("invalid MAC address format")
+	ErrURLEmpty             = errors.New("url cannot be empty")
+	ErrInvalidURL           = errors.New("invalid URL format")
+	ErrWebhookIDEmpty       = errors.New("webhook id cannot be empty")
+	ErrWebhookIDInvalidChar = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
+	ErrBroadcastPortEmpty   = errors.New("WOL port cannot be empty")
+	ErrInvalidBroadcastPort = errors.New("invalid WOL port: must be a number between 1 and 65535")
+	ErrHostnameEmpty        = errors.New("hostname cannot be empty")
+	ErrInvalidHostname      = errors.New("hostname can only contain letters, numbers, hyphens, and periods")
+)
+
 func ValidateMACAddress(v string) error {
 	if v == "" {
-		return fmt.Errorf("mac address cannot be empty")
+		return ErrMACAddressEmpty
 	}
 	_, err := net.ParseMAC(v)
 	if err != nil {
-		return fmt.Errorf("invalid MAC address format")
+		return ErrInvalidMACAddress
 	}
 	return nil
 }
 
 func ValidateURL(v string) error {
 	if v == "" {
-		return fmt.Errorf("url cannot be empty")
+		return ErrURLEmpty
 	}
 	u, err := url.ParseRequestURI(v)
 	if err != nil || u.Scheme == "" || u.Host == "" {
-		return fmt.Errorf("invalid URL format")
+		return ErrInvalidURL
 	}
 	return nil
 }
 
 func ValidateWebhookID(v string) error {
 	if v == "" {
-		return fmt.Errorf("webhook id cannot be empty")
+		return ErrWebhookIDEmpty
 	}
 	if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(v) {
-		return fmt.Errorf("webhook id can only contain letters, numbers, hyphens, and underscores")
+		return ErrWebhookIDInvalidChar
 	}
 	return nil
 }
 
 func ValidateBroadcastPort(v string) error {
 	if v == "" {
-		return fmt.Errorf("WOL port cannot be empty")
+		return ErrBroadcastPortEmpty
 	}
 	port, err := strconv.Atoi(v)
 	if err != nil || port < 1 || port > 65535 {
 		slog.Debug("Invalid WOL port", "port", port)
-		return fmt.Errorf("invalid WOL port: must be a number between 1 and 65535")
+		return ErrInvalidBroadcastPort
 	}
 	return nil
 }
@@ -74,10 +87,10 @@ func (c *Config) Validate() error {
 
 func ValidateHostname(v string) error {
 	if v == "" {
-		return fmt.Errorf("hostname cannot be empty")
+		return ErrHostnameEmpty
 	}
 	if !regexp.MustCompile(`^[a-zA-Z0-9-.]+$`).MatchString(v) {
-		return fmt.Errorf("hostname can only contain letters, numbers, hyphens, and periods")
+		return ErrInvalidHostname
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -234,7 +235,7 @@ func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.
 func ensureSupport(ctx context.Context, deps *CommandDeps) error {
 	_, err := deps.BootloaderRegistry.Detect(ctx)
 	if err != nil {
-		if err.Error() == "no supported bootloader detected" {
+		if errors.Is(err, bootloader.ErrNotSupported) {
 			supported := strings.Join(deps.BootloaderRegistry.SupportedBootloaders(), ", ")
 			return fmt.Errorf("no supported bootloader detected. Please ensure you have one of the following installed: %s", supported)
 		}
@@ -243,7 +244,7 @@ func ensureSupport(ctx context.Context, deps *CommandDeps) error {
 
 	_, err = deps.InitRegistry.Detect(ctx)
 	if err != nil {
-		if err.Error() == "no supported init system detected" {
+		if errors.Is(err, initsystem.ErrNotSupported) {
 			supported := strings.Join(deps.InitRegistry.SupportedInitSystems(), ", ")
 			return fmt.Errorf("no supported init system detected. Please ensure you have one of the following installed: %s", supported)
 		}

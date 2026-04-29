@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 
@@ -9,6 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+var ErrMissingHAConfig = errors.New("homeassistant url and webhook_id must be configured")
 
 func NewPushCmd(deps *CommandDeps) *cobra.Command {
 	return &cobra.Command{
@@ -40,7 +43,7 @@ func NewPushCmd(deps *CommandDeps) *cobra.Command {
 
 			haCfg := deps.Config.HomeAssistant
 			if haCfg.URL == "" || haCfg.WebhookID == "" {
-				return fmt.Errorf("homeassistant url and webhook_id must be configured")
+				return ErrMissingHAConfig
 			}
 
 			haClient := ha.NewClient(
