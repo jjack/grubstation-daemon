@@ -23,7 +23,7 @@ func (s *Example) Name() string {
 	return exampleBootloader
 }
 
-func (s *Example) Install(ctx context.Context, macAddress, haURL string) error {
+func (s *Example) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 

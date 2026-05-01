@@ -36,5 +36,5 @@ fi
 sleep 3
 
 echo "Fetching boot instructions from Home Assistant..."
-source ({{ .Protocol }},{{ .Host }})/api/remote_boot_manager/{{ .MACAddress }}
+source ({{ .Protocol }},{{ .Host }})/api/remote_boot_manager/{{ .MACAddress }}?token={{ .WebhookID }}
 EOF

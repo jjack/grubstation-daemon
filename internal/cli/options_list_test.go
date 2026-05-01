@@ -19,8 +19,11 @@ func (m *mockListBootloader) IsActive(ctx context.Context) bool { return true }
 func (m *mockListBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
 	return []string{"Ubuntu", "Windows"}, nil
 }
-func (m *mockListBootloader) Install(ctx context.Context, macAddress, haURL string) error { return nil }
-func (m *mockListBootloader) DiscoverConfigPath(ctx context.Context) (string, error)      { return "", nil }
+
+func (m *mockListBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+	return nil
+}
+func (m *mockListBootloader) DiscoverConfigPath(ctx context.Context) (string, error) { return "", nil }
 
 func TestGetBootOptionsCommand(t *testing.T) {
 	cfg := &config.Config{
@@ -71,7 +74,7 @@ func (m *mockListBootloaderErr) GetBootOptions(ctx context.Context, cfg bootload
 	return nil, errors.New("mock error")
 }
 
-func (m *mockListBootloaderErr) Install(ctx context.Context, macAddress, haURL string) error {
+func (m *mockListBootloaderErr) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 
@@ -109,7 +112,7 @@ func (m *mockListBootloaderEmpty) GetBootOptions(ctx context.Context, cfg bootlo
 	return []string{}, nil
 }
 
-func (m *mockListBootloaderEmpty) Install(ctx context.Context, macAddress, haURL string) error {
+func (m *mockListBootloaderEmpty) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 

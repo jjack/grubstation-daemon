@@ -24,9 +24,10 @@ func NewInstallCmd(deps *CommandDeps) *cobra.Command {
 
 			macAddress := deps.Config.Server.MACAddress
 			haURL := deps.Config.HomeAssistant.URL
+			webhookID := deps.Config.HomeAssistant.WebhookID
 
 			cmd.Printf("Installing into bootloader: %s\n", bl.Name())
-			if err := bl.Install(cmd.Context(), macAddress, haURL); err != nil {
+			if err := bl.Install(cmd.Context(), macAddress, haURL, webhookID); err != nil {
 				return fmt.Errorf("failed to install bootloader: %w", err)
 			}
 

@@ -28,7 +28,7 @@ func (m *mockDiscoverFailBootloader) GetBootOptions(ctx context.Context, cfg boo
 	return nil, nil
 }
 
-func (m *mockDiscoverFailBootloader) Install(ctx context.Context, macAddress, haURL string) error {
+func (m *mockDiscoverFailBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 
@@ -44,7 +44,7 @@ func (m *mockInactiveBootloader) GetBootOptions(ctx context.Context, cfg bootloa
 	return nil, nil
 }
 
-func (m *mockInactiveBootloader) Install(ctx context.Context, macAddress, haURL string) error {
+func (m *mockInactiveBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 
@@ -187,7 +187,7 @@ func (m *mockSurveyBootloader) GetBootOptions(ctx context.Context, cfg bootloade
 	return nil, nil
 }
 
-func (m *mockSurveyBootloader) Install(ctx context.Context, macAddress, haURL string) error {
+func (m *mockSurveyBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 

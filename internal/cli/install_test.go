@@ -17,6 +17,7 @@ type mockInstallBootloader struct {
 	installErr error
 	mac        string
 	url        string
+	webhook    string
 }
 
 func (m *mockInstallBootloader) Name() string                      { return "mock-bl" }
@@ -25,9 +26,10 @@ func (m *mockInstallBootloader) GetBootOptions(ctx context.Context, cfg bootload
 	return nil, nil
 }
 
-func (m *mockInstallBootloader) Install(ctx context.Context, macAddress, haURL string) error {
+func (m *mockInstallBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
 	m.mac = macAddress
 	m.url = haURL
+	m.webhook = webhookID
 	return m.installErr
 }
 
@@ -53,7 +55,8 @@ func TestInstallCmd_Success(t *testing.T) {
 			MACAddress: "aa:bb:cc:dd:ee:ff",
 		},
 		HomeAssistant: config.HomeAssistantConfig{
-			URL: "http://ha.local",
+			URL:       "http://ha.local",
+			WebhookID: "test-webhook",
 		},
 		Bootloader: config.BootloaderConfig{Name: "mock-bl"},
 		InitSystem: config.InitSystemConfig{Name: "mock-init"},
@@ -89,6 +92,9 @@ func TestInstallCmd_Success(t *testing.T) {
 	}
 	if blMock.url != "http://ha.local" {
 		t.Errorf("expected url http://ha.local, got %s", blMock.url)
+	}
+	if blMock.webhook != "test-webhook" {
+		t.Errorf("expected webhook test-webhook, got %s", blMock.webhook)
 	}
 	if !strings.HasSuffix(initMock.configPath, "test-config.yaml") {
 		t.Errorf("expected config path to end with test-config.yaml, got %s", initMock.configPath)

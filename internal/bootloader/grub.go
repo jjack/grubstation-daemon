@@ -196,7 +196,7 @@ func (g *Grub) GetBootOptions(ctx context.Context, cfg Config) ([]string, error)
 	return options, nil
 }
 
-func (g *Grub) Install(ctx context.Context, macAddress, haURL string) error {
+func (g *Grub) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
 	u, err := url.Parse(haURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return ErrInvalidHAURL
@@ -211,10 +211,12 @@ func (g *Grub) Install(ctx context.Context, macAddress, haURL string) error {
 		Protocol   string
 		Host       string
 		MACAddress string
+		WebhookID  string
 	}{
 		Protocol:   u.Scheme,
 		Host:       u.Host,
 		MACAddress: macAddress,
+		WebhookID:  webhookID,
 	}
 
 	var content strings.Builder
