@@ -320,8 +320,8 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 	if cfg.Server.Name != "my-host" {
 		t.Errorf("expected name my-host, got %s", cfg.Server.Name)
 	}
-	if cfg.Server.Server != "detected-host" {
-		t.Errorf("expected host detected-host, got %s", cfg.Server.Server)
+	if cfg.Server.Host != "detected-host" {
+		t.Errorf("expected host detected-host, got %s", cfg.Server.Host)
 	}
 	if cfg.HomeAssistant.EntityType != config.EntityTypeSwitch {
 		t.Errorf("expected entity type switch, got %s", cfg.HomeAssistant.EntityType)

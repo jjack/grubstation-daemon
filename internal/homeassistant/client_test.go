@@ -37,7 +37,7 @@ func TestClient_Push(t *testing.T) {
 	payload := PushPayload{
 		MACAddress:       "aa:bb:cc:dd",
 		Name:             "test-name",
-		Server:           "test-host",
+		Host:             "test-host",
 		EntityType:       "button",
 		Bootloader:       "grub",
 		BootOptions:      []string{"Ubuntu", "Windows"},

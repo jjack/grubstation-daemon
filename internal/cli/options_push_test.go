@@ -50,7 +50,7 @@ func TestPushBootOptionsCommand(t *testing.T) {
 			BroadcastAddress: "192.168.1.255",
 			BroadcastPort:    9,
 			Name:             "test-name",
-			Server:           "test-host",
+			Host:             "test-host",
 		},
 		Bootloader: config.BootloaderConfig{
 			Name:       "grub",
@@ -84,8 +84,8 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	if payload.Name != "test-name" {
 		t.Errorf("expected name test-name, got %s", payload.Name)
 	}
-	if payload.Server != "test-host" {
-		t.Errorf("expected host test-host, got %s", payload.Server)
+	if payload.Host != "test-host" {
+		t.Errorf("expected host test-host, got %s", payload.Host)
 	}
 	if payload.EntityType != "button" {
 		t.Errorf("expected entity type button, got %s", payload.EntityType)

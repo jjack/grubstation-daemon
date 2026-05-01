@@ -16,7 +16,7 @@ const (
 )
 
 type Config struct {
-	Server        ServerConfig        `mapstructure:"host"`
+	Server        ServerConfig        `mapstructure:"server"`
 	Bootloader    BootloaderConfig    `mapstructure:"bootloader"`
 	InitSystem    InitSystemConfig    `mapstructure:"initsystem"`
 	HomeAssistant HomeAssistantConfig `mapstructure:"homeassistant"`
@@ -32,7 +32,7 @@ type InitSystemConfig struct {
 }
 
 type ServerConfig struct {
-	Server           string `mapstructure:"host"`
+	Host             string `mapstructure:"host"`
 	MACAddress       string `mapstructure:"mac_address"`
 	Name             string `mapstructure:"name"`
 	BroadcastAddress string `mapstructure:"broadcast_address"`
@@ -56,6 +56,11 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 	}
 
 	if flags != nil {
+		_ = v.BindPFlag("server.mac_address", flags.Lookup("mac"))
+		_ = v.BindPFlag("server.name", flags.Lookup("name"))
+		_ = v.BindPFlag("server.host", flags.Lookup("host"))
+		_ = v.BindPFlag("server.broadcast_address", flags.Lookup("broadcast-address"))
+		_ = v.BindPFlag("server.broadcast_port", flags.Lookup("wol-port"))
 		_ = v.BindPFlag("host.mac_address", flags.Lookup("mac"))
 		_ = v.BindPFlag("host.name", flags.Lookup("name"))
 		_ = v.BindPFlag("host.host", flags.Lookup("host"))
@@ -85,9 +90,14 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 
 func Save(cfg *Config, path string) error {
 	v := viper.New()
+	v.Set("server.mac_address", cfg.Server.MACAddress)
+	v.Set("server.name", cfg.Server.Name)
+	v.Set("server.host", cfg.Server.Host)
+	v.Set("server.broadcast_address", cfg.Server.BroadcastAddress)
+	v.Set("server.broadcast_port", cfg.Server.BroadcastPort)
 	v.Set("host.mac_address", cfg.Server.MACAddress)
 	v.Set("host.name", cfg.Server.Name)
-	v.Set("host.host", cfg.Server.Server)
+	v.Set("host.host", cfg.Server.Host)
 	v.Set("host.broadcast_address", cfg.Server.BroadcastAddress)
 	v.Set("host.broadcast_port", cfg.Server.BroadcastPort)
 	v.Set("bootloader.name", cfg.Bootloader.Name)

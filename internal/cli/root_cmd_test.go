@@ -47,7 +47,7 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 	if cli.Config.Server.Name != "override-name" {
 		t.Errorf("name not overridden")
 	}
-	if cli.Config.Server.Server != "override-host" {
+	if cli.Config.Server.Host != "override-host" {
 		t.Errorf("host not overridden")
 	}
 	if cli.Config.HomeAssistant.EntityType != config.EntityTypeSwitch {

@@ -62,7 +62,7 @@ func ValidateBroadcastPort(v string) error {
 	}
 	port, err := strconv.Atoi(v)
 	if err != nil || port < 1 || port > 65535 {
-		slog.Debug("Invalid WOL port", "port", port)
+		slog.Error("Invalid WOL port", "port", port)
 		return ErrInvalidBroadcastPort
 	}
 	return nil
@@ -82,7 +82,7 @@ func (c *Config) Validate() error {
 	if err := ValidateMACAddress(c.Server.MACAddress); err != nil {
 		return err
 	}
-	if err := ValidateHost(c.Server.Server); err != nil {
+	if err := ValidateHost(c.Server.Host); err != nil {
 		return err
 	}
 	if err := ValidateEntityType(c.HomeAssistant.EntityType); err != nil {

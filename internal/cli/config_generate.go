@@ -162,7 +162,7 @@ func askHostConfig(entityType config.EntityType) (config.ServerConfig, error) {
 
 	return config.ServerConfig{
 		Name:             finalName,
-		Server:           finalHost,
+		Host:             finalHost,
 		MACAddress:       macAddress,
 		BroadcastAddress: finalBroadcast,
 		BroadcastPort:    wolPort,
@@ -323,7 +323,7 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 
 			fmt.Println("\nGenerated config (keys may be in a different order than shown here):")
 			fmt.Printf("---\n")
-			fmt.Printf("host:\n  name: %s\n  host: %s\n  mac_address: %s\n  broadcast_address: %s\n  broadcast_port: %d\n", cfg.Server.Name, cfg.Server.Server, cfg.Server.MACAddress, cfg.Server.BroadcastAddress, cfg.Server.BroadcastPort)
+			fmt.Printf("host:\n  name: %s\n  host: %s\n  mac_address: %s\n  broadcast_address: %s\n  broadcast_port: %d\n", cfg.Server.Name, cfg.Server.Host, cfg.Server.MACAddress, cfg.Server.BroadcastAddress, cfg.Server.BroadcastPort)
 			fmt.Printf("homeassistant:\n  url: %s\n  webhook_id: %s\n  entity_type: %s\n", cfg.HomeAssistant.URL, cfg.HomeAssistant.WebhookID, cfg.HomeAssistant.EntityType)
 			fmt.Printf("bootloader:\n  name: %s\n  config_path: %s\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
 			fmt.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)

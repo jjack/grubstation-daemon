@@ -31,15 +31,15 @@ func NewPushCmd(deps *CommandDeps) *cobra.Command {
 				return fmt.Errorf("failed to get boot options: %w", err)
 			}
 
-			hostCfg := deps.Config.Server
+			serverCfg := deps.Config.Server
 			haCfg := deps.Config.HomeAssistant
 			payload := ha.PushPayload{
-				MACAddress:       hostCfg.MACAddress,
-				BroadcastAddress: hostCfg.BroadcastAddress,
-				BroadcastPort:    hostCfg.BroadcastPort,
+				MACAddress:       serverCfg.MACAddress,
+				BroadcastAddress: serverCfg.BroadcastAddress,
+				BroadcastPort:    serverCfg.BroadcastPort,
 				Bootloader:       bl.Name(),
-				Name:             hostCfg.Name,
-				Server:           hostCfg.Server,
+				Name:             serverCfg.Name,
+				Host:             serverCfg.Host,
 				EntityType:       string(haCfg.EntityType),
 				BootOptions:      bootOptions,
 			}
