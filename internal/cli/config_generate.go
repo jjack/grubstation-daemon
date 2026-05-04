@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
+	"charm.land/huh/v2"
 	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 	"github.com/jjack/remote-boot-agent/internal/homeassistant"
@@ -18,13 +18,15 @@ import (
 )
 
 var (
-	surveyAskOne          = survey.AskOne
 	discoverHomeAssistant = homeassistant.Discover
 	detectSystemHostname  = system.DetectHostname
 	getWOLInterfaces      = system.GetWOLInterfaces
 	getIPv4Info           = system.GetIPv4Info
 	saveConfigFile        = config.Save
 	runGenerateSurvey     = generateConfigInteractive
+
+	runBasicForm    = defaultRunBasicForm
+	runAdvancedForm = defaultRunAdvancedForm
 )
 
 const (
@@ -38,265 +40,227 @@ type haDiscoveryResult struct {
 	err error
 }
 
-func surveyValidator(valFunc func(string) error) survey.Validator {
-	return func(val interface{}) error {
-		if str, ok := val.(string); ok {
-			return valFunc(str)
-		}
-		return nil
-	}
+type basicFormResults struct {
+	EntityType string
+	Name       string
+	HAURL      string
+	HAWebhook  string
+	Bootloader string
+	InitSystem string
+	IfaceName  string
 }
 
-func askHostConfig(entityType config.EntityType) (config.ServerConfig, error) {
-	hostname, err := detectSystemHostname()
-	if err != nil {
-		return config.ServerConfig{}, err
+func defaultRunBasicForm(
+	hostname string,
+	haURL string,
+	ifaceOpts []huh.Option[string],
+	blOpts []string,
+	initOpts []string,
+) (basicFormResults, error) {
+	res := basicFormResults{
+		EntityType: string(config.EntityTypeButton),
+		Name:       hostname,
+		HAURL:      haURL,
 	}
 
-	var finalName string
-	err = surveyAskOne(&survey.Input{
-		Message: "Name (how Home Assistant will refer to your machine):",
-		Help:    "Me rhonda, help help me.",
-		Default: hostname,
-	}, &finalName)
-	if err != nil {
-		return config.ServerConfig{}, err
-	}
+	err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Home Assistant Entity Type").
+				Description("Buttons cannot track on/off states, switches can.").
+				Options(
+					huh.NewOption("Button", string(config.EntityTypeButton)),
+					huh.NewOption("Switch", string(config.EntityTypeSwitch)),
+				).
+				Value(&res.EntityType),
+			huh.NewInput().Title("Name (how HA will refer to your machine):").Value(&res.Name),
+		),
+		huh.NewGroup(
+			huh.NewInput().Title("Home Assistant URL:").Value(&res.HAURL).Validate(config.ValidateURL),
+			huh.NewInput().Title("Home Assistant Generated Webhook ID:").Value(&res.HAWebhook).Validate(config.ValidateWebhookID),
+		),
+		huh.NewGroup(
+			huh.NewSelect[string]().Title("Physical Interface for WOL Packets:").Options(ifaceOpts...).Value(&res.IfaceName),
+			huh.NewSelect[string]().Title("Init System:").Options(huh.NewOptions(initOpts...)...).Value(&res.InitSystem),
+			huh.NewSelect[string]().Title("Bootloader:").Options(huh.NewOptions(blOpts...)...).Value(&res.Bootloader),
+		),
+	).Run()
 
-	wolInterfaces, err := getWOLInterfaces()
-	if err != nil {
-		return config.ServerConfig{}, err
-	}
-
-	var ifaceNames []string
-	ifaceMap := make(map[string]net.Interface)
-	for _, inf := range wolInterfaces {
-		ifaceNames = append(ifaceNames, inf.Name)
-		ifaceMap[inf.Name] = inf
-	}
-
-	var selectedIfaceName string
-	err = surveyAskOne(&survey.Select{
-		Message: "Select Physical WOL Interface",
-		Options: ifaceNames,
-		Description: func(value string, index int) string {
-			if inf, ok := ifaceMap[value]; ok {
-				ips, _ := getIPv4Info(inf)
-				return fmt.Sprintf("(%s) [%s]", inf.HardwareAddr.String(), strings.Join(ips, ", "))
-			}
-			return ""
-		},
-	}, &selectedIfaceName)
-	if err != nil {
-		return config.ServerConfig{}, err
-	}
-
-	selectedIface := ifaceMap[selectedIfaceName]
-	macAddress := selectedIface.HardwareAddr.String()
-	if err := config.ValidateMACAddress(macAddress); err != nil {
-		return config.ServerConfig{}, err
-	}
-
-	ips, ipBroadcasts := getIPv4Info(selectedIface)
-
-	hostOptions := []string{hostname}
-	hostOptions = append(hostOptions, ips...)
-	hostOptions = append(hostOptions, OptionCustomHost)
-
-	finalHost := hostname
-	if entityType == config.EntityTypeSwitch {
-		err = surveyAskOne(&survey.Select{
-			Message: "Server address for ping checks (Warning: If you choose an IP, it must be static):",
-			Options: hostOptions,
-			Default: hostname,
-		}, &finalHost)
-		if err != nil {
-			return config.ServerConfig{}, err
-		}
-
-		if finalHost == OptionCustomHost {
-			err = surveyAskOne(&survey.Input{
-				Message: "Enter server address:",
-			}, &finalHost, survey.WithValidator(surveyValidator(config.ValidateHost)))
-			if err != nil {
-				return config.ServerConfig{}, err
-			}
-		}
-	}
-
-	var finalBroadcast string
-	if bc, ok := ipBroadcasts[finalHost]; ok {
-		finalBroadcast = bc
-	} else {
-		var broadcastAddrs []string
-		seen := make(map[string]bool)
-		for _, bc := range ipBroadcasts {
-			if !seen[bc] {
-				broadcastAddrs = append(broadcastAddrs, bc)
-				seen[bc] = true
-			}
-		}
-		if len(broadcastAddrs) == 0 {
-			broadcastAddrs = []string{DefaultBroadcastAddress}
-		}
-
-		chosenBroadcast := DefaultBroadcastPort
-		if len(broadcastAddrs) == 1 {
-			chosenBroadcast = broadcastAddrs[0]
-		} else {
-			err = surveyAskOne(&survey.Select{
-				Message: "Multiple WOL Subnet/Broadcast Addresses were discovered. Please select one:",
-				Options: broadcastAddrs,
-			}, &chosenBroadcast)
-			if err != nil {
-				return config.ServerConfig{}, err
-			}
-		}
-
-		err = surveyAskOne(&survey.Input{
-			Message: "WOL Broadcast Address (leave blank for default):",
-			Default: chosenBroadcast,
-		}, &finalBroadcast, survey.WithValidator(surveyValidator(config.ValidateBroadcastAddress)))
-		if err != nil {
-			return config.ServerConfig{}, err
-		}
-	}
-
-	var wolPortStr string
-	err = surveyAskOne(&survey.Input{
-		Message: "Wake-on-LAN Port (leave blank for default):",
-	}, &wolPortStr, survey.WithValidator(surveyValidator(config.ValidateBroadcastPort)))
-	if err != nil {
-		return config.ServerConfig{}, err
-	}
-
-	wolPort, _ := strconv.Atoi(wolPortStr)
-	if wolPort == 0 {
-		wolPort = 9
-	}
-
-	return config.ServerConfig{
-		Name:             finalName,
-		Host:             finalHost,
-		MACAddress:       macAddress,
-		BroadcastAddress: finalBroadcast,
-		BroadcastPort:    wolPort,
-	}, nil
+	return res, err
 }
 
-func askBootloaderConfig(ctx context.Context, registry *bootloader.Registry) (config.BootloaderConfig, error) {
-	var blName string
-	err := surveyAskOne(&survey.Select{
-		Message: "Bootloader:",
-		Options: registry.SupportedBootloaders(),
-	}, &blName)
-	if err != nil {
-		return config.BootloaderConfig{}, err
-	}
-
-	var blPath string
-	bl := registry.Get(blName)
-	if bl != nil {
-		blPath, _ = bl.DiscoverConfigPath(ctx)
-	}
-
-	if blPath != "" {
-		err = surveyAskOne(&survey.Input{
-			Message: "Bootloader Config Path:",
-			Default: blPath,
-		}, &blPath, survey.WithValidator(surveyValidator(config.ValidateBootloaderConfigPath)))
-		if err != nil {
-			return config.BootloaderConfig{}, err
-		}
-	}
-
-	return config.BootloaderConfig{Name: blName, ConfigPath: blPath}, nil
+type advancedFormResults struct {
+	HostAddress    string
+	Broadcast      string
+	WOLPort        string
+	BootloaderPath string
 }
 
-func askInitSystemConfig(registry *initsystem.Registry) (config.InitSystemConfig, error) {
-	var initSysName string
-	err := surveyAskOne(&survey.Select{
-		Message: "Init System:",
-		Options: registry.SupportedInitSystems(),
-	}, &initSysName)
-	if err != nil {
-		return config.InitSystemConfig{}, err
+func defaultRunAdvancedForm(
+	isSwitch bool,
+	hostOpts []huh.Option[string],
+	defaultHost string,
+	defaultBroadcast string,
+	defaultBLPath string,
+) (advancedFormResults, error) {
+	res := advancedFormResults{
+		HostAddress:    defaultHost,
+		Broadcast:      defaultBroadcast,
+		WOLPort:        "9",
+		BootloaderPath: defaultBLPath,
+	}
+	var customHost string
+
+	var groups []*huh.Group
+
+	if isSwitch {
+		groups = append(groups, huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Server address for ping checks").
+				Description("Warning: If you choose an IP, it must be static").
+				Options(hostOpts...).
+				Value(&res.HostAddress),
+		))
+		groups = append(groups, huh.NewGroup(
+			huh.NewInput().
+				Title("Enter custom server address:").
+				Value(&customHost).
+				Validate(config.ValidateHost),
+		).WithHideFunc(func() bool { return res.HostAddress != OptionCustomHost }))
 	}
 
-	return config.InitSystemConfig{Name: initSysName}, nil
-}
+	groups = append(groups, huh.NewGroup(
+		huh.NewInput().
+			Title("WOL Broadcast Address:").
+			Value(&res.Broadcast).
+			Validate(config.ValidateBroadcastAddress),
+		huh.NewInput().
+			Title("Wake-on-LAN Port:").
+			Description("Leave default (9) unless you know what you're doing").
+			Value(&res.WOLPort).
+			Validate(config.ValidateBroadcastPort),
+	))
 
-func askHomeAssistantConfig(ctx context.Context, discoveryChan <-chan haDiscoveryResult) (config.HomeAssistantConfig, error) {
-	var discoveryResult haDiscoveryResult
-	select {
-	case discoveryResult = <-discoveryChan:
-	case <-ctx.Done():
-		return config.HomeAssistantConfig{}, ctx.Err()
+	groups = append(groups, huh.NewGroup(
+		huh.NewInput().
+			Title("Bootloader Config Path:").
+			Value(&res.BootloaderPath).
+			Validate(config.ValidateBootloaderConfigPath),
+	))
+
+	err := huh.NewForm(groups...).Run()
+
+	if res.HostAddress == OptionCustomHost {
+		res.HostAddress = customHost
 	}
 
-	var finalHassURL string
-	err := surveyAskOne(&survey.Input{
-		Message: "Home Assistant URL:",
-		Default: discoveryResult.url,
-	}, &finalHassURL, survey.WithValidator(surveyValidator(config.ValidateURL)))
-	if err != nil {
-		return config.HomeAssistantConfig{}, err
-	}
-
-	var webhookID string
-	err = surveyAskOne(&survey.Input{
-		Message: "Home Assistant Webhook ID:",
-	}, &webhookID, survey.WithValidator(surveyValidator(config.ValidateWebhookID)))
-	if err != nil {
-		return config.HomeAssistantConfig{}, err
-	}
-
-	return config.HomeAssistantConfig{URL: finalHassURL, WebhookID: webhookID}, nil
+	return res, err
 }
 
 func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+	// 1. Fetch async HA Discovery
 	haDiscoveryResultChan := make(chan haDiscoveryResult, 1)
 	go func() {
 		url, err := discoverHomeAssistant(ctx)
 		haDiscoveryResultChan <- haDiscoveryResult{url: url, err: err}
 	}()
 
-	var entityType string
-	err := surveyAskOne(&survey.Select{
-		Message: "Home Assistant Entity Type (buttons cannot track on/off states, switches can):",
-		Options: []string{string(config.EntityTypeButton), string(config.EntityTypeSwitch)},
-		Default: string(config.EntityTypeButton),
-	}, &entityType)
+	// 2. Fetch basic system info
+	hostname, err := detectSystemHostname()
 	if err != nil {
 		return nil, err
 	}
 
-	hostCfg, err := askHostConfig(config.EntityType(entityType))
+	wolInterfaces, err := getWOLInterfaces()
 	if err != nil {
 		return nil, err
 	}
 
-	blCfg, err := askBootloaderConfig(ctx, deps.BootloaderRegistry)
+	var ifaceOpts []huh.Option[string]
+	ifaceMap := make(map[string]net.Interface)
+	for _, inf := range wolInterfaces {
+		ifaceMap[inf.Name] = inf
+		ips, _ := getIPv4Info(inf)
+		desc := fmt.Sprintf("(%s) [%s]", inf.HardwareAddr.String(), strings.Join(ips, ", "))
+		ifaceOpts = append(ifaceOpts, huh.NewOption(fmt.Sprintf("%s %s", inf.Name, desc), inf.Name))
+	}
+
+	blOpts := deps.BootloaderRegistry.SupportedBootloaders()
+	initOpts := deps.InitRegistry.SupportedInitSystems()
+
+	// Wait for HA Discovery
+	var haURL string
+	select {
+	case res := <-haDiscoveryResultChan:
+		haURL = res.url
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
+	// 3. Run Basic Form
+	basicRes, err := runBasicForm(hostname, haURL, ifaceOpts, blOpts, initOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	initCfg, err := askInitSystemConfig(deps.InitRegistry)
+	// 4. Process basic results
+	selectedIface := ifaceMap[basicRes.IfaceName]
+	macAddress := selectedIface.HardwareAddr.String()
+	if err := config.ValidateMACAddress(macAddress); err != nil {
+		return nil, err
+	}
+
+	ips, ipBroadcasts := getIPv4Info(selectedIface)
+
+	hostOpts := []huh.Option[string]{
+		huh.NewOption(hostname, hostname),
+	}
+	for _, ip := range ips {
+		hostOpts = append(hostOpts, huh.NewOption(ip, ip))
+	}
+	hostOpts = append(hostOpts, huh.NewOption(OptionCustomHost, OptionCustomHost))
+
+	defaultBroadcast := DefaultBroadcastAddress
+	for _, bc := range ipBroadcasts {
+		defaultBroadcast = bc
+		break
+	}
+
+	bl := deps.BootloaderRegistry.Get(basicRes.Bootloader)
+	var blPath string
+	if bl != nil {
+		blPath, _ = bl.DiscoverConfigPath(ctx)
+	}
+
+	// 5. Run Advanced Form
+	isSwitch := basicRes.EntityType == string(config.EntityTypeSwitch)
+	advRes, err := runAdvancedForm(isSwitch, hostOpts, hostname, defaultBroadcast, blPath)
 	if err != nil {
 		return nil, err
 	}
 
-	haCfg, err := askHomeAssistantConfig(ctx, haDiscoveryResultChan)
-	if err != nil {
-		return nil, err
-	}
-	haCfg.EntityType = config.EntityType(entityType)
+	wolPort, _ := strconv.Atoi(advRes.WOLPort)
 
 	return &config.Config{
-		Server:        hostCfg,
-		Bootloader:    blCfg,
-		InitSystem:    initCfg,
-		HomeAssistant: haCfg,
+		Server: config.ServerConfig{
+			Name:             basicRes.Name,
+			Host:             advRes.HostAddress,
+			MACAddress:       macAddress,
+			BroadcastAddress: advRes.Broadcast,
+			BroadcastPort:    wolPort,
+		},
+		Bootloader: config.BootloaderConfig{
+			Name:       basicRes.Bootloader,
+			ConfigPath: advRes.BootloaderPath,
+		},
+		InitSystem: config.InitSystemConfig{
+			Name: basicRes.InitSystem,
+		},
+		HomeAssistant: config.HomeAssistantConfig{
+			EntityType: config.EntityType(basicRes.EntityType),
+			URL:        basicRes.HAURL,
+			WebhookID:  basicRes.HAWebhook,
+		},
 	}, nil
 }
 
@@ -330,6 +294,9 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 			if err := ensureSupport(cmd.Context(), deps); err != nil {
 				return err
 			}
+
+			// Clear the terminal screen before starting the interactive prompts
+			cmd.Print("\033[H\033[2J")
 
 			cfg, err := runGenerateSurvey(cmd.Context(), deps)
 			if err != nil {

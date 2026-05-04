@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/AlecAivazis/survey/v2"
+	"charm.land/huh/v2"
 	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 	"github.com/jjack/remote-boot-agent/internal/initsystem"
@@ -211,94 +211,41 @@ func setupSurveyDeps() *CommandDeps {
 	return &CommandDeps{BootloaderRegistry: blReg, InitRegistry: initReg}
 }
 
-func TestSurveyValidator(t *testing.T) {
-	valFunc := func(v string) error {
-		if v == "fail" {
-			return errors.New("validation failed")
-		}
-		return nil
-	}
-
-	validator := surveyValidator(valFunc)
-
-	if err := validator("fail"); err == nil || err.Error() != "validation failed" {
-		t.Errorf("expected validation to fail, got %v", err)
-	}
-	if err := validator("success"); err != nil {
-		t.Errorf("expected validation to succeed, got %v", err)
-	}
-	if err := validator(123); err != nil {
-		t.Errorf("expected non-string to return nil, got %v", err)
-	}
-}
-
-func buildMockSurveyAskOne(triggerErrorOn string) func(survey.Prompt, interface{}, ...survey.AskOpt) error {
-	return func(p survey.Prompt, response interface{}, opts ...survey.AskOpt) error {
-		var msg string
-		switch pt := p.(type) {
-		case *survey.Input:
-			msg = pt.Message
-		case *survey.Select:
-			msg = pt.Message
-		}
-
-		if triggerErrorOn != "" && msg == triggerErrorOn {
-			return errors.New("simulated survey error")
-		}
-
-		switch pt := p.(type) {
-		case *survey.Input:
-			switch pt.Message {
-			case "Name (how Home Assistant will refer to your machine):":
-				*(response.(*string)) = "my-host"
-			case "Enter server address:":
-				*(response.(*string)) = "192.168.1.100"
-			case "WOL Broadcast Address (leave blank for default):":
-				*(response.(*string)) = "192.168.1.255"
-			case "Wake-on-LAN Port (leave blank for default):":
-				*(response.(*string)) = "" // test fallback
-			case "Bootloader Config Path:":
-				*(response.(*string)) = "/boot/grub/grub.cfg"
-			case "Home Assistant URL:":
-				*(response.(*string)) = "http://hass.local:8123"
-			case "Home Assistant Webhook ID:":
-				*(response.(*string)) = "webhook123"
-			}
-		case *survey.Select:
-			switch pt.Message {
-			case "Server address for ping checks (Warning: If you choose an IP, it must be static):":
-				*(response.(*string)) = "detected-host"
-			case "Home Assistant Entity Type (buttons cannot track on/off states, switches can):":
-				*(response.(*string)) = "switch"
-			case "Select Physical WOL Interface":
-				*(response.(*string)) = "eth0"
-			case "Multiple WOL Subnet/Broadcast Addresses were discovered. Please select one:":
-				*(response.(*string)) = "192.168.1.255"
-			case "Bootloader:":
-				*(response.(*string)) = "grub"
-			case "Init System:":
-				*(response.(*string)) = "systemd"
-			}
-		}
-		return nil
-	}
-}
-
 func TestGenerateConfigSurvey_Success(t *testing.T) {
-	oldSurveyAskOne := surveyAskOne
+	oldRunBasic := runBasicForm
+	oldRunAdvanced := runAdvancedForm
 	oldDiscoverHomeAssistant := discoverHomeAssistant
 	oldDetectSystemHostname := detectSystemHostname
 	oldGetWOLInterfaces := getWOLInterfaces
 	oldGetIPv4Info := getIPv4Info
 	defer func() {
-		surveyAskOne = oldSurveyAskOne
+		runBasicForm = oldRunBasic
+		runAdvancedForm = oldRunAdvanced
 		discoverHomeAssistant = oldDiscoverHomeAssistant
 		detectSystemHostname = oldDetectSystemHostname
 		getWOLInterfaces = oldGetWOLInterfaces
 		getIPv4Info = oldGetIPv4Info
 	}()
 
-	surveyAskOne = buildMockSurveyAskOne("")
+	runBasicForm = func(h, u string, io []huh.Option[string], bo, init []string) (basicFormResults, error) {
+		return basicFormResults{
+			EntityType: string(config.EntityTypeSwitch),
+			Name:       "my-host",
+			HAURL:      "http://hass.local:8123",
+			HAWebhook:  "webhook123",
+			Bootloader: "grub",
+			InitSystem: "systemd",
+			IfaceName:  "eth0",
+		}, nil
+	}
+	runAdvancedForm = func(s bool, ho []huh.Option[string], dh, db, dbp string) (advancedFormResults, error) {
+		return advancedFormResults{
+			HostAddress:    "detected-host",
+			Broadcast:      "192.168.1.255",
+			WOLPort:        "9",
+			BootloaderPath: "/boot/grub/grub.cfg",
+		}, nil
+	}
 
 	discoverHomeAssistant = func(ctx context.Context) (string, error) { return "http://hass.local:8123", nil }
 	detectSystemHostname = func() (string, error) { return "detected-host", nil }
@@ -337,14 +284,16 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 	}
 }
 
-func TestGenerateConfigSurvey_AskOneErrors(t *testing.T) {
-	oldSurveyAskOne := surveyAskOne
+func TestGenerateConfigSurvey_FormErrors(t *testing.T) {
+	oldRunBasic := runBasicForm
+	oldRunAdvanced := runAdvancedForm
 	oldDiscoverHomeAssistant := discoverHomeAssistant
 	oldDetectSystemHostname := detectSystemHostname
 	oldGetWOLInterfaces := getWOLInterfaces
 	oldGetIPv4Info := getIPv4Info
 	defer func() {
-		surveyAskOne = oldSurveyAskOne
+		runBasicForm = oldRunBasic
+		runAdvancedForm = oldRunAdvanced
 		discoverHomeAssistant = oldDiscoverHomeAssistant
 		detectSystemHostname = oldDetectSystemHostname
 		getWOLInterfaces = oldGetWOLInterfaces
@@ -363,54 +312,44 @@ func TestGenerateConfigSurvey_AskOneErrors(t *testing.T) {
 	}
 
 	deps := setupSurveyDeps()
-	errorSteps := []string{
-		"Home Assistant Entity Type (buttons cannot track on/off states, switches can):",
-		"Name (how Home Assistant will refer to your machine):",
-		"Select Physical WOL Interface",
-		"Server address for ping checks (Warning: If you choose an IP, it must be static):",
-		"WOL Broadcast Address (leave blank for default):",
-		"Wake-on-LAN Port (leave blank for default):",
-		"Bootloader:",
-		"Bootloader Config Path:",
-		"Init System:",
-		"Home Assistant URL:",
-		"Home Assistant Webhook ID:",
-	}
 
-	for _, step := range errorSteps {
-		t.Run("Error at "+step, func(t *testing.T) {
-			surveyAskOne = buildMockSurveyAskOne(step)
-			_, err := generateConfigInteractive(context.Background(), deps)
-			if err == nil || err.Error() != "simulated survey error" {
-				t.Fatalf("expected simulated survey error at step %q, got %v", step, err)
-			}
-		})
-	}
-
-	t.Run("Multiple Subnet Selection Error", func(t *testing.T) {
-		surveyAskOne = buildMockSurveyAskOne("Multiple WOL Subnet/Broadcast Addresses were discovered. Please select one:")
-		getWOLInterfaces = func() ([]net.Interface, error) {
-			mac, _ := net.ParseMAC("00:11:22:33:44:55")
-			return []net.Interface{{Name: "eth0", HardwareAddr: mac}}, nil
+	t.Run("Basic Form Error", func(t *testing.T) {
+		runBasicForm = func(h, u string, io []huh.Option[string], bo, init []string) (basicFormResults, error) {
+			return basicFormResults{}, errors.New("simulated basic error")
 		}
-		getIPv4Info = func(inf net.Interface) ([]string, map[string]string) {
-			return []string{"192.168.1.100", "10.0.0.100"}, map[string]string{"192.168.1.100": "192.168.1.255", "10.0.0.100": "10.0.0.255"}
+		runAdvancedForm = func(s bool, ho []huh.Option[string], dh, db, dbp string) (advancedFormResults, error) {
+			return advancedFormResults{}, nil
 		}
 		_, err := generateConfigInteractive(context.Background(), deps)
-		if err == nil || err.Error() != "simulated survey error" {
-			t.Errorf("expected simulated survey error, got %v", err)
+		if err == nil || err.Error() != "simulated basic error" {
+			t.Fatalf("expected simulated basic error, got %v", err)
+		}
+	})
+
+	t.Run("Advanced Form Error", func(t *testing.T) {
+		runBasicForm = func(h, u string, io []huh.Option[string], bo, init []string) (basicFormResults, error) {
+			return basicFormResults{IfaceName: "eth0"}, nil
+		}
+		runAdvancedForm = func(s bool, ho []huh.Option[string], dh, db, dbp string) (advancedFormResults, error) {
+			return advancedFormResults{}, errors.New("simulated advanced error")
+		}
+		_, err := generateConfigInteractive(context.Background(), deps)
+		if err == nil || err.Error() != "simulated advanced error" {
+			t.Fatalf("expected simulated advanced error, got %v", err)
 		}
 	})
 }
 
 func TestGenerateConfigSurvey_OptErrors(t *testing.T) {
 	t.Run("Invalid MAC Address", func(t *testing.T) {
-		oldSurveyAskOne := surveyAskOne
+		oldRunBasic := runBasicForm
 		oldDetectSystemHostname := detectSystemHostname
 		oldGetWOLInterfaces := getWOLInterfaces
-		surveyAskOne = buildMockSurveyAskOne("")
+		runBasicForm = func(h, u string, io []huh.Option[string], bo, init []string) (basicFormResults, error) {
+			return basicFormResults{IfaceName: "eth0"}, nil
+		}
 		defer func() {
-			surveyAskOne = oldSurveyAskOne
+			runBasicForm = oldRunBasic
 			detectSystemHostname = oldDetectSystemHostname
 			getWOLInterfaces = oldGetWOLInterfaces
 		}()
