@@ -45,7 +45,7 @@ func isWOLCapableInterface(inf net.Interface) bool {
 
 	path := fmt.Sprintf("/sys/class/net/%s/device", inf.Name)
 	_, err := os.Stat(path)
-	return os.IsNotExist(err)
+	return !os.IsNotExist(err)
 }
 
 // GetWOLInterfaces returns a slice of net.Interface that are capable of Wake-on-LAN.
@@ -57,10 +57,9 @@ func GetWOLInterfaces() ([]net.Interface, error) {
 
 	var wolIfaces []net.Interface
 	for _, inf := range interfaces {
-		if !isWOLCapableInterface(inf) {
-			continue
+		if isWOLCapableInterface(inf) {
+			wolIfaces = append(wolIfaces, inf)
 		}
-		wolIfaces = append(wolIfaces, inf)
 	}
 
 	if len(wolIfaces) == 0 {
