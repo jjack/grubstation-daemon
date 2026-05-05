@@ -19,7 +19,7 @@ if ! git diff --exit-code go.mod go.sum > /dev/null; then
 fi
 
 echo "Running golangci-lint..."
-if ! golangci-lint run; then
+if ! golangci-lint run --tests; then
     echo "golangci-lint failed. Please fix the above issues and try committing again."
     exit 1
 fi
