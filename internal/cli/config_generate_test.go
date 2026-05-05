@@ -62,10 +62,11 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 	}()
 
 	tests := []struct {
-		name        string
-		setupMocks  func(*CommandDeps)
-		wantErr     bool
-		errContains string
+		name           string
+		setupMocks     func(*CommandDeps)
+		wantErr        bool
+		errContains    string
+		outputContains string
 	}{
 		{
 			name: "Happy Path",
@@ -76,6 +77,25 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 				saveConfigFile = func(cfg *config.Config, path string) error { return nil }
 			},
 			wantErr: false,
+		},
+		{
+			name: "Happy Path Custom Config",
+			setupMocks: func(deps *CommandDeps) {
+				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+					return &config.Config{
+						Host: config.HostConfig{
+							Name:             "test",
+							Address:          "1.1.1.1",
+							MACAddress:       "00:11:22:33:44:55",
+							BroadcastAddress: "1.2.3.4",
+							BroadcastPort:    7,
+						},
+					}, nil
+				}
+				saveConfigFile = func(cfg *config.Config, path string) error { return nil }
+			},
+			wantErr:        false,
+			outputContains: "broadcast_address: 1.2.3.4",
 		},
 		{
 			name: "Hostname Error",
@@ -174,6 +194,9 @@ func TestGenerateConfigCmd_Execute(t *testing.T) {
 			}
 			if err != nil && tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
 				t.Errorf("expected error to contain '%s', got '%v'", tt.errContains, err)
+			}
+			if tt.outputContains != "" && !strings.Contains(b.String(), tt.outputContains) {
+				t.Errorf("expected output to contain '%s', got '%s'", tt.outputContains, b.String())
 			}
 		})
 	}
@@ -422,4 +445,154 @@ func TestGenerateConfigSurvey_OptErrors(t *testing.T) {
 			t.Errorf("expected mac validation error, got nil")
 		}
 	})
+}
+
+func TestBuildIfaceOptions(t *testing.T) {
+	oldGetIPv4Info := getIPv4Info
+	defer func() { getIPv4Info = oldGetIPv4Info }()
+	getIPv4Info = func(inf net.Interface) ([]string, map[string]string) {
+		return []string{"192.168.1.50"}, nil
+	}
+
+	mac, _ := net.ParseMAC("00:11:22:33:44:55")
+	ifaces := []net.Interface{
+		{Name: "eth0", HardwareAddr: mac},
+	}
+
+	opts, m := buildIfaceOptions(ifaces)
+	if len(opts) != 1 {
+		t.Fatalf("expected 1 option, got %d", len(opts))
+	}
+	if len(m) != 1 {
+		t.Fatalf("expected map of len 1, got %d", len(m))
+	}
+
+	expectedLabel := "eth0 (00:11:22:33:44:55) [192.168.1.50]"
+	if opts[0].Key != expectedLabel {
+		t.Errorf("expected label %s, got %s", expectedLabel, opts[0].Key)
+	}
+}
+
+func TestBuildHostOptions(t *testing.T) {
+	opts := buildHostOptions("my-host", "my-host.local", []string{"192.168.1.50"})
+
+	if len(opts) != 4 {
+		t.Fatalf("expected 4 options, got %d", len(opts))
+	}
+	if opts[0].Value != "my-host" {
+		t.Errorf("expected option 0 to be my-host")
+	}
+	if opts[1].Value != "my-host.local" {
+		t.Errorf("expected option 1 to be my-host.local")
+	}
+	if opts[2].Value != "192.168.1.50" {
+		t.Errorf("expected option 2 to be 192.168.1.50")
+	}
+	if opts[3].Value != OptionCustomHost {
+		t.Errorf("expected option 3 to be Custom")
+	}
+
+	// Test without FQDN
+	optsNoFqdn := buildHostOptions("my-host", "my-host", []string{"192.168.1.50"})
+	if len(optsNoFqdn) != 3 {
+		t.Fatalf("expected 3 options without fqdn, got %d", len(optsNoFqdn))
+	}
+}
+
+func TestBuildBroadcastOptions(t *testing.T) {
+	ips := []string{"192.168.1.50", "10.0.0.50"}
+	broadcasts := map[string]string{
+		"192.168.1.50": "192.168.1.255",
+		"10.0.0.50":    "10.0.0.255",
+	}
+
+	opts := buildBroadcastOptions("192.168.1.50", ips, broadcasts)
+
+	if len(opts) != 4 {
+		t.Fatalf("expected 4 options, got %d", len(opts))
+	}
+	if opts[0].Value != config.DefaultBroadcastAddress {
+		t.Errorf("expected DefaultBroadcastAddress, got %s", opts[0].Value)
+	}
+	if opts[1].Value != "192.168.1.255" {
+		t.Errorf("expected subnet broadcast 192.168.1.255, got %s", opts[1].Value)
+	}
+	if opts[2].Value != "10.0.0.255" {
+		t.Errorf("expected subnet broadcast 10.0.0.255, got %s", opts[2].Value)
+	}
+	if opts[3].Value != "custom" {
+		t.Errorf("expected custom, got %s", opts[3].Value)
+	}
+
+	// Test deduplication
+	ipsDup := []string{"192.168.1.50", "192.168.1.51"}
+	broadcastsDup := map[string]string{
+		"192.168.1.50": "192.168.1.255",
+		"192.168.1.51": "192.168.1.255",
+	}
+	optsDup := buildBroadcastOptions("192.168.1.50", ipsDup, broadcastsDup)
+	if len(optsDup) != 3 {
+		t.Fatalf("expected 3 options due to dedup, got %d", len(optsDup))
+	}
+
+	// Test IPv6 filtering (if HostAddress is IPv4, it filters out IPv6 subnets)
+	ipsMix := []string{"192.168.1.50", "fe80::1"}
+	broadcastsMix := map[string]string{
+		"192.168.1.50": "192.168.1.255",
+		"fe80::1":      "fe80::ffff",
+	}
+	optsMix := buildBroadcastOptions("192.168.1.50", ipsMix, broadcastsMix)
+	if len(optsMix) != 3 {
+		t.Fatalf("expected 3 options due to ipv6 filtering, got %d", len(optsMix))
+	}
+}
+
+func TestGenerateConfigSurvey_ContextCancelBeforeHA(t *testing.T) {
+	oldRunHostInfoForm := runHostInfoForm
+	oldRunWOLForm := runWOLForm
+	oldRunBootloaderForm := runBootloaderForm
+	oldRunInitSystemForm := runInitSystemForm
+	oldRunHAForm := runHAForm
+	oldDiscoverHomeAssistant := discoverHomeAssistant
+	oldDetectSystemHostname := detectSystemHostname
+	oldGetWOLInterfaces := getWOLInterfaces
+	oldGetIPv4Info := getIPv4Info
+	oldGetFQDN := getFQDN
+	defer func() {
+		runHostInfoForm = oldRunHostInfoForm
+		runWOLForm = oldRunWOLForm
+		runBootloaderForm = oldRunBootloaderForm
+		runInitSystemForm = oldRunInitSystemForm
+		runHAForm = oldRunHAForm
+		discoverHomeAssistant = oldDiscoverHomeAssistant
+		detectSystemHostname = oldDetectSystemHostname
+		getWOLInterfaces = oldGetWOLInterfaces
+		getIPv4Info = oldGetIPv4Info
+		getFQDN = oldGetFQDN
+	}()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	discoverHomeAssistant = func(c context.Context) (string, error) { <-c.Done(); return "", c.Err() }
+	detectSystemHostname = func() (string, error) { return "host", nil }
+	getWOLInterfaces = func() ([]net.Interface, error) {
+		return []net.Interface{{Name: "eth0", HardwareAddr: net.HardwareAddr{1, 2, 3, 4, 5, 6}}}, nil
+	}
+	getIPv4Info = func(net.Interface) ([]string, map[string]string) { return nil, nil }
+	getFQDN = func(h string) string { return h }
+
+	runInitSystemForm = func(io []string) (initSystemResults, error) { return initSystemResults{}, nil }
+	runBootloaderForm = func(bo []string, d *CommandDeps, c context.Context) (bootloaderResults, error) {
+		return bootloaderResults{}, nil
+	}
+	runHostInfoForm = func(io []huh.Option[string], im map[string]net.Interface, h string) (hostInfoResults, []huh.Option[string], error) {
+		return hostInfoResults{MACAddress: "00:11:22:33:44:55"}, nil, nil
+	}
+	runWOLForm = func(bo []huh.Option[string]) (wolResults, error) { cancel(); return wolResults{WOLPort: "9"}, nil }
+	runHAForm = func(u string) (haResults, error) { return haResults{}, nil }
+
+	deps := setupSurveyDeps()
+	if _, err := generateConfigInteractive(ctx, deps); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context canceled, got %v", err)
+	}
 }

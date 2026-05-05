@@ -42,6 +42,54 @@ type haDiscoveryResult struct {
 	err error
 }
 
+func buildIfaceOptions(wolInterfaces []net.Interface) ([]huh.Option[string], map[string]net.Interface) {
+	var ifaceOpts []huh.Option[string]
+	ifaceMap := make(map[string]net.Interface)
+	for _, inf := range wolInterfaces {
+		ifaceMap[inf.Name] = inf
+		ips, _ := getIPv4Info(inf)
+		desc := fmt.Sprintf("(%s) [%s]", inf.HardwareAddr.String(), strings.Join(ips, ", "))
+		ifaceOpts = append(ifaceOpts, huh.NewOption(fmt.Sprintf("%s %s", inf.Name, desc), inf.Name))
+	}
+	return ifaceOpts, ifaceMap
+}
+
+func buildHostOptions(hostname, fqdn string, ips []string) []huh.Option[string] {
+	hostOpts := []huh.Option[string]{
+		huh.NewOption(hostname, hostname),
+	}
+	if fqdn != "" && fqdn != hostname {
+		hostOpts = append(hostOpts, huh.NewOption(fmt.Sprintf("%s (FQDN)", fqdn), fqdn))
+	}
+	for _, ip := range ips {
+		hostOpts = append(hostOpts, huh.NewOption(ip, ip))
+	}
+	hostOpts = append(hostOpts, huh.NewOption(OptionCustomHost, OptionCustomHost))
+	return hostOpts
+}
+
+func buildBroadcastOptions(hostAddress string, ips []string, ipBroadcasts map[string]string) []huh.Option[string] {
+	broadcastOpts := []huh.Option[string]{
+		huh.NewOption("Default Broadcast (255.255.255.255)", config.DefaultBroadcastAddress),
+	}
+	selectedIP := net.ParseIP(hostAddress)
+	isSelectedIPv4 := selectedIP != nil && selectedIP.To4() != nil
+	seenBroadcasts := make(map[string]bool)
+	for _, ip := range ips {
+		bc := ipBroadcasts[ip]
+		isIPv4 := net.ParseIP(ip).To4() != nil
+		if isSelectedIPv4 && !isIPv4 {
+			continue
+		}
+		if !seenBroadcasts[bc] {
+			seenBroadcasts[bc] = true
+			broadcastOpts = append(broadcastOpts, huh.NewOption(fmt.Sprintf("Subnet Broadcast (%s)", bc), bc))
+		}
+	}
+	broadcastOpts = append(broadcastOpts, huh.NewOption("Custom / Manual Entry", "custom"))
+	return broadcastOpts
+}
+
 type initSystemResults struct {
 	Name string
 }
@@ -114,17 +162,7 @@ func defaultRunHostInfoForm(ifaceOpts []huh.Option[string], ifaceMap map[string]
 	ips, ipBroadcasts := getIPv4Info(selectedIface)
 
 	fqdn := getFQDN(hostname)
-
-	hostOpts := []huh.Option[string]{
-		huh.NewOption(hostname, hostname),
-	}
-	if fqdn != "" && fqdn != hostname {
-		hostOpts = append(hostOpts, huh.NewOption(fmt.Sprintf("%s (FQDN)", fqdn), fqdn))
-	}
-	for _, ip := range ips {
-		hostOpts = append(hostOpts, huh.NewOption(ip, ip))
-	}
-	hostOpts = append(hostOpts, huh.NewOption(OptionCustomHost, OptionCustomHost))
+	hostOpts := buildHostOptions(hostname, fqdn, ips)
 
 	var customHost string
 	err = huh.NewForm(
@@ -148,28 +186,7 @@ func defaultRunHostInfoForm(ifaceOpts []huh.Option[string], ifaceMap map[string]
 		res.HostAddress = customHost
 	}
 
-	broadcastOpts := []huh.Option[string]{
-		huh.NewOption("Default Broadcast (255.255.255.255)", config.DefaultBroadcastAddress),
-	}
-
-	selectedIP := net.ParseIP(res.HostAddress)
-	isSelectedIPv4 := selectedIP != nil && selectedIP.To4() != nil
-
-	seenBroadcasts := make(map[string]bool)
-	for _, ip := range ips {
-		bc := ipBroadcasts[ip]
-		isIPv4 := net.ParseIP(ip).To4() != nil
-
-		if isSelectedIPv4 && !isIPv4 {
-			continue
-		}
-
-		if !seenBroadcasts[bc] {
-			seenBroadcasts[bc] = true
-			broadcastOpts = append(broadcastOpts, huh.NewOption(fmt.Sprintf("Subnet Broadcast (%s)", bc), bc))
-		}
-	}
-	broadcastOpts = append(broadcastOpts, huh.NewOption("Custom / Manual Entry", "custom"))
+	broadcastOpts := buildBroadcastOptions(res.HostAddress, ips, ipBroadcasts)
 
 	return res, broadcastOpts, err
 }
@@ -253,14 +270,7 @@ func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.
 		return nil, err
 	}
 
-	var ifaceOpts []huh.Option[string]
-	ifaceMap := make(map[string]net.Interface)
-	for _, inf := range wolInterfaces {
-		ifaceMap[inf.Name] = inf
-		ips, _ := getIPv4Info(inf)
-		desc := fmt.Sprintf("(%s) [%s]", inf.HardwareAddr.String(), strings.Join(ips, ", "))
-		ifaceOpts = append(ifaceOpts, huh.NewOption(fmt.Sprintf("%s %s", inf.Name, desc), inf.Name))
-	}
+	ifaceOpts, ifaceMap := buildIfaceOptions(wolInterfaces)
 
 	blOpts := deps.BootloaderRegistry.SupportedBootloaders()
 	initOpts := deps.InitRegistry.SupportedInitSystems()
@@ -366,8 +376,14 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 				return err
 			}
 
-			fmt.Println("\nGenerated config (keys may be in a different order than shown here):")
-			fmt.Printf("---\n")
+			cfgPath, err := cmd.Flags().GetString("path")
+			if err != nil {
+				cfgPath = "./config.yaml"
+			}
+
+			cmd.Printf("\nConfig file saved to %s\n", cfgPath)
+			cmd.Println("(note: keys may be in a different order than shown here)")
+			cmd.Printf("---\n")
 
 			var broadcastStr string
 			if cfg.Host.BroadcastAddress != "" && cfg.Host.BroadcastAddress != config.DefaultBroadcastAddress {
@@ -377,15 +393,14 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 				broadcastStr += fmt.Sprintf("\n  broadcast_port: %d", cfg.Host.BroadcastPort)
 			}
 
-			fmt.Printf("host:\n  name: %s\n  address: %s\n  mac: %s%s\n\n", cfg.Host.Name, cfg.Host.Address, cfg.Host.MACAddress, broadcastStr)
-			fmt.Printf("homeassistant:\n  url: %s\n  webhook_id: %s\n\n", cfg.HomeAssistant.URL, cfg.HomeAssistant.WebhookID)
-			fmt.Printf("bootloader:\n  name: %s\n  config_path: %s\n\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
-			fmt.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)
-
-			cfgPath, err := cmd.Flags().GetString("path")
-			if err != nil {
-				cfgPath = "./config.yaml"
+			safeWebhookID := cfg.HomeAssistant.WebhookID
+			if len(safeWebhookID) > 4 {
+				safeWebhookID = safeWebhookID[:4] + "..."
 			}
+			cmd.Printf("host:\n  name: %s\n  address: %s\n  mac: %s%s\n\n", cfg.Host.Name, cfg.Host.Address, cfg.Host.MACAddress, broadcastStr)
+			cmd.Printf("homeassistant:\n  url: %s\n  webhook_id: %s\n\n", cfg.HomeAssistant.URL, safeWebhookID)
+			cmd.Printf("bootloader:\n  name: %s\n  config_path: %s\n\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
+			cmd.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)
 
 			return saveConfigFile(cfg, cfgPath)
 		},
