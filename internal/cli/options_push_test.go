@@ -45,21 +45,20 @@ func TestPushBootOptionsCommand(t *testing.T) {
 
 	tempGrubPath := createTempGrubConfig(t)
 	cfg := &config.Config{
-		Server: config.ServerConfig{
+		Host: config.HostConfig{
 			MACAddress:       "aa:bb:cc:dd:ee:ff",
 			BroadcastAddress: "192.168.1.255",
 			BroadcastPort:    9,
 			Name:             "test-name",
-			Host:             "test-host",
+			Address:          "10.0.0.1",
 		},
 		Bootloader: config.BootloaderConfig{
 			Name:       "grub",
 			ConfigPath: tempGrubPath,
 		},
 		HomeAssistant: config.HomeAssistantConfig{
-			URL:        ts.URL,
-			WebhookID:  "test-webhook",
-			EntityType: config.EntityTypeButton,
+			URL:       ts.URL,
+			WebhookID: "test-webhook",
 		},
 	}
 
@@ -78,17 +77,14 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	if payload.BroadcastAddress != "192.168.1.255" {
 		t.Errorf("expected broadcast address 192.168.1.255, got %s", payload.BroadcastAddress)
 	}
-	if payload.BroadcastPort != 9 {
-		t.Errorf("expected WOL port 9, got %d", payload.BroadcastPort)
+	if payload.BroadcastPort != 0 {
+		t.Errorf("expected WOL port omitted (0), got %d", payload.BroadcastPort)
 	}
 	if payload.Name != "test-name" {
 		t.Errorf("expected name test-name, got %s", payload.Name)
 	}
-	if payload.Host != "test-host" {
-		t.Errorf("expected host test-host, got %s", payload.Host)
-	}
-	if payload.EntityType != "button" {
-		t.Errorf("expected entity type button, got %s", payload.EntityType)
+	if payload.Address != "10.0.0.1" {
+		t.Errorf("expected address 10.0.0.1, got %s", payload.Address)
 	}
 	if payload.Bootloader != "grub" {
 		t.Errorf("expected bootloader grub, got %s", payload.Bootloader)

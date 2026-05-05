@@ -37,8 +37,7 @@ func TestClient_Push(t *testing.T) {
 	payload := PushPayload{
 		MACAddress:       "aa:bb:cc:dd",
 		Name:             "test-name",
-		Host:             "test-host",
-		EntityType:       "button",
+		Address:          "10.0.0.1",
 		Bootloader:       "grub",
 		BootOptions:      []string{"Ubuntu", "Windows"},
 		BroadcastAddress: "192.168.1.255",
@@ -66,7 +65,7 @@ func TestClient_Push_InvalidURL(t *testing.T) {
 	}
 }
 
-func TestClient_Push_ServerError(t *testing.T) {
+func TestClient_Push_HostError(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))

@@ -22,17 +22,19 @@ var (
 	detectSystemHostname  = system.DetectHostname
 	getWOLInterfaces      = system.GetWOLInterfaces
 	getIPv4Info           = system.GetIPv4Info
+	getFQDN               = system.GetFQDN
 	saveConfigFile        = config.Save
 	runGenerateSurvey     = generateConfigInteractive
 
-	runBasicForm    = defaultRunBasicForm
-	runAdvancedForm = defaultRunAdvancedForm
+	runHostInfoForm   = defaultRunHostInfoForm
+	runWOLForm        = defaultRunWOLForm
+	runBootloaderForm = defaultRunBootloaderForm
+	runInitSystemForm = defaultRunInitSystemForm
+	runHAForm         = defaultRunHAForm
 )
 
 const (
-	DefaultBroadcastAddress = "255.255.255.255"
-	DefaultBroadcastPort    = "9"
-	OptionCustomHost        = "Custom / Manual Entry"
+	OptionCustomHost = "Custom / Manual Entry"
 )
 
 type haDiscoveryResult struct {
@@ -40,119 +42,194 @@ type haDiscoveryResult struct {
 	err error
 }
 
-type basicFormResults struct {
-	EntityType string
-	Name       string
-	HAURL      string
-	HAWebhook  string
-	Bootloader string
-	InitSystem string
-	IfaceName  string
+type initSystemResults struct {
+	Name string
 }
 
-func defaultRunBasicForm(
-	hostname string,
-	haURL string,
-	ifaceOpts []huh.Option[string],
-	blOpts []string,
-	initOpts []string,
-) (basicFormResults, error) {
-	res := basicFormResults{
-		EntityType: string(config.EntityTypeButton),
-		Name:       hostname,
-		HAURL:      haURL,
-	}
-
+func defaultRunInitSystemForm(initOpts []string) (initSystemResults, error) {
+	res := initSystemResults{}
 	err := huh.NewForm(
 		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Home Assistant Entity Type").
-				Description("Buttons cannot track on/off states, switches can.").
-				Options(
-					huh.NewOption("Button", string(config.EntityTypeButton)),
-					huh.NewOption("Switch", string(config.EntityTypeSwitch)),
-				).
-				Value(&res.EntityType),
-			huh.NewInput().Title("Name (how HA will refer to your machine):").Value(&res.Name),
-		),
-		huh.NewGroup(
-			huh.NewInput().Title("Home Assistant URL:").Value(&res.HAURL).Validate(config.ValidateURL),
-			huh.NewInput().Title("Home Assistant Generated Webhook ID:").Value(&res.HAWebhook).Validate(config.ValidateWebhookID),
-		),
-		huh.NewGroup(
-			huh.NewSelect[string]().Title("Physical Interface for WOL Packets:").Options(ifaceOpts...).Value(&res.IfaceName),
-			huh.NewSelect[string]().Title("Init System:").Options(huh.NewOptions(initOpts...)...).Value(&res.InitSystem),
-			huh.NewSelect[string]().Title("Bootloader:").Options(huh.NewOptions(blOpts...)...).Value(&res.Bootloader),
-		),
+			huh.NewSelect[string]().Title("Autodetected Supported Init Systems:").Options(huh.NewOptions(initOpts...)...).Value(&res.Name),
+		).Title("Init System Configuration"),
 	).Run()
-
 	return res, err
 }
 
-type advancedFormResults struct {
-	HostAddress    string
-	Broadcast      string
-	WOLPort        string
-	BootloaderPath string
+type bootloaderResults struct {
+	Name       string
+	ConfigPath string
 }
 
-func defaultRunAdvancedForm(
-	isSwitch bool,
-	hostOpts []huh.Option[string],
-	defaultHost string,
-	defaultBroadcast string,
-	defaultBLPath string,
-) (advancedFormResults, error) {
-	res := advancedFormResults{
-		HostAddress:    defaultHost,
-		Broadcast:      defaultBroadcast,
-		WOLPort:        "9",
-		BootloaderPath: defaultBLPath,
+func defaultRunBootloaderForm(blOpts []string, deps *CommandDeps, ctx context.Context) (bootloaderResults, error) {
+	res := bootloaderResults{}
+	err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().Title("Autodetected Supported Bootloaders:").Options(huh.NewOptions(blOpts...)...).Value(&res.Name),
+		).Title("Bootloader Configuration"),
+	).Run()
+	if err != nil {
+		return res, err
 	}
+
+	bl := deps.BootloaderRegistry.Get(res.Name)
+	if bl != nil {
+		res.ConfigPath, _ = bl.DiscoverConfigPath(ctx)
+	}
+
+	err = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Bootloader Config Path:").
+				Value(&res.ConfigPath).
+				Validate(config.ValidateBootloaderConfigPath),
+		).Title("Bootloader Configuration"),
+	).Run()
+	return res, err
+}
+
+type hostInfoResults struct {
+	Name        string
+	IfaceName   string
+	HostAddress string
+	MACAddress  string
+}
+
+func defaultRunHostInfoForm(ifaceOpts []huh.Option[string], ifaceMap map[string]net.Interface, hostname string) (hostInfoResults, []huh.Option[string], error) {
+	res := hostInfoResults{
+		Name: hostname,
+	}
+	err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().Title("Select a Physical Interface for the WOL Packets:").Options(ifaceOpts...).Value(&res.IfaceName),
+		).Title("Host Information"),
+	).Run()
+	if err != nil {
+		return res, nil, err
+	}
+
+	selectedIface := ifaceMap[res.IfaceName]
+	res.MACAddress = selectedIface.HardwareAddr.String()
+
+	ips, ipBroadcasts := getIPv4Info(selectedIface)
+
+	fqdn := getFQDN(hostname)
+
+	hostOpts := []huh.Option[string]{
+		huh.NewOption(hostname, hostname),
+	}
+	if fqdn != "" && fqdn != hostname {
+		hostOpts = append(hostOpts, huh.NewOption(fmt.Sprintf("%s (FQDN)", fqdn), fqdn))
+	}
+	for _, ip := range ips {
+		hostOpts = append(hostOpts, huh.NewOption(ip, ip))
+	}
+	hostOpts = append(hostOpts, huh.NewOption(OptionCustomHost, OptionCustomHost))
+
 	var customHost string
-
-	var groups []*huh.Group
-
-	if isSwitch {
-		groups = append(groups, huh.NewGroup(
+	err = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Machine Name").Description("What to call this machine in Home Assistant").Value(&res.Name).Validate(config.ValidateName),
 			huh.NewSelect[string]().
-				Title("Server address for ping checks").
-				Description("Warning: If you choose an IP, it must be static").
+				Title("Ping Target").
+				Description("(If you select an IP, it should be static)").
 				Options(hostOpts...).
 				Value(&res.HostAddress),
-		))
-		groups = append(groups, huh.NewGroup(
+		).Title("Host Information"),
+		huh.NewGroup(
 			huh.NewInput().
-				Title("Enter custom server address:").
+				Title("Enter custom address:").
 				Value(&customHost).
 				Validate(config.ValidateHost),
-		).WithHideFunc(func() bool { return res.HostAddress != OptionCustomHost }))
-	}
-
-	groups = append(groups, huh.NewGroup(
-		huh.NewInput().
-			Title("WOL Broadcast Address:").
-			Value(&res.Broadcast).
-			Validate(config.ValidateBroadcastAddress),
-		huh.NewInput().
-			Title("Wake-on-LAN Port:").
-			Description("Leave default (9) unless you know what you're doing").
-			Value(&res.WOLPort).
-			Validate(config.ValidateBroadcastPort),
-	))
-
-	groups = append(groups, huh.NewGroup(
-		huh.NewInput().
-			Title("Bootloader Config Path:").
-			Value(&res.BootloaderPath).
-			Validate(config.ValidateBootloaderConfigPath),
-	))
-
-	err := huh.NewForm(groups...).Run()
+		).Title("Host Information").WithHideFunc(func() bool { return res.HostAddress != OptionCustomHost }),
+	).Run()
 
 	if res.HostAddress == OptionCustomHost {
 		res.HostAddress = customHost
 	}
+
+	broadcastOpts := []huh.Option[string]{
+		huh.NewOption("Default Broadcast (255.255.255.255)", config.DefaultBroadcastAddress),
+	}
+
+	selectedIP := net.ParseIP(res.HostAddress)
+	isSelectedIPv4 := selectedIP != nil && selectedIP.To4() != nil
+
+	seenBroadcasts := make(map[string]bool)
+	for _, ip := range ips {
+		bc := ipBroadcasts[ip]
+		isIPv4 := net.ParseIP(ip).To4() != nil
+
+		if isSelectedIPv4 && !isIPv4 {
+			continue
+		}
+
+		if !seenBroadcasts[bc] {
+			seenBroadcasts[bc] = true
+			broadcastOpts = append(broadcastOpts, huh.NewOption(fmt.Sprintf("Subnet Broadcast (%s)", bc), bc))
+		}
+	}
+	broadcastOpts = append(broadcastOpts, huh.NewOption("Custom / Manual Entry", "custom"))
+
+	return res, broadcastOpts, err
+}
+
+type wolResults struct {
+	Broadcast string
+	WOLPort   string
+}
+
+func defaultRunWOLForm(broadcastOpts []huh.Option[string]) (wolResults, error) {
+	res := wolResults{
+		Broadcast: broadcastOpts[0].Value,
+		WOLPort:   strconv.Itoa(config.DefaultBroadcastPort),
+	}
+	var customBroadcast string
+
+	err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Broadcast Address:").
+				Description("(select Subnet Broadcast if HA is on a different VLAN)").
+				Options(broadcastOpts...).
+				Value(&res.Broadcast),
+		).Title("Wake on Lan Configuration"),
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Enter custom broadcast address:").
+				Value(&customBroadcast).
+				Validate(config.ValidateBroadcastAddress),
+		).Title("Wake on Lan Configuration").WithHideFunc(func() bool { return res.Broadcast != "custom" }),
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Wake-on-LAN Port:").
+				Description("Leave default (9) unless you know what you're doing").
+				Value(&res.WOLPort).
+				Validate(config.ValidateBroadcastPort),
+		).Title("Wake on Lan Configuration"),
+	).Run()
+
+	if res.Broadcast == "custom" {
+		res.Broadcast = customBroadcast
+	}
+	return res, err
+}
+
+type haResults struct {
+	URL       string
+	WebhookID string
+}
+
+func defaultRunHAForm(defaultURL string) (haResults, error) {
+	res := haResults{
+		URL: defaultURL,
+	}
+	err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Home Assistant URL:").Value(&res.URL).Validate(config.ValidateURL),
+			huh.NewInput().Title("Home Assistant Generated Webhook ID:").Value(&res.WebhookID).Validate(config.ValidateWebhookID),
+		).Title("Home Assistant Configuration"),
+	).Run()
 
 	return res, err
 }
@@ -188,6 +265,30 @@ func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.
 	blOpts := deps.BootloaderRegistry.SupportedBootloaders()
 	initOpts := deps.InitRegistry.SupportedInitSystems()
 
+	initRes, err := runInitSystemForm(initOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	blRes, err := runBootloaderForm(blOpts, deps, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	hostRes, broadcastOpts, err := runHostInfoForm(ifaceOpts, ifaceMap, hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := config.ValidateMACAddress(hostRes.MACAddress); err != nil {
+		return nil, err
+	}
+
+	wolRes, err := runWOLForm(broadcastOpts)
+	if err != nil {
+		return nil, err
+	}
+
 	// Wait for HA Discovery
 	var haURL string
 	select {
@@ -197,69 +298,31 @@ func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.
 		return nil, ctx.Err()
 	}
 
-	// 3. Run Basic Form
-	basicRes, err := runBasicForm(hostname, haURL, ifaceOpts, blOpts, initOpts)
+	haRes, err := runHAForm(haURL)
 	if err != nil {
 		return nil, err
 	}
 
-	// 4. Process basic results
-	selectedIface := ifaceMap[basicRes.IfaceName]
-	macAddress := selectedIface.HardwareAddr.String()
-	if err := config.ValidateMACAddress(macAddress); err != nil {
-		return nil, err
-	}
-
-	ips, ipBroadcasts := getIPv4Info(selectedIface)
-
-	hostOpts := []huh.Option[string]{
-		huh.NewOption(hostname, hostname),
-	}
-	for _, ip := range ips {
-		hostOpts = append(hostOpts, huh.NewOption(ip, ip))
-	}
-	hostOpts = append(hostOpts, huh.NewOption(OptionCustomHost, OptionCustomHost))
-
-	defaultBroadcast := DefaultBroadcastAddress
-	for _, bc := range ipBroadcasts {
-		defaultBroadcast = bc
-		break
-	}
-
-	bl := deps.BootloaderRegistry.Get(basicRes.Bootloader)
-	var blPath string
-	if bl != nil {
-		blPath, _ = bl.DiscoverConfigPath(ctx)
-	}
-
-	// 5. Run Advanced Form
-	isSwitch := basicRes.EntityType == string(config.EntityTypeSwitch)
-	advRes, err := runAdvancedForm(isSwitch, hostOpts, hostname, defaultBroadcast, blPath)
-	if err != nil {
-		return nil, err
-	}
-
-	wolPort, _ := strconv.Atoi(advRes.WOLPort)
+	wolPort, _ := strconv.Atoi(wolRes.WOLPort)
 
 	return &config.Config{
-		Server: config.ServerConfig{
-			Name:             basicRes.Name,
-			Host:             advRes.HostAddress,
-			MACAddress:       macAddress,
-			BroadcastAddress: advRes.Broadcast,
+		Host: config.HostConfig{
+			Name:             hostRes.Name,
+			Address:          hostRes.HostAddress,
+			MACAddress:       hostRes.MACAddress,
+			BroadcastAddress: wolRes.Broadcast,
 			BroadcastPort:    wolPort,
 		},
 		Bootloader: config.BootloaderConfig{
-			Name:       basicRes.Bootloader,
-			ConfigPath: advRes.BootloaderPath,
+			Name:       blRes.Name,
+			ConfigPath: blRes.ConfigPath,
 		},
 		InitSystem: config.InitSystemConfig{
-			Name: basicRes.InitSystem,
+			Name: initRes.Name,
 		},
 		HomeAssistant: config.HomeAssistantConfig{
-			EntityType: config.EntityType(basicRes.EntityType),
-			URL:        basicRes.HAURL,
-			WebhookID:  basicRes.HAWebhook,
+			URL:       haRes.URL,
+			WebhookID: haRes.WebhookID,
 		},
 	}, nil
 }
@@ -305,9 +368,18 @@ func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
 
 			fmt.Println("\nGenerated config (keys may be in a different order than shown here):")
 			fmt.Printf("---\n")
-			fmt.Printf("host:\n  name: %s\n  host: %s\n  mac_address: %s\n  broadcast_address: %s\n  broadcast_port: %d\n", cfg.Server.Name, cfg.Server.Host, cfg.Server.MACAddress, cfg.Server.BroadcastAddress, cfg.Server.BroadcastPort)
-			fmt.Printf("homeassistant:\n  url: %s\n  webhook_id: %s\n  entity_type: %s\n", cfg.HomeAssistant.URL, cfg.HomeAssistant.WebhookID, cfg.HomeAssistant.EntityType)
-			fmt.Printf("bootloader:\n  name: %s\n  config_path: %s\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
+
+			var broadcastStr string
+			if cfg.Host.BroadcastAddress != "" && cfg.Host.BroadcastAddress != config.DefaultBroadcastAddress {
+				broadcastStr += fmt.Sprintf("\n  broadcast_address: %s", cfg.Host.BroadcastAddress)
+			}
+			if cfg.Host.BroadcastPort != 0 && cfg.Host.BroadcastPort != config.DefaultBroadcastPort {
+				broadcastStr += fmt.Sprintf("\n  broadcast_port: %d", cfg.Host.BroadcastPort)
+			}
+
+			fmt.Printf("host:\n  name: %s\n  address: %s\n  mac: %s%s\n\n", cfg.Host.Name, cfg.Host.Address, cfg.Host.MACAddress, broadcastStr)
+			fmt.Printf("homeassistant:\n  url: %s\n  webhook_id: %s\n\n", cfg.HomeAssistant.URL, cfg.HomeAssistant.WebhookID)
+			fmt.Printf("bootloader:\n  name: %s\n  config_path: %s\n\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
 			fmt.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)
 
 			cfgPath, err := cmd.Flags().GetString("path")

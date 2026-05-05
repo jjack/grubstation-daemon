@@ -120,26 +120,6 @@ func TestValidateWebhookID(t *testing.T) {
 	}
 }
 
-func TestValidateEntityType(t *testing.T) {
-	tests := []struct {
-		name    string
-		etype   EntityType
-		wantErr bool
-	}{
-		{"valid button", EntityTypeButton, false},
-		{"valid switch", EntityTypeSwitch, false},
-		{"empty", "", true},
-		{"invalid type", EntityType("sensor"), true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateEntityType(tt.etype); (err != nil) != tt.wantErr {
-				t.Errorf("ValidateEntityType() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestValidateBroadcastAddress(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -183,16 +163,16 @@ func TestValidateBroadcastPort(t *testing.T) {
 func TestConfigValidate(t *testing.T) {
 	validCfg := func() *Config {
 		return &Config{
-			Server: ServerConfig{
+			Host: HostConfig{
 				MACAddress:       "00:11:22:33:44:55",
-				Host:             "test-host",
+				Name:             "test-name",
+				Address:          "test-host",
 				BroadcastAddress: "192.168.1.255",
 				BroadcastPort:    9,
 			},
 			HomeAssistant: HomeAssistantConfig{
-				URL:        "http://localhost:8123",
-				WebhookID:  "test_webhook",
-				EntityType: EntityTypeButton,
+				URL:       "http://localhost:8123",
+				WebhookID: "test_webhook",
 			},
 		}
 	}
@@ -203,13 +183,13 @@ func TestConfigValidate(t *testing.T) {
 		wantErr bool
 	}{
 		{"valid config", func(c *Config) {}, false},
-		{"invalid MAC", func(c *Config) { c.Server.MACAddress = "invalid" }, true},
-		{"empty Host", func(c *Config) { c.Server.Host = "" }, true},
-		{"invalid EntityType", func(c *Config) { c.HomeAssistant.EntityType = "invalid" }, true},
+		{"invalid MAC", func(c *Config) { c.Host.MACAddress = "invalid" }, true},
+		{"empty Name", func(c *Config) { c.Host.Name = "" }, true},
+		{"invalid Address", func(c *Config) { c.Host.Address = "invalid address format" }, true},
 		{"empty URL", func(c *Config) { c.HomeAssistant.URL = "" }, true},
 		{"empty WebhookID", func(c *Config) { c.HomeAssistant.WebhookID = "" }, true},
-		{"invalid BroadcastPort", func(c *Config) { c.Server.BroadcastPort = -1 }, true},
-		{"invalid BroadcastAddress", func(c *Config) { c.Server.BroadcastAddress = "invalid-ip" }, true},
+		{"invalid BroadcastPort", func(c *Config) { c.Host.BroadcastPort = -1 }, true},
+		{"invalid BroadcastAddress", func(c *Config) { c.Host.BroadcastAddress = "invalid-ip" }, true},
 	}
 
 	for _, tt := range tests {

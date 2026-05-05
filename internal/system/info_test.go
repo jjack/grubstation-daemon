@@ -141,3 +141,26 @@ func TestGetIPv4Info_Error(t *testing.T) {
 		t.Errorf("expected no broadcasts on error, got %v", broadcasts)
 	}
 }
+
+func TestGetFQDN(t *testing.T) {
+	oldLookupCNAME := netLookupCNAME
+	defer func() { netLookupCNAME = oldLookupCNAME }()
+
+	netLookupCNAME = func(name string) (string, error) {
+		return name + ".local.lan.", nil
+	}
+
+	fqdn := GetFQDN("my-host")
+	if fqdn != "my-host.local.lan" {
+		t.Errorf("expected my-host.local.lan, got %s", fqdn)
+	}
+
+	netLookupCNAME = func(name string) (string, error) {
+		return "", errors.New("lookup failed")
+	}
+
+	fqdn = GetFQDN("my-host")
+	if fqdn != "my-host" {
+		t.Errorf("expected fallback to short hostname 'my-host', got %s", fqdn)
+	}
+}

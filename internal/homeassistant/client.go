@@ -20,11 +20,10 @@ type Client struct {
 
 type PushPayload struct {
 	MACAddress       string   `json:"mac"`
-	BroadcastAddress string   `json:"broadcast_address"`
-	BroadcastPort    int      `json:"broadcast_port"`
+	BroadcastAddress string   `json:"broadcast_address,omitempty"`
+	BroadcastPort    int      `json:"broadcast_port,omitempty"`
 	Name             string   `json:"name"`
-	Host             string   `json:"host"`
-	EntityType       string   `json:"entity_type"`
+	Address          string   `json:"address"`
 	Bootloader       string   `json:"bootloader"`
 	BootOptions      []string `json:"boot_options"`
 }

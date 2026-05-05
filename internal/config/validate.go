@@ -13,15 +13,14 @@ import (
 var (
 	ErrBootloaderConfigPathEmpty    = errors.New("bootloader config path cannot be empty")
 	ErrBootloaderConfigPathNotExist = errors.New("bootloader config path does not exist")
-	ErrEntityTypeEmpty              = errors.New("entity type cannot be empty")
-	ErrHostEmpty                    = errors.New("host cannot be empty")
+	ErrAddressEmpty                 = errors.New("address cannot be empty")
 	ErrInvalidBroadcastAddress      = errors.New("invalid WOL address: must be a valid IP address")
 	ErrInvalidBroadcastPort         = errors.New("invalid WOL port: must be a number between 1 and 65535")
-	ErrInvalidEntityType            = errors.New("entity type must be either 'button' or 'switch'")
 	ErrInvalidHost                  = errors.New("host must be a valid IP address or hostname (letters, numbers, hyphens, dots)")
 	ErrInvalidMACAddress            = errors.New("invalid MAC address format")
 	ErrInvalidURL                   = errors.New("invalid URL format")
 	ErrMACAddressEmpty              = errors.New("mac address cannot be empty")
+	ErrNameEmpty                    = errors.New("name cannot be empty")
 	ErrURLEmpty                     = errors.New("url cannot be empty")
 	ErrWebhookIDEmpty               = errors.New("webhook id cannot be empty")
 	ErrWebhookIDInvalidChar         = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
@@ -93,24 +92,14 @@ func ValidateBroadcastPort(v string) error {
 	return nil
 }
 
-func ValidateEntityType(v EntityType) error {
-	if v == "" {
-		return ErrEntityTypeEmpty
-	}
-	if v != EntityTypeButton && v != EntityTypeSwitch {
-		return ErrInvalidEntityType
-	}
-	return nil
-}
-
 func (c *Config) Validate() error {
-	if err := ValidateMACAddress(c.Server.MACAddress); err != nil {
+	if err := ValidateMACAddress(c.Host.MACAddress); err != nil {
 		return err
 	}
-	if err := ValidateHost(c.Server.Host); err != nil {
+	if err := ValidateName(c.Host.Name); err != nil {
 		return err
 	}
-	if err := ValidateEntityType(c.HomeAssistant.EntityType); err != nil {
+	if err := ValidateHost(c.Host.Address); err != nil {
 		return err
 	}
 	if err := ValidateURL(c.HomeAssistant.URL); err != nil {
@@ -119,11 +108,22 @@ func (c *Config) Validate() error {
 	if err := ValidateWebhookID(c.HomeAssistant.WebhookID); err != nil {
 		return err
 	}
-	if err := ValidateBroadcastPort(strconv.Itoa(c.Server.BroadcastPort)); err != nil {
+	portStr := ""
+	if c.Host.BroadcastPort != 0 {
+		portStr = strconv.Itoa(c.Host.BroadcastPort)
+	}
+	if err := ValidateBroadcastPort(portStr); err != nil {
 		return err
 	}
-	if err := ValidateBroadcastAddress(c.Server.BroadcastAddress); err != nil {
+	if err := ValidateBroadcastAddress(c.Host.BroadcastAddress); err != nil {
 		return err
+	}
+	return nil
+}
+
+func ValidateName(v string) error {
+	if v == "" {
+		return ErrNameEmpty
 	}
 	return nil
 }
@@ -131,7 +131,7 @@ func (c *Config) Validate() error {
 // hosts can be IP addresses or hostnames, but must not be empty and must only contain valid characters
 func ValidateHost(v string) error {
 	if v == "" {
-		return ErrHostEmpty
+		return ErrAddressEmpty
 	}
 
 	// it's a valid ip

@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	osHostname    = os.Hostname
-	netInterfaces = net.Interfaces
-	getAddrs      = func(iface net.Interface) ([]net.Addr, error) {
+	osHostname     = os.Hostname
+	netInterfaces  = net.Interfaces
+	netLookupCNAME = net.LookupCNAME
+	getAddrs       = func(iface net.Interface) ([]net.Addr, error) {
 		return iface.Addrs()
 	}
 )
@@ -116,4 +117,12 @@ func DetectHostname() (string, error) {
 		return "", fmt.Errorf("%w: %w", ErrDetectHostname, err)
 	}
 	return hostname, nil
+}
+
+// GetFQDN attempts to resolve the Fully Qualified Domain Name for a given hostname.
+func GetFQDN(hostname string) string {
+	if cname, err := netLookupCNAME(hostname); err == nil && cname != "" {
+		return strings.TrimSuffix(cname, ".")
+	}
+	return hostname
 }

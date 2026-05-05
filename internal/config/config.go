@@ -8,15 +8,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-type EntityType string
-
 const (
-	EntityTypeButton EntityType = "button"
-	EntityTypeSwitch EntityType = "switch"
+	DefaultBroadcastAddress = "255.255.255.255"
+	DefaultBroadcastPort    = 9
 )
 
 type Config struct {
-	Server        ServerConfig        `mapstructure:"server"`
+	Host          HostConfig          `mapstructure:"host"`
 	Bootloader    BootloaderConfig    `mapstructure:"bootloader"`
 	InitSystem    InitSystemConfig    `mapstructure:"initsystem"`
 	HomeAssistant HomeAssistantConfig `mapstructure:"homeassistant"`
@@ -31,18 +29,17 @@ type InitSystemConfig struct {
 	Name string `mapstructure:"name"`
 }
 
-type ServerConfig struct {
-	Host             string `mapstructure:"host"`
-	MACAddress       string `mapstructure:"mac_address"`
+type HostConfig struct {
 	Name             string `mapstructure:"name"`
+	Address          string `mapstructure:"address"`
+	MACAddress       string `mapstructure:"mac"`
 	BroadcastAddress string `mapstructure:"broadcast_address"`
 	BroadcastPort    int    `mapstructure:"broadcast_port"`
 }
 
 type HomeAssistantConfig struct {
-	EntityType EntityType `mapstructure:"entity_type"`
-	URL        string     `mapstructure:"url"`
-	WebhookID  string     `mapstructure:"webhook_id"`
+	URL       string `mapstructure:"url"`
+	WebhookID string `mapstructure:"webhook_id"`
 }
 
 func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
@@ -55,21 +52,18 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 		v.SetConfigType("yaml")
 	}
 
+	v.SetDefault("host.broadcast_address", DefaultBroadcastAddress)
+	v.SetDefault("host.broadcast_port", DefaultBroadcastPort)
+
 	if flags != nil {
-		_ = v.BindPFlag("server.mac_address", flags.Lookup("mac"))
-		_ = v.BindPFlag("server.name", flags.Lookup("name"))
-		_ = v.BindPFlag("server.host", flags.Lookup("host"))
-		_ = v.BindPFlag("server.broadcast_address", flags.Lookup("broadcast-address"))
-		_ = v.BindPFlag("server.broadcast_port", flags.Lookup("wol-port"))
-		_ = v.BindPFlag("host.mac_address", flags.Lookup("mac"))
+		_ = v.BindPFlag("host.mac", flags.Lookup("mac"))
 		_ = v.BindPFlag("host.name", flags.Lookup("name"))
-		_ = v.BindPFlag("host.host", flags.Lookup("host"))
+		_ = v.BindPFlag("host.address", flags.Lookup("address"))
 		_ = v.BindPFlag("host.broadcast_address", flags.Lookup("broadcast-address"))
-		_ = v.BindPFlag("host.broadcast_port", flags.Lookup("wol-port"))
+		_ = v.BindPFlag("host.broadcast_port", flags.Lookup("broadcast-port"))
 		_ = v.BindPFlag("bootloader.name", flags.Lookup("bootloader"))
 		_ = v.BindPFlag("bootloader.config_path", flags.Lookup("bootloader-path"))
 		_ = v.BindPFlag("initsystem.name", flags.Lookup("init-system"))
-		_ = v.BindPFlag("homeassistant.entity_type", flags.Lookup("entity-type"))
 		_ = v.BindPFlag("homeassistant.url", flags.Lookup("hass-url"))
 		_ = v.BindPFlag("homeassistant.webhook_id", flags.Lookup("hass-webhook"))
 	}
@@ -90,20 +84,20 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 
 func Save(cfg *Config, path string) error {
 	v := viper.New()
-	v.Set("server.mac_address", cfg.Server.MACAddress)
-	v.Set("server.name", cfg.Server.Name)
-	v.Set("server.host", cfg.Server.Host)
-	v.Set("server.broadcast_address", cfg.Server.BroadcastAddress)
-	v.Set("server.broadcast_port", cfg.Server.BroadcastPort)
-	v.Set("host.mac_address", cfg.Server.MACAddress)
-	v.Set("host.name", cfg.Server.Name)
-	v.Set("host.host", cfg.Server.Host)
-	v.Set("host.broadcast_address", cfg.Server.BroadcastAddress)
-	v.Set("host.broadcast_port", cfg.Server.BroadcastPort)
+	v.Set("host.mac", cfg.Host.MACAddress)
+	v.Set("host.name", cfg.Host.Name)
+	v.Set("host.address", cfg.Host.Address)
+
+	if cfg.Host.BroadcastAddress != "" && cfg.Host.BroadcastAddress != DefaultBroadcastAddress {
+		v.Set("host.broadcast_address", cfg.Host.BroadcastAddress)
+	}
+	if cfg.Host.BroadcastPort != 0 && cfg.Host.BroadcastPort != DefaultBroadcastPort {
+		v.Set("host.broadcast_port", cfg.Host.BroadcastPort)
+	}
+
 	v.Set("bootloader.name", cfg.Bootloader.Name)
 	v.Set("bootloader.config_path", cfg.Bootloader.ConfigPath)
 	v.Set("initsystem.name", cfg.InitSystem.Name)
-	v.Set("homeassistant.entity_type", cfg.HomeAssistant.EntityType)
 	v.Set("homeassistant.url", cfg.HomeAssistant.URL)
 	v.Set("homeassistant.webhook_id", cfg.HomeAssistant.WebhookID)
 

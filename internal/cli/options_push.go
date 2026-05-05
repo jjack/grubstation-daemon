@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/jjack/remote-boot-agent/internal/bootloader"
+	"github.com/jjack/remote-boot-agent/internal/config"
 	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
 
 	"github.com/spf13/cobra"
@@ -31,16 +32,25 @@ func NewPushCmd(deps *CommandDeps) *cobra.Command {
 				return fmt.Errorf("failed to get boot options: %w", err)
 			}
 
-			serverCfg := deps.Config.Server
+			hostCfg := deps.Config.Host
 			haCfg := deps.Config.HomeAssistant
+
+			broadcastAddress := hostCfg.BroadcastAddress
+			if broadcastAddress == config.DefaultBroadcastAddress {
+				broadcastAddress = ""
+			}
+			broadcastPort := hostCfg.BroadcastPort
+			if broadcastPort == config.DefaultBroadcastPort {
+				broadcastPort = 0
+			}
+
 			payload := ha.PushPayload{
-				MACAddress:       serverCfg.MACAddress,
-				BroadcastAddress: serverCfg.BroadcastAddress,
-				BroadcastPort:    serverCfg.BroadcastPort,
+				MACAddress:       hostCfg.MACAddress,
+				BroadcastAddress: broadcastAddress,
+				BroadcastPort:    broadcastPort,
 				Bootloader:       bl.Name(),
-				Name:             serverCfg.Name,
-				Host:             serverCfg.Host,
-				EntityType:       string(haCfg.EntityType),
+				Name:             hostCfg.Name,
+				Address:          hostCfg.Address,
 				BootOptions:      bootOptions,
 			}
 

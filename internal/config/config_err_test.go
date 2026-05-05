@@ -40,7 +40,7 @@ func TestLoad_UnmarshalError(t *testing.T) {
 	configPath := filepath.Join(tempDir, "config.yaml")
 
 	// Write invalid type structure to cause unmarshal to fail
-	configData := []byte(`server: "this is a string, not a struct"`)
+	configData := []byte(`host: "this is a string, not a struct"`)
 
 	if err := os.WriteFile(configPath, configData, 0o644); err != nil {
 		t.Fatalf("Failed to write temp config: %v", err)

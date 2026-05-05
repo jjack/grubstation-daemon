@@ -22,7 +22,7 @@ func NewInstallCmd(deps *CommandDeps) *cobra.Command {
 				return err
 			}
 
-			macAddress := deps.Config.Server.MACAddress
+			macAddress := deps.Config.Host.MACAddress
 			haURL := deps.Config.HomeAssistant.URL
 			webhookID := deps.Config.HomeAssistant.WebhookID
 

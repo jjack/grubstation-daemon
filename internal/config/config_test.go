@@ -13,10 +13,10 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 	cfgPath := filepath.Join(tempDir, "config.yaml")
 
 	cfg := &Config{
-		Server: ServerConfig{
+		Host: HostConfig{
 			MACAddress:       "00:11:22:33:44:55",
-			Name:             "Test Server",
-			Host:             "test-host",
+			Name:             "test-name",
+			Address:          "10.0.0.1",
 			BroadcastAddress: "192.168.1.255",
 			BroadcastPort:    9,
 		},
@@ -28,9 +28,8 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 			Name: "systemd",
 		},
 		HomeAssistant: HomeAssistantConfig{
-			URL:        "http://ha.local",
-			WebhookID:  "test-webhook",
-			EntityType: EntityTypeButton,
+			URL:       "http://ha.local",
+			WebhookID: "test-webhook",
 		},
 	}
 
@@ -50,8 +49,8 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	if loadedCfg.Server.MACAddress != cfg.Server.MACAddress {
-		t.Errorf("expected MAC %s, got %s", cfg.Server.MACAddress, loadedCfg.Server.MACAddress)
+	if loadedCfg.Host.MACAddress != cfg.Host.MACAddress {
+		t.Errorf("expected MAC %s, got %s", cfg.Host.MACAddress, loadedCfg.Host.MACAddress)
 	}
 	if loadedCfg.Bootloader.ConfigPath != cfg.Bootloader.ConfigPath {
 		t.Errorf("expected Bootloader path %s, got %s", cfg.Bootloader.ConfigPath, loadedCfg.Bootloader.ConfigPath)
@@ -86,17 +85,27 @@ func TestConfig_LoadDefaults(t *testing.T) {
 
 func TestLoad_WithFlags(t *testing.T) {
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
-	fs.String("mac", "aa:bb:cc:dd:ee:ff", "")
-	fs.String("name", "flag-name", "")
-	fs.String("host", "flag-host", "")
-	fs.String("broadcast-address", "1.1.1.1", "")
-	fs.Int("wol-port", 7, "")
-	fs.String("bootloader", "grub-flag", "")
-	fs.String("bootloader-path", "/flag/path", "")
-	fs.String("init-system", "sysd-flag", "")
-	fs.String("entity-type", "switch", "")
-	fs.String("hass-url", "http://flag", "")
-	fs.String("hass-webhook", "flag-webhook", "")
+	fs.String("mac", "", "")
+	fs.String("name", "", "")
+	fs.String("address", "", "")
+	fs.String("broadcast-address", "", "")
+	fs.Int("broadcast-port", 0, "")
+	fs.String("bootloader", "", "")
+	fs.String("bootloader-path", "", "")
+	fs.String("init-system", "", "")
+	fs.String("hass-url", "", "")
+	fs.String("hass-webhook", "", "")
+
+	_ = fs.Set("mac", "aa:bb:cc:dd:ee:ff")
+	_ = fs.Set("name", "flag-name")
+	_ = fs.Set("address", "flag-address")
+	_ = fs.Set("broadcast-address", "1.1.1.1")
+	_ = fs.Set("broadcast-port", "7")
+	_ = fs.Set("bootloader", "grub-flag")
+	_ = fs.Set("bootloader-path", "/flag/path")
+	_ = fs.Set("init-system", "sysd-flag")
+	_ = fs.Set("hass-url", "http://flag")
+	_ = fs.Set("hass-webhook", "flag-webhook")
 
 	tempDir := t.TempDir()
 	cfgPath := filepath.Join(tempDir, "config.yaml")
@@ -109,20 +118,20 @@ func TestLoad_WithFlags(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.Server.MACAddress != "aa:bb:cc:dd:ee:ff" {
-		t.Errorf("expected mac aa:bb:cc:dd:ee:ff, got %v", cfg.Server.MACAddress)
+	if cfg.Host.MACAddress != "aa:bb:cc:dd:ee:ff" {
+		t.Errorf("expected mac aa:bb:cc:dd:ee:ff, got %v", cfg.Host.MACAddress)
 	}
-	if cfg.Server.Name != "flag-name" {
-		t.Errorf("expected name flag-name, got %v", cfg.Server.Name)
+	if cfg.Host.Name != "flag-name" {
+		t.Errorf("expected name flag-name, got %v", cfg.Host.Name)
 	}
-	if cfg.Server.Host != "flag-host" {
-		t.Errorf("expected host flag-host, got %v", cfg.Server.Host)
+	if cfg.Host.Address != "flag-address" {
+		t.Errorf("expected address flag-address, got %v", cfg.Host.Address)
 	}
-	if cfg.Server.BroadcastAddress != "1.1.1.1" {
-		t.Errorf("expected broadcast address 1.1.1.1, got %v", cfg.Server.BroadcastAddress)
+	if cfg.Host.BroadcastAddress != "1.1.1.1" {
+		t.Errorf("expected broadcast address 1.1.1.1, got %v", cfg.Host.BroadcastAddress)
 	}
-	if cfg.Server.BroadcastPort != 7 {
-		t.Errorf("expected wol-port 7, got %v", cfg.Server.BroadcastPort)
+	if cfg.Host.BroadcastPort != 7 {
+		t.Errorf("expected broadcast port 7, got %v", cfg.Host.BroadcastPort)
 	}
 	if cfg.Bootloader.Name != "grub-flag" {
 		t.Errorf("expected bootloader name grub-flag, got %v", cfg.Bootloader.Name)
@@ -132,9 +141,6 @@ func TestLoad_WithFlags(t *testing.T) {
 	}
 	if cfg.InitSystem.Name != "sysd-flag" {
 		t.Errorf("expected init system sysd-flag, got %v", cfg.InitSystem.Name)
-	}
-	if cfg.HomeAssistant.EntityType != "switch" {
-		t.Errorf("expected entity type switch, got %v", cfg.HomeAssistant.EntityType)
 	}
 	if cfg.HomeAssistant.URL != "http://flag" {
 		t.Errorf("expected url http://flag, got %v", cfg.HomeAssistant.URL)

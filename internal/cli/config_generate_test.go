@@ -212,39 +212,44 @@ func setupSurveyDeps() *CommandDeps {
 }
 
 func TestGenerateConfigSurvey_Success(t *testing.T) {
-	oldRunBasic := runBasicForm
-	oldRunAdvanced := runAdvancedForm
+	oldRunHostInfoForm := runHostInfoForm
+	oldRunWOLForm := runWOLForm
+	oldRunBootloaderForm := runBootloaderForm
+	oldRunInitSystemForm := runInitSystemForm
+	oldRunHAForm := runHAForm
 	oldDiscoverHomeAssistant := discoverHomeAssistant
 	oldDetectSystemHostname := detectSystemHostname
 	oldGetWOLInterfaces := getWOLInterfaces
 	oldGetIPv4Info := getIPv4Info
+	oldGetFQDN := getFQDN
 	defer func() {
-		runBasicForm = oldRunBasic
-		runAdvancedForm = oldRunAdvanced
+		runHostInfoForm = oldRunHostInfoForm
+		runWOLForm = oldRunWOLForm
+		runBootloaderForm = oldRunBootloaderForm
+		runInitSystemForm = oldRunInitSystemForm
+		runHAForm = oldRunHAForm
 		discoverHomeAssistant = oldDiscoverHomeAssistant
 		detectSystemHostname = oldDetectSystemHostname
 		getWOLInterfaces = oldGetWOLInterfaces
 		getIPv4Info = oldGetIPv4Info
+		getFQDN = oldGetFQDN
 	}()
 
-	runBasicForm = func(h, u string, io []huh.Option[string], bo, init []string) (basicFormResults, error) {
-		return basicFormResults{
-			EntityType: string(config.EntityTypeSwitch),
-			Name:       "my-host",
-			HAURL:      "http://hass.local:8123",
-			HAWebhook:  "webhook123",
-			Bootloader: "grub",
-			InitSystem: "systemd",
-			IfaceName:  "eth0",
-		}, nil
+	runInitSystemForm = func(io []string) (initSystemResults, error) {
+		return initSystemResults{Name: "systemd"}, nil
 	}
-	runAdvancedForm = func(s bool, ho []huh.Option[string], dh, db, dbp string) (advancedFormResults, error) {
-		return advancedFormResults{
-			HostAddress:    "detected-host",
-			Broadcast:      "192.168.1.255",
-			WOLPort:        "9",
-			BootloaderPath: "/boot/grub/grub.cfg",
-		}, nil
+	runBootloaderForm = func(bo []string, d *CommandDeps, c context.Context) (bootloaderResults, error) {
+		return bootloaderResults{Name: "grub", ConfigPath: "/boot/grub/grub.cfg"}, nil
+	}
+	runHostInfoForm = func(io []huh.Option[string], im map[string]net.Interface, h string) (hostInfoResults, []huh.Option[string], error) {
+		bOpts := []huh.Option[string]{huh.NewOption("Subnet", "192.168.1.255")}
+		return hostInfoResults{Name: "test-name", IfaceName: "eth0", MACAddress: "00:11:22:33:44:55", HostAddress: "192.168.1.100"}, bOpts, nil
+	}
+	runWOLForm = func(bo []huh.Option[string]) (wolResults, error) {
+		return wolResults{Broadcast: "192.168.1.255", WOLPort: "9"}, nil
+	}
+	runHAForm = func(u string) (haResults, error) {
+		return haResults{URL: "http://hass.local:8123", WebhookID: "webhook123"}, nil
 	}
 
 	discoverHomeAssistant = func(ctx context.Context) (string, error) { return "http://hass.local:8123", nil }
@@ -254,6 +259,7 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 		mac, _ := net.ParseMAC("00:11:22:33:44:55")
 		return []net.Interface{{Name: "eth0", HardwareAddr: mac}}, nil
 	}
+	getFQDN = func(hostname string) string { return "detected-host.local" }
 	getIPv4Info = func(inf net.Interface) ([]string, map[string]string) {
 		return []string{"192.168.1.100", "10.0.0.100"}, map[string]string{"192.168.1.100": "192.168.1.255", "10.0.0.100": "10.0.0.255"}
 	}
@@ -264,20 +270,17 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if cfg.Server.Name != "my-host" {
-		t.Errorf("expected name my-host, got %s", cfg.Server.Name)
+	if cfg.Host.Name != "test-name" {
+		t.Errorf("expected name test-name, got %s", cfg.Host.Name)
 	}
-	if cfg.Server.Host != "detected-host" {
-		t.Errorf("expected host detected-host, got %s", cfg.Server.Host)
+	if cfg.Host.Address != "192.168.1.100" {
+		t.Errorf("expected address 192.168.1.100, got %s", cfg.Host.Address)
 	}
-	if cfg.HomeAssistant.EntityType != config.EntityTypeSwitch {
-		t.Errorf("expected entity type switch, got %s", cfg.HomeAssistant.EntityType)
+	if cfg.Host.BroadcastAddress != "192.168.1.255" {
+		t.Errorf("expected BroadcastAddress 192.168.1.255, got %s", cfg.Host.BroadcastAddress)
 	}
-	if cfg.Server.BroadcastAddress != "192.168.1.255" {
-		t.Errorf("expected BroadcastAddress 192.168.1.255, got %s", cfg.Server.BroadcastAddress)
-	}
-	if cfg.Server.BroadcastPort != 9 {
-		t.Errorf("expected BroadcastPort 9 (fallback), got %d", cfg.Server.BroadcastPort)
+	if cfg.Host.BroadcastPort != 9 {
+		t.Errorf("expected BroadcastPort 9 (fallback), got %d", cfg.Host.BroadcastPort)
 	}
 	if cfg.HomeAssistant.URL != "http://hass.local:8123" {
 		t.Errorf("expected URL http://hass.local:8123, got %s", cfg.HomeAssistant.URL)
@@ -285,19 +288,27 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 }
 
 func TestGenerateConfigSurvey_FormErrors(t *testing.T) {
-	oldRunBasic := runBasicForm
-	oldRunAdvanced := runAdvancedForm
+	oldRunHostInfoForm := runHostInfoForm
+	oldRunWOLForm := runWOLForm
+	oldRunBootloaderForm := runBootloaderForm
+	oldRunInitSystemForm := runInitSystemForm
+	oldRunHAForm := runHAForm
 	oldDiscoverHomeAssistant := discoverHomeAssistant
 	oldDetectSystemHostname := detectSystemHostname
 	oldGetWOLInterfaces := getWOLInterfaces
 	oldGetIPv4Info := getIPv4Info
+	oldGetFQDN := getFQDN
 	defer func() {
-		runBasicForm = oldRunBasic
-		runAdvancedForm = oldRunAdvanced
+		runHostInfoForm = oldRunHostInfoForm
+		runWOLForm = oldRunWOLForm
+		runBootloaderForm = oldRunBootloaderForm
+		runInitSystemForm = oldRunInitSystemForm
+		runHAForm = oldRunHAForm
 		discoverHomeAssistant = oldDiscoverHomeAssistant
 		detectSystemHostname = oldDetectSystemHostname
 		getWOLInterfaces = oldGetWOLInterfaces
 		getIPv4Info = oldGetIPv4Info
+		getFQDN = oldGetFQDN
 	}()
 
 	discoverHomeAssistant = func(ctx context.Context) (string, error) { return "http://hass.local:8123", nil }
@@ -310,46 +321,92 @@ func TestGenerateConfigSurvey_FormErrors(t *testing.T) {
 	getIPv4Info = func(inf net.Interface) ([]string, map[string]string) {
 		return []string{"192.168.1.100"}, map[string]string{"192.168.1.100": "192.168.1.255"}
 	}
+	getFQDN = func(hostname string) string { return "detected-host.local" }
 
 	deps := setupSurveyDeps()
 
-	t.Run("Basic Form Error", func(t *testing.T) {
-		runBasicForm = func(h, u string, io []huh.Option[string], bo, init []string) (basicFormResults, error) {
-			return basicFormResults{}, errors.New("simulated basic error")
+	resetMocks := func() {
+		runInitSystemForm = func(io []string) (initSystemResults, error) { return initSystemResults{Name: "systemd"}, nil }
+		runBootloaderForm = func(bo []string, d *CommandDeps, c context.Context) (bootloaderResults, error) {
+			return bootloaderResults{Name: "grub", ConfigPath: "/boot/grub/grub.cfg"}, nil
 		}
-		runAdvancedForm = func(s bool, ho []huh.Option[string], dh, db, dbp string) (advancedFormResults, error) {
-			return advancedFormResults{}, nil
+		runHostInfoForm = func(io []huh.Option[string], im map[string]net.Interface, h string) (hostInfoResults, []huh.Option[string], error) {
+			return hostInfoResults{Name: "test-name", IfaceName: "eth0", MACAddress: "00:11:22:33:44:55", HostAddress: "192.168.1.100"}, []huh.Option[string]{huh.NewOption("test", "test")}, nil
+		}
+		runWOLForm = func(bo []huh.Option[string]) (wolResults, error) {
+			return wolResults{Broadcast: "192.168.1.255", WOLPort: "9"}, nil
+		}
+		runHAForm = func(u string) (haResults, error) {
+			return haResults{URL: "http://hass.local:8123", WebhookID: "webhook123"}, nil
+		}
+	}
+	resetMocks()
+
+	t.Run("Init System Form Error", func(t *testing.T) {
+		runInitSystemForm = func(io []string) (initSystemResults, error) {
+			return initSystemResults{}, errors.New("simulated init error")
 		}
 		_, err := generateConfigInteractive(context.Background(), deps)
-		if err == nil || err.Error() != "simulated basic error" {
-			t.Fatalf("expected simulated basic error, got %v", err)
+		if err == nil || err.Error() != "simulated init error" {
+			t.Fatalf("expected simulated init error, got %v", err)
 		}
+		resetMocks()
 	})
 
-	t.Run("Advanced Form Error", func(t *testing.T) {
-		runBasicForm = func(h, u string, io []huh.Option[string], bo, init []string) (basicFormResults, error) {
-			return basicFormResults{IfaceName: "eth0"}, nil
-		}
-		runAdvancedForm = func(s bool, ho []huh.Option[string], dh, db, dbp string) (advancedFormResults, error) {
-			return advancedFormResults{}, errors.New("simulated advanced error")
+	t.Run("Bootloader Form Error", func(t *testing.T) {
+		runBootloaderForm = func(bo []string, d *CommandDeps, c context.Context) (bootloaderResults, error) {
+			return bootloaderResults{}, errors.New("simulated bl error")
 		}
 		_, err := generateConfigInteractive(context.Background(), deps)
-		if err == nil || err.Error() != "simulated advanced error" {
-			t.Fatalf("expected simulated advanced error, got %v", err)
+		if err == nil || err.Error() != "simulated bl error" {
+			t.Fatalf("expected simulated bl error, got %v", err)
 		}
+		resetMocks()
+	})
+
+	t.Run("Host Info Form Error", func(t *testing.T) {
+		runHostInfoForm = func(io []huh.Option[string], im map[string]net.Interface, h string) (hostInfoResults, []huh.Option[string], error) {
+			return hostInfoResults{}, nil, errors.New("simulated host info error")
+		}
+		_, err := generateConfigInteractive(context.Background(), deps)
+		if err == nil || err.Error() != "simulated host info error" {
+			t.Fatalf("expected simulated host info error, got %v", err)
+		}
+		resetMocks()
+	})
+
+	t.Run("WOL Form Error", func(t *testing.T) {
+		runWOLForm = func(bo []huh.Option[string]) (wolResults, error) {
+			return wolResults{}, errors.New("simulated wol error")
+		}
+		_, err := generateConfigInteractive(context.Background(), deps)
+		if err == nil || err.Error() != "simulated wol error" {
+			t.Fatalf("expected simulated wol error, got %v", err)
+		}
+		resetMocks()
+	})
+
+	t.Run("HA Form Error", func(t *testing.T) {
+		runHAForm = func(u string) (haResults, error) { return haResults{}, errors.New("simulated ha error") }
+		_, err := generateConfigInteractive(context.Background(), deps)
+		if err == nil || err.Error() != "simulated ha error" {
+			t.Fatalf("expected simulated ha error, got %v", err)
+		}
+		resetMocks()
 	})
 }
 
 func TestGenerateConfigSurvey_OptErrors(t *testing.T) {
 	t.Run("Invalid MAC Address", func(t *testing.T) {
-		oldRunBasic := runBasicForm
+		oldRunHostInfoForm := runHostInfoForm
 		oldDetectSystemHostname := detectSystemHostname
 		oldGetWOLInterfaces := getWOLInterfaces
-		runBasicForm = func(h, u string, io []huh.Option[string], bo, init []string) (basicFormResults, error) {
-			return basicFormResults{IfaceName: "eth0"}, nil
+
+		runHostInfoForm = func(io []huh.Option[string], im map[string]net.Interface, h string) (hostInfoResults, []huh.Option[string], error) {
+			return hostInfoResults{Name: "test", IfaceName: "eth0", MACAddress: "", HostAddress: "192.168.1.100"}, []huh.Option[string]{}, nil
 		}
 		defer func() {
-			runBasicForm = oldRunBasic
+			runHostInfoForm = oldRunHostInfoForm
 			detectSystemHostname = oldDetectSystemHostname
 			getWOLInterfaces = oldGetWOLInterfaces
 		}()

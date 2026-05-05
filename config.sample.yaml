@@ -1,18 +1,18 @@
-server:
+host:
   name:        "my-remote-pc"
-  host:        "my-remote-pc"
-  mac_address: "00:11:22:33:44:55"
-  broadcast_address: "255.255.255.255"
-  broadcast_port: 9
+  address:     "192.168.1.50"
+  mac:         "00:11:22:33:44:55"
+  # broadcast_address: "255.255.255.255" # Default if not specified
+  # broadcast_port:    9                 # Default if not specified
 
 homeassistant:
-  url: "https://homeassistant.local:8123"
-  webhook_id: "your-generated-webhook-id"
+  url:         "https://homeassistant.local:8123"
+  webhook_id:  "your-generated-webhook-id"
   entity_type: "button"
 
 bootloader:
-  name: "grub"
+  name:        "grub"
   config_path: "/boot/grub/grub.cfg"
 
 initsystem:
-  name: "systemd"
+  name:        "systemd"

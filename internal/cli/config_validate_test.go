@@ -10,10 +10,10 @@ import (
 
 func TestConfigValidateCmd_Valid(t *testing.T) {
 	cfg := &config.Config{
-		Server: config.ServerConfig{
+		Host: config.HostConfig{
 			MACAddress:       "00:11:22:33:44:55",
-			Name:             "test-host",
-			Host:             "test-host",
+			Name:             "test-name",
+			Address:          "test-host",
 			BroadcastAddress: "192.168.1.255",
 			BroadcastPort:    9,
 		},
@@ -25,9 +25,8 @@ func TestConfigValidateCmd_Valid(t *testing.T) {
 			Name: "systemd",
 		},
 		HomeAssistant: config.HomeAssistantConfig{
-			URL:        "http://ha.local",
-			WebhookID:  "test-webhook",
-			EntityType: config.EntityTypeButton,
+			URL:       "http://ha.local",
+			WebhookID: "test-webhook",
 		},
 	}
 
