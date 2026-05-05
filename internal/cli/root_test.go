@@ -40,8 +40,8 @@ func TestDefaultSystemResolver(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
-	defer os.Remove(f.Name())
+	_ = f.Close()
+	defer func() { _ = os.Remove(f.Name()) }()
 
 	if err := resolver.SaveConfig(&config.Config{}, f.Name()); err != nil {
 		t.Fatalf("expected no error saving config, got: %v", err)
