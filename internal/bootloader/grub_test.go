@@ -93,7 +93,7 @@ func TestHelperProcess(t *testing.T) {
 	os.Exit(0)
 }
 
-func TestGrub_Install_Success(t *testing.T) {
+func TestGrub_Setup_Success(t *testing.T) {
 	bl := NewGrub()
 	tempDir := t.TempDir()
 	fakeScriptPath := filepath.Join(tempDir, "99_ha_remote_boot_agent")
@@ -115,7 +115,7 @@ func TestGrub_Install_Success(t *testing.T) {
 		return "", errors.New("not found")
 	}
 
-	err := bl.Install(context.Background(), "aa:bb:cc:dd:ee:ff", "http://hass.local:8123", "test_webhook")
+	err := bl.Setup(context.Background(), "aa:bb:cc:dd:ee:ff", "http://hass.local:8123", "test_webhook")
 	if err != nil {
 		t.Fatalf("expected successful install, got %v", err)
 	}
@@ -133,13 +133,13 @@ func TestGrub_Install_Success(t *testing.T) {
 		return "", errors.New("not found")
 	}
 
-	err = bl.Install(context.Background(), "aa:bb:cc:dd:ee:ff", "http://hass.local:8123", "test_webhook")
+	err = bl.Setup(context.Background(), "aa:bb:cc:dd:ee:ff", "http://hass.local:8123", "test_webhook")
 	if err != nil {
 		t.Fatalf("expected successful install with grub2-mkconfig, got %v", err)
 	}
 }
 
-func TestGrub_Install_Errors(t *testing.T) {
+func TestGrub_Setup_Errors(t *testing.T) {
 	bl := NewGrub()
 	ctx := context.Background()
 
@@ -150,14 +150,14 @@ func TestGrub_Install_Errors(t *testing.T) {
 	}(hassRemoteBootAgentPath, execLookPath, execCommand)
 
 	// 1. Invalid URL
-	err := bl.Install(ctx, "mac", "://bad-url", "test_webhook")
+	err := bl.Setup(ctx, "mac", "://bad-url", "test_webhook")
 	if !errors.Is(err, ErrInvalidHAURL) {
 		t.Fatalf("expected ErrInvalidHAURL, got %v", err)
 	}
 
 	// 2. File creation failure
 	hassRemoteBootAgentPath = "/this/path/does/not/exist/99_script"
-	err = bl.Install(ctx, "mac", "http://hass.local", "test_webhook")
+	err = bl.Setup(ctx, "mac", "http://hass.local", "test_webhook")
 	if err == nil || !strings.Contains(err.Error(), "failed to create grub script") {
 		t.Fatalf("expected file creation error, got %v", err)
 	}
@@ -170,7 +170,7 @@ func TestGrub_Install_Errors(t *testing.T) {
 	execLookPath = func(file string) (string, error) {
 		return "", errors.New("not found")
 	}
-	err = bl.Install(ctx, "mac", "http://hass.local", "test_webhook")
+	err = bl.Setup(ctx, "mac", "http://hass.local", "test_webhook")
 	if !errors.Is(err, ErrNoGrubTool) {
 		t.Fatalf("expected ErrNoGrubTool, got %v", err)
 	}
@@ -183,7 +183,7 @@ func TestGrub_Install_Errors(t *testing.T) {
 		return "", errors.New("not found")
 	}
 	execCommand = fakeExecCommandFail
-	err = bl.Install(ctx, "mac", "http://hass.local", "test_webhook")
+	err = bl.Setup(ctx, "mac", "http://hass.local", "test_webhook")
 	if err == nil || !strings.Contains(err.Error(), "update-grub failed") {
 		t.Fatalf("expected update-grub execution error, got %v", err)
 	}
@@ -195,7 +195,7 @@ func TestGrub_Install_Errors(t *testing.T) {
 		}
 		return "", errors.New("not found")
 	}
-	err = bl.Install(ctx, "mac", "http://hass.local", "test_webhook")
+	err = bl.Setup(ctx, "mac", "http://hass.local", "test_webhook")
 	if err == nil || !strings.Contains(err.Error(), "grub2-mkconfig failed") {
 		t.Fatalf("expected grub2-mkconfig execution error, got %v", err)
 	}

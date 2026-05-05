@@ -16,9 +16,9 @@ import (
 
 type mockGenInitSystem struct{ active bool }
 
-func (m *mockGenInitSystem) Name() string                                         { return "mock-init" }
-func (m *mockGenInitSystem) IsActive(ctx context.Context) bool                    { return m.active }
-func (m *mockGenInitSystem) Install(ctx context.Context, configPath string) error { return nil }
+func (m *mockGenInitSystem) Name() string                                       { return "mock-init" }
+func (m *mockGenInitSystem) IsActive(ctx context.Context) bool                  { return m.active }
+func (m *mockGenInitSystem) Setup(ctx context.Context, configPath string) error { return nil }
 
 type mockDiscoverFailBootloader struct{}
 
@@ -28,7 +28,7 @@ func (m *mockDiscoverFailBootloader) GetBootOptions(ctx context.Context, cfg boo
 	return nil, nil
 }
 
-func (m *mockDiscoverFailBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (m *mockDiscoverFailBootloader) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 
@@ -44,7 +44,7 @@ func (m *mockInactiveBootloader) GetBootOptions(ctx context.Context, cfg bootloa
 	return nil, nil
 }
 
-func (m *mockInactiveBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (m *mockInactiveBootloader) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 
@@ -262,7 +262,7 @@ func (m *mockSurveyBootloader) GetBootOptions(ctx context.Context, cfg bootloade
 	return nil, nil
 }
 
-func (m *mockSurveyBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (m *mockSurveyBootloader) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 
@@ -272,9 +272,9 @@ func (m *mockSurveyBootloader) DiscoverConfigPath(ctx context.Context) (string, 
 
 type mockSurveyInitSystem struct{}
 
-func (m *mockSurveyInitSystem) Name() string                                         { return "systemd" }
-func (m *mockSurveyInitSystem) IsActive(ctx context.Context) bool                    { return true }
-func (m *mockSurveyInitSystem) Install(ctx context.Context, configPath string) error { return nil }
+func (m *mockSurveyInitSystem) Name() string                                       { return "systemd" }
+func (m *mockSurveyInitSystem) IsActive(ctx context.Context) bool                  { return true }
+func (m *mockSurveyInitSystem) Setup(ctx context.Context, configPath string) error { return nil }
 
 func setupSurveyDeps() *CommandDeps {
 	blReg := bootloader.NewRegistry()

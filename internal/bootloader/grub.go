@@ -200,7 +200,7 @@ func (g *Grub) GetBootOptions(ctx context.Context, cfg Config) ([]string, error)
 
 // Install creates a new GRUB script in /etc/grub.d and updates the GRUB config by calling
 // update-grub or grub2-mkconfig.
-func (g *Grub) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (g *Grub) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	u, err := url.Parse(haURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return ErrInvalidHAURL

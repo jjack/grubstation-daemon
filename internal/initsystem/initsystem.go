@@ -9,7 +9,7 @@ import (
 type InitSystem interface {
 	IsActive(ctx context.Context) bool
 	Name() string
-	Install(ctx context.Context, configPath string) error
+	Setup(ctx context.Context, configPath string) error
 }
 
 type Factory func() InitSystem

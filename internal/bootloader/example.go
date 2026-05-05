@@ -36,7 +36,7 @@ func (s *Example) Name() string {
 
 // Install should perform the necessary steps to configure the bootloader to fetch
 // its next boot target from the Home Assistant webhook.
-func (s *Example) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (s *Example) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 

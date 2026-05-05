@@ -40,7 +40,7 @@ func (s *Systemd) IsActive(ctx context.Context) bool {
 	return err == nil && fi.IsDir()
 }
 
-func (s *Systemd) Install(ctx context.Context, configPath string) error {
+func (s *Systemd) Setup(ctx context.Context, configPath string) error {
 	absConfig, err := filepath.Abs(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute config path: %w", err)

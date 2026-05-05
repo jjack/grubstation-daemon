@@ -158,7 +158,7 @@ func (m *mockPushBootloaderErr) GetBootOptions(ctx context.Context, cfg bootload
 	return nil, errors.New("mock error")
 }
 
-func (m *mockPushBootloaderErr) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (m *mockPushBootloaderErr) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 
@@ -198,7 +198,7 @@ func (m *mockPushBootloader) GetBootOptions(ctx context.Context, cfg bootloader.
 	return []string{"OS 1"}, nil
 }
 
-func (m *mockPushBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (m *mockPushBootloader) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 func (m *mockPushBootloader) DiscoverConfigPath(ctx context.Context) (string, error) { return "", nil }

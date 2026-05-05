@@ -26,7 +26,7 @@ func (m *mockInstallBootloader) GetBootOptions(ctx context.Context, cfg bootload
 	return nil, nil
 }
 
-func (m *mockInstallBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (m *mockInstallBootloader) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	m.mac = macAddress
 	m.url = haURL
 	m.webhook = webhookID
@@ -44,12 +44,12 @@ type mockInstallInitSystem struct {
 
 func (m *mockInstallInitSystem) Name() string                      { return "mock-init" }
 func (m *mockInstallInitSystem) IsActive(ctx context.Context) bool { return true }
-func (m *mockInstallInitSystem) Install(ctx context.Context, configPath string) error {
+func (m *mockInstallInitSystem) Setup(ctx context.Context, configPath string) error {
 	m.configPath = configPath
 	return m.installErr
 }
 
-func TestInstallCmd_Success(t *testing.T) {
+func TestSetupCmd_Success(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{
@@ -78,7 +78,7 @@ func TestInstallCmd_Success(t *testing.T) {
 		InitRegistry:       initReg,
 	}
 
-	cmd := NewInstallCmd(deps)
+	cmd := NewSetupCmd(deps)
 	cmd.Flags().String("config", "test-config.yaml", "")
 
 	var out bytes.Buffer
@@ -109,7 +109,7 @@ func TestInstallCmd_Success(t *testing.T) {
 	}
 }
 
-func TestInstallCmd_BootloaderError(t *testing.T) {
+func TestSetupCmd_BootloaderError(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{
@@ -123,7 +123,7 @@ func TestInstallCmd_BootloaderError(t *testing.T) {
 	initReg.Register("mock-init", func() initsystem.InitSystem { return &mockInstallInitSystem{} })
 
 	deps := &CommandDeps{Config: cfg, BootloaderRegistry: blReg, InitRegistry: initReg}
-	cmd := NewInstallCmd(deps)
+	cmd := NewSetupCmd(deps)
 	cmd.Flags().String("config", "config.yaml", "")
 
 	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "failed to install bootloader") {
@@ -131,7 +131,7 @@ func TestInstallCmd_BootloaderError(t *testing.T) {
 	}
 }
 
-func TestInstallCmd_InitSystemError(t *testing.T) {
+func TestSetupCmd_InitSystemError(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{
@@ -145,7 +145,7 @@ func TestInstallCmd_InitSystemError(t *testing.T) {
 	initReg.Register("mock-init", func() initsystem.InitSystem { return &mockInstallInitSystem{installErr: errors.New("fail")} })
 
 	deps := &CommandDeps{Config: cfg, BootloaderRegistry: blReg, InitRegistry: initReg}
-	cmd := NewInstallCmd(deps)
+	cmd := NewSetupCmd(deps)
 	cmd.Flags().String("config", "config.yaml", "")
 
 	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "failed to install init system") {
@@ -153,7 +153,7 @@ func TestInstallCmd_InitSystemError(t *testing.T) {
 	}
 }
 
-func TestInstallCmd_MissingConfigFlag(t *testing.T) {
+func TestSetupCmd_MissingConfigFlag(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{
@@ -167,7 +167,7 @@ func TestInstallCmd_MissingConfigFlag(t *testing.T) {
 	initReg.Register("mock-init", func() initsystem.InitSystem { return &mockInstallInitSystem{} })
 
 	deps := &CommandDeps{Config: cfg, BootloaderRegistry: blReg, InitRegistry: initReg}
-	cmd := NewInstallCmd(deps) // Missing binding the "config" flag locally
+	cmd := NewSetupCmd(deps) // Missing binding the "config" flag locally
 
 	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "flag accessed but not defined") {
 		t.Fatalf("expected flag missing error, got %v", err)

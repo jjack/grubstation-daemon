@@ -12,7 +12,7 @@ func (m *mockBootloader) GetBootOptions(ctx context.Context, cfg Config) ([]stri
 	return []string{"Ubuntu", "Windows"}, nil
 }
 func (m *mockBootloader) Name() string { return "example" }
-func (m *mockBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (m *mockBootloader) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 

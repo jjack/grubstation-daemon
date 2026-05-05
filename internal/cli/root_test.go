@@ -69,7 +69,7 @@ func (m *mockRootBootloader) GetBootOptions(ctx context.Context, cfg bootloader.
 	return nil, nil
 }
 
-func (m *mockRootBootloader) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
+func (m *mockRootBootloader) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
 	return nil
 }
 func (m *mockRootBootloader) DiscoverConfigPath(ctx context.Context) (string, error) { return "", nil }

@@ -10,9 +10,9 @@ type mockInitSystem struct {
 	active bool
 }
 
-func (m *mockInitSystem) Name() string                                         { return m.name }
-func (m *mockInitSystem) IsActive(ctx context.Context) bool                    { return m.active }
-func (m *mockInitSystem) Install(ctx context.Context, configPath string) error { return nil }
+func (m *mockInitSystem) Name() string                                       { return m.name }
+func (m *mockInitSystem) IsActive(ctx context.Context) bool                  { return m.active }
+func (m *mockInitSystem) Setup(ctx context.Context, configPath string) error { return nil }
 
 func TestRegistry(t *testing.T) {
 	reg := NewRegistry()

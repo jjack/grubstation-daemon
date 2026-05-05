@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewInstallCmd(deps *CommandDeps) *cobra.Command {
+func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "install",
 		Short: "Installs and configures the agent into the bootloader and init system",
@@ -27,7 +27,7 @@ func NewInstallCmd(deps *CommandDeps) *cobra.Command {
 			webhookID := deps.Config.HomeAssistant.WebhookID
 
 			cmd.Printf("Installing into bootloader: %s\n", bl.Name())
-			if err := bl.Install(cmd.Context(), macAddress, haURL, webhookID); err != nil {
+			if err := bl.Setup(cmd.Context(), macAddress, haURL, webhookID); err != nil {
 				return fmt.Errorf("failed to install bootloader: %w", err)
 			}
 
@@ -42,7 +42,7 @@ func NewInstallCmd(deps *CommandDeps) *cobra.Command {
 			}
 
 			cmd.Printf("Installing into init system: %s\n", sys.Name())
-			if err := sys.Install(cmd.Context(), absConfig); err != nil {
+			if err := sys.Setup(cmd.Context(), absConfig); err != nil {
 				return fmt.Errorf("failed to install init system: %w", err)
 			}
 

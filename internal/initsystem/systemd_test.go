@@ -93,7 +93,7 @@ func TestSystemd_Install_Success(t *testing.T) {
 	execCommand = fakeExecCommandSuccess
 
 	sys := NewSystemd()
-	err := sys.Install(context.Background(), "/fake/config.yaml")
+	err := sys.Setup(context.Background(), "/fake/config.yaml")
 	if err != nil {
 		t.Fatalf("expected successful install, got %v", err)
 	}
@@ -115,7 +115,7 @@ func TestSystemd_Install_Errors(t *testing.T) {
 
 	// 1. osExecutable error
 	osExecutable = func() (string, error) { return "", errors.New("mock exec err") }
-	err := sys.Install(ctx, "config.yaml")
+	err := sys.Setup(ctx, "config.yaml")
 	if err == nil || !strings.Contains(err.Error(), "mock exec err") {
 		t.Fatalf("expected mock exec err, got %v", err)
 	}
@@ -123,7 +123,7 @@ func TestSystemd_Install_Errors(t *testing.T) {
 	// 2. osWriteFile error
 	osExecutable = func() (string, error) { return "/fake/bin", nil }
 	osWriteFile = func(name string, data []byte, perm os.FileMode) error { return errors.New("mock write err") }
-	err = sys.Install(ctx, "config.yaml")
+	err = sys.Setup(ctx, "config.yaml")
 	if err == nil || !strings.Contains(err.Error(), "failed to write systemd service file") {
 		t.Fatalf("expected write file error, got %v", err)
 	}
@@ -131,14 +131,14 @@ func TestSystemd_Install_Errors(t *testing.T) {
 	// 3. daemon-reload error
 	osWriteFile = func(name string, data []byte, perm os.FileMode) error { return nil }
 	execCommand = fakeExecCommandFail
-	err = sys.Install(ctx, "config.yaml")
+	err = sys.Setup(ctx, "config.yaml")
 	if err == nil || !strings.Contains(err.Error(), "failed to reload systemd daemon") {
 		t.Fatalf("expected daemon-reload error, got %v", err)
 	}
 
 	// 4. enable error
 	execCommand = fakeExecCommandFailEnable
-	err = sys.Install(ctx, "config.yaml")
+	err = sys.Setup(ctx, "config.yaml")
 	if err == nil || !strings.Contains(err.Error(), "failed to enable systemd service") {
 		t.Fatalf("expected enable error, got %v", err)
 	}
