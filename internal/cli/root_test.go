@@ -3,13 +3,50 @@ package cli
 import (
 	"bytes"
 	"context"
+	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 	"github.com/jjack/remote-boot-agent/internal/initsystem"
 )
+
+func TestDefaultSystemResolver(t *testing.T) {
+	// Ensure DefaultSystemResolver satisfies the SystemResolver interface
+	var _ SystemResolver = (*DefaultSystemResolver)(nil)
+	resolver := &DefaultSystemResolver{}
+
+	// Short timeout so DiscoverHomeAssistant doesn't delay tests with mDNS
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	// These are pass-throughs to the real system packages.
+	// We just want to ensure they don't panic and are wired up correctly.
+	_, _ = resolver.DiscoverHomeAssistant(ctx)
+	_, _ = resolver.DetectSystemHostname()
+
+	ifaces, _ := resolver.GetWOLInterfaces()
+	if len(ifaces) > 0 {
+		_, _ = resolver.GetIPv4Info(ifaces[0])
+	} else {
+		_, _ = resolver.GetIPv4Info(net.Interface{})
+	}
+
+	_ = resolver.GetFQDN("localhost")
+
+	f, err := os.CreateTemp("", "test-config-*.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	defer os.Remove(f.Name())
+
+	if err := resolver.SaveConfig(&config.Config{}, f.Name()); err != nil {
+		t.Fatalf("expected no error saving config, got: %v", err)
+	}
+}
 
 func TestNewCLI(t *testing.T) {
 	cli := NewCLI()
