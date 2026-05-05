@@ -90,3 +90,15 @@ func TestClient_Push_HttpClientError(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestClient_Push_CreateRequestError(t *testing.T) {
+	client := NewClient("http://homeassistant.local:8123", "test", nil)
+	// Passing a nil context causes http.NewRequestWithContext to reliably return an error
+	err := client.Push(nil, PushPayload{})
+	if err == nil {
+		t.Fatal("expected error on nil context, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to create http request") {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
