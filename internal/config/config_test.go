@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/pflag"
@@ -57,6 +58,60 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 	}
 	if loadedCfg.HomeAssistant.WebhookID != cfg.HomeAssistant.WebhookID {
 		t.Errorf("expected Webhook ID %s, got %s", cfg.HomeAssistant.WebhookID, loadedCfg.HomeAssistant.WebhookID)
+	}
+}
+
+func TestConfig_SaveAndLoad_Defaults(t *testing.T) {
+	tempDir := t.TempDir()
+	cfgPath := filepath.Join(tempDir, "config.yaml")
+
+	cfg := &Config{
+		Host: HostConfig{
+			MACAddress:       "00:11:22:33:44:55",
+			Name:             "test-name",
+			Address:          "10.0.0.1",
+			BroadcastAddress: DefaultBroadcastAddress,
+			BroadcastPort:    DefaultBroadcastPort,
+		},
+		Bootloader: BootloaderConfig{
+			Name:       "grub",
+			ConfigPath: "/boot/grub/grub.cfg",
+		},
+		InitSystem: InitSystemConfig{
+			Name: "systemd",
+		},
+		HomeAssistant: HomeAssistantConfig{
+			URL:       "http://ha.local",
+			WebhookID: "test-webhook",
+		},
+	}
+
+	err := Save(cfg, cfgPath)
+	if err != nil {
+		t.Fatalf("failed to save config: %v", err)
+	}
+
+	content, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatalf("failed to read config file: %v", err)
+	}
+	if strings.Contains(string(content), "broadcast_address") {
+		t.Errorf("expected broadcast_address to be omitted from save, but found in file: %s", string(content))
+	}
+	if strings.Contains(string(content), "broadcast_port") {
+		t.Errorf("expected broadcast_port to be omitted from save, but found in file: %s", string(content))
+	}
+
+	loadedCfg, err := Load(cfgPath, nil)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	if loadedCfg.Host.BroadcastAddress != DefaultBroadcastAddress {
+		t.Errorf("expected broadcast address %s, got %s", DefaultBroadcastAddress, loadedCfg.Host.BroadcastAddress)
+	}
+	if loadedCfg.Host.BroadcastPort != DefaultBroadcastPort {
+		t.Errorf("expected broadcast port %d, got %d", DefaultBroadcastPort, loadedCfg.Host.BroadcastPort)
 	}
 }
 
