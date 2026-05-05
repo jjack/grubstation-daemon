@@ -46,7 +46,6 @@ func Discover(ctx context.Context) (string, error) {
 				url := extractURL(entry)
 				if url != "" {
 					found <- url
-					cancel() // Cancel context to stop spinner and discovery early
 					return
 				}
 			}
