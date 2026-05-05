@@ -34,6 +34,7 @@ func Discover(ctx context.Context) (string, error) {
 	defer cancel()
 
 	go func(results <-chan *zeroconf.ServiceEntry) {
+		// Multiplex the context cancellation and results channel to prevent goroutine leaks if discovery times out.
 		for {
 			select {
 			case <-ctx.Done():

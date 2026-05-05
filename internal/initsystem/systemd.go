@@ -73,6 +73,7 @@ func (s *Systemd) Install(ctx context.Context, configPath string) error {
 		return fmt.Errorf("failed to write systemd service file (are you running as root?): %w", err)
 	}
 
+	// Reload the systemd daemon to recognize the newly written service file, and enable it to run on shutdown.
 	if out, err := execCommand(ctx, "systemctl", "daemon-reload").CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to reload systemd daemon: %s", string(out))
 	}

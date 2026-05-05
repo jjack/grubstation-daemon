@@ -80,6 +80,7 @@ func getLastIP(ipnet *net.IPNet) net.IP {
 
 	last := make(net.IP, len(ip))
 	for i := 0; i < len(ip); i++ {
+		// Calculate the subnet broadcast address by setting all host bits to 1 (bitwise OR with the inverted mask).
 		last[i] = ip[i] | ^ipnet.Mask[i]
 	}
 	return last

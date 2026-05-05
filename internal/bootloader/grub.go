@@ -73,6 +73,7 @@ func findGrubConfig() (string, error) {
 	return "", ErrGrubConfigNotFound
 }
 
+// countStructuralBraces ignores braces inside strings or comments to accurately track GRUB submenu lexical scoping.
 func countStructuralBraces(line string) (int, int) {
 	opens, closes := 0, 0
 	inSingleQuote, inDoubleQuote, escapeNext := false, false, false
@@ -156,6 +157,7 @@ func (g *Grub) GetBootOptions(ctx context.Context, cfg Config) ([]string, error)
 
 	depth := 0
 
+	// Track brace depth across lines to build GRUB's required flat "Parent>Child" syntax for nested submenus.
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
@@ -183,7 +185,7 @@ func (g *Grub) GetBootOptions(ctx context.Context, cfg Config) ([]string, error)
 		depth += opens
 		depth -= closes
 
-		// Pop submenus that we have exited
+		// Pop submenus from the tracking stack if we've exited their lexical scope (closing braces).
 		for len(stack) > 0 && depth < stack[len(stack)-1].bodyDepth {
 			stack = stack[:len(stack)-1]
 		}
@@ -196,6 +198,8 @@ func (g *Grub) GetBootOptions(ctx context.Context, cfg Config) ([]string, error)
 	return options, nil
 }
 
+// Install creates a new GRUB script in /etc/grub.d and updates the GRUB config by calling
+// update-grub or grub2-mkconfig.
 func (g *Grub) Install(ctx context.Context, macAddress, haURL, webhookID string) error {
 	u, err := url.Parse(haURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {

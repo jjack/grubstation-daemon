@@ -248,6 +248,7 @@ func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.
 	defer cancel()
 
 	// 1. Fetch async HA Discovery
+	// Run mDNS discovery concurrently in the background so it doesn't block the initial interactive CLI prompts.
 	haDiscoveryResultChan := make(chan haDiscoveryResult, 1)
 	go func() {
 		url, err := deps.SystemResolver.DiscoverHomeAssistant(ctx)

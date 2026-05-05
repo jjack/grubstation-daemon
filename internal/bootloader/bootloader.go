@@ -48,6 +48,7 @@ func (r *Registry) Detect(ctx context.Context) (Bootloader, error) {
 	for name := range r.bootloaders {
 		names = append(names, name)
 	}
+	// Sort map keys to guarantee deterministic detection order if multiple bootloaders report as active.
 	sort.Strings(names)
 
 	for _, name := range names {
