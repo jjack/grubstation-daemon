@@ -50,7 +50,7 @@ func TestPushBootOptionsCommand(t *testing.T) {
 		Host: config.HostConfig{
 			MACAddress:       "aa:bb:cc:dd:ee:ff",
 			BroadcastAddress: "192.168.1.255",
-			BroadcastPort:    9,
+			BroadcastPort:    7, // use a custom port to ensure it gets passed
 			Name:             "test-name",
 			Address:          "10.0.0.1",
 		},
@@ -79,8 +79,8 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	if payload.BroadcastAddress != "192.168.1.255" {
 		t.Errorf("expected broadcast address 192.168.1.255, got %s", payload.BroadcastAddress)
 	}
-	if payload.BroadcastPort != 0 {
-		t.Errorf("expected WOL port omitted (0), got %d", payload.BroadcastPort)
+	if payload.BroadcastPort != 7 {
+		t.Errorf("expected custom WOL port 7, got %d", payload.BroadcastPort)
 	}
 	if payload.Name != "test-name" {
 		t.Errorf("expected name test-name, got %s", payload.Name)
@@ -93,6 +93,60 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	}
 	if len(payload.BootOptions) != 1 || payload.BootOptions[0] != "Test OS" {
 		t.Errorf("expected [Test OS], got %v", payload.BootOptions)
+	}
+}
+
+func TestPushBootOptionsCommand_DefaultWOL(t *testing.T) {
+	t.Parallel()
+
+	var payload ha.PushPayload
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("failed to read body: %v", err)
+		}
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("failed to parse json: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	tempGrubPath := createTempGrubConfig(t)
+	cfg := &config.Config{
+		Host: config.HostConfig{
+			MACAddress:       "aa:bb:cc:dd:ee:ff",
+			BroadcastAddress: config.DefaultBroadcastAddress,
+			BroadcastPort:    config.DefaultBroadcastPort,
+			Name:             "test-name",
+			Address:          "10.0.0.1",
+		},
+		Bootloader: config.BootloaderConfig{
+			Name:       "grub",
+			ConfigPath: tempGrubPath,
+		},
+		HomeAssistant: config.HomeAssistantConfig{
+			URL:       ts.URL,
+			WebhookID: "test-webhook",
+		},
+	}
+
+	registry := bootloader.NewRegistry()
+	registry.Register("grub", bootloader.NewGrub)
+
+	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	cmd := NewPushCmd(deps)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Ensure the defaults are mapped to empty/zero so they get stripped via omitempty in the JSON
+	if payload.BroadcastAddress != "" {
+		t.Errorf("expected broadcast address to be omitted (empty string), got %s", payload.BroadcastAddress)
+	}
+	if payload.BroadcastPort != 0 {
+		t.Errorf("expected WOL port to be omitted (0), got %d", payload.BroadcastPort)
 	}
 }
 
