@@ -118,10 +118,22 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 				cmd.Println("\nProceeding with installation...")
 				// We update the deps config with our freshly generated config so the installer can use it
 				*deps.Config = *cfg
-				return performInstall(cmd, deps, cfgPath)
+				if err := performInstall(cmd, deps, cfgPath); err != nil {
+					return err
+				}
+
+				cmd.Println("\nPushing initial boot options to Home Assistant...")
+				if err := PushBootOptions(cmd.Context(), deps); err != nil {
+					cmd.Printf("Warning: failed to push initial state to Home Assistant: %v\n", err)
+					cmd.Println("You can try pushing manually later with 'remote-boot-agent options push'")
+				} else {
+					cmd.Println("Successfully pushed initial state to Home Assistant.")
+				}
+				return nil
 			}
 
 			cmd.Println("\nSetup complete. You can apply the system hooks later by running 'remote-boot-agent apply'")
+			cmd.Println("To populate Home Assistant immediately without rebooting, run: remote-boot-agent options push")
 			return nil
 		},
 	}

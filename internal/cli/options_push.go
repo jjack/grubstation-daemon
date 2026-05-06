@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,64 +15,72 @@ import (
 
 var ErrMissingHAConfig = errors.New("homeassistant url and webhook_id must be configured")
 
+func PushBootOptions(ctx context.Context, deps *CommandDeps) error {
+	bl, err := deps.Bootloader(ctx)
+	if err != nil {
+		return err
+	}
+
+	blCfg := deps.Config.Bootloader
+	bootOptions, err := bl.GetBootOptions(ctx, bootloader.Config{
+		ConfigPath: blCfg.ConfigPath,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get boot options: %w", err)
+	}
+
+	hostCfg := deps.Config.Host
+	haCfg := deps.Config.HomeAssistant
+
+	broadcastAddress := hostCfg.BroadcastAddress
+	if broadcastAddress == config.DefaultBroadcastAddress {
+		broadcastAddress = ""
+	}
+	broadcastPort := hostCfg.BroadcastPort
+	if broadcastPort == config.DefaultBroadcastPort {
+		broadcastPort = 0
+	}
+
+	payload := ha.PushPayload{
+		MACAddress:       hostCfg.MACAddress,
+		BroadcastAddress: broadcastAddress,
+		BroadcastPort:    broadcastPort,
+		Bootloader:       bl.Name(),
+		Name:             hostCfg.Name,
+		Address:          hostCfg.Address,
+		BootOptions:      bootOptions,
+	}
+
+	if haCfg.URL == "" || haCfg.WebhookID == "" {
+		return ErrMissingHAConfig
+	}
+
+	haClient := ha.NewClient(
+		haCfg.URL,
+		haCfg.WebhookID,
+		nil,
+	)
+
+	slog.Debug("Pushing boot options to Home Assistant", "webhook_id", haCfg.WebhookID)
+	slog.Debug("Payload", "payload", payload)
+
+	if err := haClient.Push(ctx, payload); err != nil {
+		return fmt.Errorf("failed to push state to HA webhook: %w", err)
+	}
+
+	slog.Debug("Successfully pushed bootloader state to Home Assistant")
+	return nil
+}
+
 func NewPushCmd(deps *CommandDeps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "push",
 		Short: "Push the list of available OSes to Home Assistant",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			bl, err := deps.Bootloader(cmd.Context())
-			if err != nil {
+			if err := PushBootOptions(cmd.Context(), deps); err != nil {
 				return err
 			}
-
-			blCfg := deps.Config.Bootloader
-			bootOptions, err := bl.GetBootOptions(cmd.Context(), bootloader.Config{
-				ConfigPath: blCfg.ConfigPath,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to get boot options: %w", err)
-			}
-
-			hostCfg := deps.Config.Host
-			haCfg := deps.Config.HomeAssistant
-
-			broadcastAddress := hostCfg.BroadcastAddress
-			if broadcastAddress == config.DefaultBroadcastAddress {
-				broadcastAddress = ""
-			}
-			broadcastPort := hostCfg.BroadcastPort
-			if broadcastPort == config.DefaultBroadcastPort {
-				broadcastPort = 0
-			}
-
-			payload := ha.PushPayload{
-				MACAddress:       hostCfg.MACAddress,
-				BroadcastAddress: broadcastAddress,
-				BroadcastPort:    broadcastPort,
-				Bootloader:       bl.Name(),
-				Name:             hostCfg.Name,
-				Address:          hostCfg.Address,
-				BootOptions:      bootOptions,
-			}
-
-			if haCfg.URL == "" || haCfg.WebhookID == "" {
-				return ErrMissingHAConfig
-			}
-
-			haClient := ha.NewClient(
-				haCfg.URL,
-				haCfg.WebhookID,
-				nil,
-			)
-
-			slog.Info("Pushing boot options to Home Assistant", "webhook_id", haCfg.WebhookID)
-			slog.Debug("Payload", "payload", payload)
-
-			if err := haClient.Push(cmd.Context(), payload); err != nil {
-				return fmt.Errorf("failed to push state to HA webhook: %w", err)
-			}
-
-			slog.Info("Successfully pushed bootloader state to Home Assistant")
+			cmd.Println("Successfully pushed bootloader state to Home Assistant")
 			return nil
 		},
 	}

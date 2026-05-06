@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -371,13 +373,14 @@ func TestSetupCmd_Execute(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		setup       func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver)
+		setup       func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver)
 		wantErr     string
 		wantInstall bool
+		wantOut     []string
 	}{
 		{
-			name: "Success - Install Now",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			name: "Success - Install Now (Push Warning)",
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
 					return &config.Config{
 						Bootloader: config.BootloaderConfig{Name: "mock-bl"},
@@ -387,10 +390,43 @@ func TestSetupCmd_Execute(t *testing.T) {
 				runConfirm = func(installNow *bool) error { *installNow = true; return nil }
 			},
 			wantInstall: true,
+			wantOut: []string{
+				"Proceeding with installation...",
+				"Pushing initial boot options to Home Assistant...",
+				"Warning: failed to push initial state to Home Assistant",
+				"You can try pushing manually later",
+			},
+		},
+		{
+			name: "Success - Install Now (Push Success)",
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+				ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+				}))
+				t.Cleanup(func() { ts.Close() })
+
+				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+					return &config.Config{
+						Bootloader: config.BootloaderConfig{Name: "mock-bl"},
+						InitSystem: config.InitSystemConfig{Name: "mock-init"},
+						HomeAssistant: config.HomeAssistantConfig{
+							URL:       ts.URL,
+							WebhookID: "test-webhook",
+						},
+					}, nil
+				}
+				runConfirm = func(installNow *bool) error { *installNow = true; return nil }
+			},
+			wantInstall: true,
+			wantOut: []string{
+				"Proceeding with installation...",
+				"Pushing initial boot options to Home Assistant...",
+				"Successfully pushed initial state to Home Assistant.",
+			},
 		},
 		{
 			name: "Success - Install Later",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
 					return &config.Config{
 						Bootloader: config.BootloaderConfig{Name: "mock-bl"},
@@ -400,10 +436,14 @@ func TestSetupCmd_Execute(t *testing.T) {
 				runConfirm = func(installNow *bool) error { *installNow = false; return nil }
 			},
 			wantInstall: false,
+			wantOut: []string{
+				"Setup complete. You can apply the system hooks later",
+				"To populate Home Assistant immediately without rebooting, run: remote-boot-agent options push",
+			},
 		},
 		{
 			name: "Error - ensureSupport Fails",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				deps.BootloaderRegistry = bootloader.NewRegistry() // Empty registry causes error
 			},
 			wantErr:     "no supported bootloader detected",
@@ -411,7 +451,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 		},
 		{
 			name: "Error - ensureSupport Fails (InitSystem)",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				deps.InitRegistry = initsystem.NewRegistry() // Empty registry causes init system error
 			},
 			wantErr:     "no supported init system detected",
@@ -419,7 +459,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 		},
 		{
 			name: "Error - Generate Survey Fails",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
 					return nil, errors.New("survey failed")
 				}
@@ -428,8 +468,20 @@ func TestSetupCmd_Execute(t *testing.T) {
 			wantInstall: false,
 		},
 		{
+			name: "Error - MkdirAll Fails",
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+					return &config.Config{}, nil
+				}
+				osMkdirAll = func(path string, perm os.FileMode) error { return errors.New("mkdirall failed") }
+				t.Cleanup(func() { osMkdirAll = func(path string, perm os.FileMode) error { return nil } })
+			},
+			wantErr:     "failed to create config directory: mkdirall failed",
+			wantInstall: false,
+		},
+		{
 			name: "Error - Save Config Fails",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
 					return &config.Config{}, nil
 				}
@@ -442,7 +494,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 		},
 		{
 			name: "Error - Confirm Prompt Fails",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
 					return &config.Config{}, nil
 				}
@@ -453,7 +505,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 		},
 		{
 			name: "Error - Perform Install Bootloader Resolve Fails",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
 					return &config.Config{
 						Bootloader: config.BootloaderConfig{Name: "invalid-bl"},
@@ -467,7 +519,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 		},
 		{
 			name: "Error - Perform Install InitSystem Resolve Fails",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
 					return &config.Config{
 						Bootloader: config.BootloaderConfig{Name: "mock-bl"},
@@ -481,7 +533,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 		},
 		{
 			name: "Error - Perform Install Fails",
-			setup: func(deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+			setup: func(t *testing.T, deps *CommandDeps, blMock *mockInstallBootloader, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
 					return &config.Config{
 						Bootloader: config.BootloaderConfig{Name: "mock-bl"},
@@ -516,7 +568,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 				SystemResolver:     sysResolver,
 			}
 
-			tt.setup(deps, blMock, initMock, sysResolver)
+			tt.setup(t, deps, blMock, initMock, sysResolver)
 
 			cmd := NewSetupCmd(deps)
 			var out bytes.Buffer
@@ -542,6 +594,15 @@ func TestSetupCmd_Execute(t *testing.T) {
 			} else {
 				if initMock.configPath != "" {
 					t.Errorf("expected install to NOT occur, but it did")
+				}
+			}
+
+			if len(tt.wantOut) > 0 {
+				outStr := out.String()
+				for _, w := range tt.wantOut {
+					if !strings.Contains(outStr, w) {
+						t.Errorf("expected output to contain %q, got %q", w, outStr)
+					}
 				}
 			}
 		})
