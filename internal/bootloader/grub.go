@@ -212,12 +212,10 @@ func (g *Grub) Setup(ctx context.Context, opts SetupOptions) error {
 	}
 
 	data := struct {
-		Protocol   string
 		Host       string
 		MACAddress string
 		WebhookID  string
 	}{
-		Protocol:   u.Scheme,
 		Host:       u.Host,
 		MACAddress: opts.TargetMAC,
 		WebhookID:  opts.AuthToken,

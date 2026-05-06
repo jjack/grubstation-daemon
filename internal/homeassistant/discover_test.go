@@ -142,6 +142,24 @@ func TestExtractURL(t *testing.T) {
 			expected: "http://192.168.1.100:8123",
 		},
 		{
+			name: "ignore https internal_url",
+			entry: &zeroconf.ServiceEntry{
+				Text:     []string{"internal_url=https://ha.local:8123", "base_url=http://base.local:8123"},
+				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
+				Port:     8123,
+			},
+			expected: "http://base.local:8123",
+		},
+		{
+			name: "ignore https base_url fallback to ip",
+			entry: &zeroconf.ServiceEntry{
+				Text:     []string{"base_url=https://base.local:8123"},
+				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
+				Port:     8123,
+			},
+			expected: "http://192.168.1.100:8123",
+		},
+		{
 			name: "no txt records fallback to ip",
 			entry: &zeroconf.ServiceEntry{
 				AddrIPv4: []net.IP{net.ParseIP("10.0.0.5")},

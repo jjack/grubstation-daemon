@@ -381,7 +381,7 @@ func TestGrub_Setup_TemplateErrors(t *testing.T) {
 
 	// 2. Template execute error
 	// Accessing a nonexistent field on a string will cause template execution to fail
-	grubTemplate = "{{ .Protocol.NonExistentField }}"
+	grubTemplate = "{{ .Host.NonExistentField }}"
 	err = bl.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if err == nil || !strings.Contains(err.Error(), "failed to execute grub template") {
 		t.Fatalf("expected template execute error, got %v", err)

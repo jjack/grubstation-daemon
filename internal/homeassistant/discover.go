@@ -66,16 +66,20 @@ func Discover(ctx context.Context) (string, error) {
 	}
 }
 
+func isSupportedURL(url string) bool {
+	return url != "" && !strings.HasPrefix(strings.ToLower(url), "https://")
+}
+
 func extractURL(entry *zeroconf.ServiceEntry) string {
 	// Check TXT records for configured URLs first
 	for _, txt := range entry.Text {
 		if strings.HasPrefix(txt, "internal_url=") {
-			if url := strings.TrimPrefix(txt, "internal_url="); url != "" {
+			if url := strings.TrimPrefix(txt, "internal_url="); isSupportedURL(url) {
 				return url
 			}
 		}
 		if strings.HasPrefix(txt, "base_url=") {
-			if url := strings.TrimPrefix(txt, "base_url="); url != "" {
+			if url := strings.TrimPrefix(txt, "base_url="); isSupportedURL(url) {
 				return url
 			}
 		}

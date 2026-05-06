@@ -12,6 +12,7 @@ var (
 	ErrWebhookIDInvalidChar = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
 	ErrWebhookIDTooLong     = errors.New("webhook id cannot be longer than 255 characters")
 	ErrURLEmpty             = errors.New("home assistant url cannot be empty")
+	ErrHTTPSUnsupported     = errors.New("https is not supported by grub; please use an http:// url")
 )
 
 func ValidateWebhookID(webhookID string) error {
@@ -34,9 +35,12 @@ func ValidateURL(hassURL string) error {
 		return ErrURLEmpty
 	}
 
-	_, err := url.ParseRequestURI(hassURL)
+	u, err := url.ParseRequestURI(hassURL)
 	if err != nil {
 		return fmt.Errorf("invalid home assistant url: %w", err)
+	}
+	if u.Scheme == "https" {
+		return ErrHTTPSUnsupported
 	}
 
 	return nil

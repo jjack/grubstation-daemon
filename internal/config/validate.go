@@ -20,6 +20,7 @@ var (
 	ErrInvalidMACAddress            = errors.New("invalid MAC address format")
 	ErrInvalidURL                   = errors.New("invalid URL format")
 	ErrMACAddressEmpty              = errors.New("mac address cannot be empty")
+	ErrHTTPSUnsupported             = errors.New("https is not supported by grub; please use an http:// url")
 	ErrNameEmpty                    = errors.New("name cannot be empty")
 	ErrURLEmpty                     = errors.New("url cannot be empty")
 	ErrWebhookIDEmpty               = errors.New("webhook id cannot be empty")
@@ -54,6 +55,9 @@ func ValidateURL(v string) error {
 	u, err := url.ParseRequestURI(v)
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return ErrInvalidURL
+	}
+	if u.Scheme == "https" {
+		return ErrHTTPSUnsupported
 	}
 	return nil
 }

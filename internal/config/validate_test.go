@@ -86,7 +86,7 @@ func TestValidateURL(t *testing.T) {
 		wantErr bool
 	}{
 		{"valid http", "http://localhost:8123", false},
-		{"valid https", "https://homeassistant.local", false},
+		{"invalid https", "https://homeassistant.local", true},
 		{"empty", "", true},
 		{"invalid format", "not-a-url", true},
 		{"missing scheme", "/just/a/path", true},
