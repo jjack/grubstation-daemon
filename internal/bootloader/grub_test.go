@@ -350,3 +350,17 @@ func TestGrub_GetBootOptions_PermissionDenied(t *testing.T) {
 		t.Errorf("expected file open or read error, got: %v", err)
 	}
 }
+
+func TestGrub_SetupWarning(t *testing.T) {
+	g := NewGrub()
+
+	warner, ok := g.(interface{ SetupWarning() string })
+	if !ok {
+		t.Fatalf("expected Grub to implement the optional SetupWarning() interface")
+	}
+
+	warning := warner.SetupWarning()
+	if !strings.Contains(warning, "troubleshoot your GRUB network settings") {
+		t.Errorf("expected warning to mention troubleshooting, got: %s", warning)
+	}
+}

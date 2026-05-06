@@ -39,6 +39,13 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error
 	}
 
 	cmd.Println("Installation completed successfully.")
+
+	// Optional interface check to see if the bootloader has any hardware warnings to share
+	if warner, ok := bl.(interface{ SetupWarning() string }); ok {
+		if warning := warner.SetupWarning(); warning != "" {
+			cmd.Printf("\nNote: %s\n", warning)
+		}
+	}
 	return nil
 }
 
