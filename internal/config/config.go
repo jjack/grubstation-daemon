@@ -13,6 +13,21 @@ const (
 	DefaultBroadcastPort    = 9
 )
 
+const (
+	FlagMac              = "mac"
+	FlagName             = "name"
+	FlagAddress          = "address"
+	FlagBroadcastAddress = "broadcast-address"
+	FlagBroadcastPort    = "broadcast-port"
+	FlagBootloader       = "bootloader"
+	FlagBootloaderPath   = "bootloader-path"
+	FlagInitSystem       = "init-system"
+	FlagHassURL          = "hass-url"
+	FlagHassWebhook      = "hass-webhook"
+)
+
+var viperBindPFlag = func(v *viper.Viper, key string, flag *pflag.Flag) error { return v.BindPFlag(key, flag) }
+
 type Config struct {
 	Host          HostConfig          `mapstructure:"host"`
 	Bootloader    BootloaderConfig    `mapstructure:"bootloader"`
@@ -53,16 +68,25 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 	}
 
 	if flags != nil {
-		_ = v.BindPFlag("host.mac", flags.Lookup("mac"))
-		_ = v.BindPFlag("host.name", flags.Lookup("name"))
-		_ = v.BindPFlag("host.address", flags.Lookup("address"))
-		_ = v.BindPFlag("host.broadcast_address", flags.Lookup("broadcast-address"))
-		_ = v.BindPFlag("host.broadcast_port", flags.Lookup("broadcast-port"))
-		_ = v.BindPFlag("bootloader.name", flags.Lookup("bootloader"))
-		_ = v.BindPFlag("bootloader.config_path", flags.Lookup("bootloader-path"))
-		_ = v.BindPFlag("initsystem.name", flags.Lookup("init-system"))
-		_ = v.BindPFlag("homeassistant.url", flags.Lookup("hass-url"))
-		_ = v.BindPFlag("homeassistant.webhook_id", flags.Lookup("hass-webhook"))
+		flagMap := map[string]string{
+			"host.mac":                 FlagMac,
+			"host.name":                FlagName,
+			"host.address":             FlagAddress,
+			"host.broadcast_address":   FlagBroadcastAddress,
+			"host.broadcast_port":      FlagBroadcastPort,
+			"bootloader.name":          FlagBootloader,
+			"bootloader.config_path":   FlagBootloaderPath,
+			"initsystem.name":          FlagInitSystem,
+			"homeassistant.url":        FlagHassURL,
+			"homeassistant.webhook_id": FlagHassWebhook,
+		}
+		for configKey, flagName := range flagMap {
+			if flag := flags.Lookup(flagName); flag != nil {
+				if err := viperBindPFlag(v, configKey, flag); err != nil {
+					return nil, fmt.Errorf("failed to bind flag %s: %w", flagName, err)
+				}
+			}
+		}
 	}
 
 	if err := v.ReadInConfig(); err != nil {
