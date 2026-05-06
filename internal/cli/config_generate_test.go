@@ -12,45 +12,8 @@ import (
 	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 	"github.com/jjack/remote-boot-agent/internal/initsystem"
+	"github.com/spf13/cobra"
 )
-
-type mockGenInitSystem struct{ active bool }
-
-func (m *mockGenInitSystem) Name() string                                       { return "mock-init" }
-func (m *mockGenInitSystem) IsActive(ctx context.Context) bool                  { return m.active }
-func (m *mockGenInitSystem) Setup(ctx context.Context, configPath string) error { return nil }
-
-type mockDiscoverFailBootloader struct{}
-
-func (m *mockDiscoverFailBootloader) Name() string                      { return "discover-fail" }
-func (m *mockDiscoverFailBootloader) IsActive(ctx context.Context) bool { return true }
-func (m *mockDiscoverFailBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return nil, nil
-}
-
-func (m *mockDiscoverFailBootloader) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
-	return nil
-}
-
-func (m *mockDiscoverFailBootloader) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return "", errors.New("discover fail")
-}
-
-type mockInactiveBootloader struct{}
-
-func (m *mockInactiveBootloader) Name() string                      { return "inactive-bl" }
-func (m *mockInactiveBootloader) IsActive(ctx context.Context) bool { return false }
-func (m *mockInactiveBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return nil, nil
-}
-
-func (m *mockInactiveBootloader) Setup(ctx context.Context, macAddress, haURL, webhookID string) error {
-	return nil
-}
-
-func (m *mockInactiveBootloader) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return "", nil
-}
 
 type mockSystemResolver struct {
 	discoverHomeAssistantFunc func(ctx context.Context) (string, error)
@@ -102,156 +65,6 @@ func (m *mockSystemResolver) SaveConfig(cfg *config.Config, path string) error {
 		return m.saveConfigFunc(cfg, path)
 	}
 	return nil
-}
-
-func TestGenerateConfigCmd_Execute(t *testing.T) {
-	oldRunForm := runGenerateSurvey
-
-	defer func() {
-		runGenerateSurvey = oldRunForm
-	}()
-
-	tests := []struct {
-		name           string
-		setupMocks     func(*CommandDeps)
-		wantErr        bool
-		errContains    string
-		outputContains string
-	}{
-		{
-			name: "Happy Path",
-			setupMocks: func(deps *CommandDeps) {
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
-					return &config.Config{}, nil
-				}
-				deps.SystemResolver = &mockSystemResolver{saveConfigFunc: func(cfg *config.Config, path string) error { return nil }}
-			},
-			wantErr: false,
-		},
-		{
-			name: "Happy Path Custom Config",
-			setupMocks: func(deps *CommandDeps) {
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
-					return &config.Config{
-						Host: config.HostConfig{
-							Name:             "test",
-							Address:          "1.1.1.1",
-							MACAddress:       "00:11:22:33:44:55",
-							BroadcastAddress: "1.2.3.4",
-							BroadcastPort:    7,
-						},
-					}, nil
-				}
-				deps.SystemResolver = &mockSystemResolver{saveConfigFunc: func(cfg *config.Config, path string) error { return nil }}
-			},
-			wantErr:        false,
-			outputContains: "broadcast_address: 1.2.3.4",
-		},
-		{
-			name: "Hostname Error",
-			setupMocks: func(deps *CommandDeps) {
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
-					return nil, errors.New("hostname fail")
-				}
-			},
-			wantErr:     true,
-			errContains: "hostname fail",
-		},
-		{
-			name: "Interfaces Error",
-			setupMocks: func(deps *CommandDeps) {
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
-					return nil, errors.New("iface fail")
-				}
-			},
-			wantErr:     true,
-			errContains: "iface fail",
-		},
-		{
-			name: "Bootloader Detection Error",
-			setupMocks: func(deps *CommandDeps) {
-				blReg := bootloader.NewRegistry()
-				blReg.Register("inactive-bl", func() bootloader.Bootloader { return &mockInactiveBootloader{} })
-				deps.BootloaderRegistry = blReg
-			},
-			wantErr:     true,
-			errContains: "no supported bootloader detected. Please ensure you have one of the following installed: inactive-bl",
-		},
-		{
-			name: "Init System Detection Error",
-			setupMocks: func(deps *CommandDeps) {
-				initReg := initsystem.NewRegistry()
-				initReg.Register("mock-init", func() initsystem.InitSystem { return &mockGenInitSystem{active: false} })
-				deps.InitRegistry = initReg
-			},
-			wantErr:     true,
-			errContains: "no supported init system detected. Please ensure you have one of the following installed: mock-init",
-		},
-		{
-			name: "Form Error",
-			setupMocks: func(deps *CommandDeps) {
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
-					return nil, errors.New("form canceled")
-				}
-			},
-			wantErr:     true,
-			errContains: "form canceled",
-		},
-		{
-			name: "DiscoverConfigPath Fails But Proceeds",
-			setupMocks: func(deps *CommandDeps) {
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
-					return &config.Config{}, nil
-				}
-				deps.SystemResolver = &mockSystemResolver{saveConfigFunc: func(cfg *config.Config, path string) error { return nil }}
-
-				blReg := bootloader.NewRegistry()
-				blReg.Register("discover-fail", func() bootloader.Bootloader { return &mockDiscoverFailBootloader{} })
-				deps.BootloaderRegistry = blReg
-			},
-			wantErr: false,
-		},
-		{
-			name: "Save Config Error",
-			setupMocks: func(deps *CommandDeps) {
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) { return &config.Config{}, nil }
-				deps.SystemResolver = &mockSystemResolver{
-					saveConfigFunc: func(cfg *config.Config, path string) error { return errors.New("save fail") },
-				}
-			},
-			wantErr:     true,
-			errContains: "save fail",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			blReg := bootloader.NewRegistry()
-			blReg.Register("example", func() bootloader.Bootloader { return &mockListBootloader{} })
-			initReg := initsystem.NewRegistry()
-			initReg.Register("mock", func() initsystem.InitSystem { return &mockGenInitSystem{active: true} })
-
-			deps := &CommandDeps{BootloaderRegistry: blReg, InitRegistry: initReg, SystemResolver: &mockSystemResolver{}}
-			tt.setupMocks(deps)
-			cmd := NewConfigGenerateCmd(deps)
-			cmd.SetArgs([]string{}) // prevent picking up real os.Args
-
-			var b bytes.Buffer
-			cmd.SetOut(&b)
-			cmd.SetErr(&b)
-
-			err := cmd.Execute()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("expected error: %v, got: %v", tt.wantErr, err)
-			}
-			if err != nil && tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
-				t.Errorf("expected error to contain '%s', got '%v'", tt.errContains, err)
-			}
-			if tt.outputContains != "" && !strings.Contains(b.String(), tt.outputContains) {
-				t.Errorf("expected output to contain '%s', got '%s'", tt.outputContains, b.String())
-			}
-		})
-	}
 }
 
 type mockSurveyBootloader struct{}
@@ -459,8 +272,6 @@ func TestGenerateConfigSurvey_OptErrors(t *testing.T) {
 }
 
 func TestBuildIfaceOptions(t *testing.T) {
-	t.Parallel()
-
 	resolver := &mockSystemResolver{
 		getIPv4InfoFunc: func(inf net.Interface) ([]string, map[string]string) {
 			return []string{"192.168.1.50"}, nil
@@ -486,8 +297,6 @@ func TestBuildIfaceOptions(t *testing.T) {
 }
 
 func TestBuildHostOptions(t *testing.T) {
-	t.Parallel()
-
 	opts := buildHostOptions("my-host", "my-host.local", []string{"192.168.1.50"})
 
 	if len(opts) != 4 {
@@ -514,8 +323,6 @@ func TestBuildHostOptions(t *testing.T) {
 }
 
 func TestBuildBroadcastOptions(t *testing.T) {
-	t.Parallel()
-
 	ips := []string{"192.168.1.50", "10.0.0.50"}
 	broadcasts := map[string]string{
 		"192.168.1.50": "192.168.1.255",
@@ -600,5 +407,48 @@ func TestGenerateConfigSurvey_ContextCancelBeforeHA(t *testing.T) {
 	}
 	if _, err := generateConfigInteractive(ctx, deps); !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context canceled, got %v", err)
+	}
+}
+
+func TestPrintConfigSummary(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := &cobra.Command{}
+	cmd.SetOut(&buf)
+
+	cfg := &config.Config{
+		Host: config.HostConfig{
+			Name:             "test-name",
+			Address:          "192.168.1.50",
+			MACAddress:       "00:11:22:33:44:55",
+			BroadcastAddress: "192.168.1.255",
+			BroadcastPort:    99,
+		},
+		HomeAssistant: config.HomeAssistantConfig{
+			URL:       "http://ha.local:8123",
+			WebhookID: "abcdef12345",
+		},
+		Bootloader: config.BootloaderConfig{
+			Name:       "grub",
+			ConfigPath: "/boot/grub/grub.cfg",
+		},
+		InitSystem: config.InitSystemConfig{
+			Name: "systemd",
+		},
+	}
+
+	printConfigSummary(cmd, cfg, "/etc/remote-boot-agent/config.yaml")
+
+	out := buf.String()
+	if !strings.Contains(out, "/etc/remote-boot-agent/config.yaml") {
+		t.Errorf("expected config path, got %s", out)
+	}
+	if !strings.Contains(out, "broadcast_address: 192.168.1.255") {
+		t.Errorf("expected broadcast address, got %s", out)
+	}
+	if !strings.Contains(out, "broadcast_port: 99") {
+		t.Errorf("expected broadcast port, got %s", out)
+	}
+	if !strings.Contains(out, "abcd...") {
+		t.Errorf("expected truncated webhook id, got %s", out)
 	}
 }

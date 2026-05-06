@@ -354,57 +354,25 @@ func ensureSupport(ctx context.Context, deps *CommandDeps) error {
 	return nil
 }
 
-// NewConfigGenerateCmd walks the user through generating a config interactively
-func NewConfigGenerateCmd(deps *CommandDeps) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "generate",
-		Short: "Interactively generate a config file",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return nil // Override root config loading, we are generating it from scratch
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := ensureSupport(cmd.Context(), deps); err != nil {
-				return err
-			}
+func printConfigSummary(cmd *cobra.Command, cfg *config.Config, cfgPath string) {
+	cmd.Printf("\nConfig file saved to %s\n", cfgPath)
+	cmd.Println("(note: keys may be in a different order than shown here)")
+	cmd.Printf("---\n")
 
-			// Clear the terminal screen before starting the interactive prompts
-			cmd.Print("\033[H\033[2J")
-
-			cfg, err := runGenerateSurvey(cmd.Context(), deps)
-			if err != nil {
-				return err
-			}
-
-			cfgPath, err := cmd.Flags().GetString("path")
-			if err != nil {
-				cfgPath = "./config.yaml"
-			}
-
-			cmd.Printf("\nConfig file saved to %s\n", cfgPath)
-			cmd.Println("(note: keys may be in a different order than shown here)")
-			cmd.Printf("---\n")
-
-			var broadcastStr string
-			if cfg.Host.BroadcastAddress != "" && cfg.Host.BroadcastAddress != config.DefaultBroadcastAddress {
-				broadcastStr += fmt.Sprintf("\n  broadcast_address: %s", cfg.Host.BroadcastAddress)
-			}
-			if cfg.Host.BroadcastPort != 0 && cfg.Host.BroadcastPort != config.DefaultBroadcastPort {
-				broadcastStr += fmt.Sprintf("\n  broadcast_port: %d", cfg.Host.BroadcastPort)
-			}
-
-			safeWebhookID := cfg.HomeAssistant.WebhookID
-			if len(safeWebhookID) > 4 {
-				safeWebhookID = safeWebhookID[:4] + "..."
-			}
-			cmd.Printf("host:\n  name: %s\n  address: %s\n  mac: %s%s\n\n", cfg.Host.Name, cfg.Host.Address, cfg.Host.MACAddress, broadcastStr)
-			cmd.Printf("homeassistant:\n  url: %s\n  webhook_id: %s\n\n", cfg.HomeAssistant.URL, safeWebhookID)
-			cmd.Printf("bootloader:\n  name: %s\n  config_path: %s\n\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
-			cmd.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)
-
-			return deps.SystemResolver.SaveConfig(cfg, cfgPath)
-		},
+	var broadcastStr string
+	if cfg.Host.BroadcastAddress != "" && cfg.Host.BroadcastAddress != config.DefaultBroadcastAddress {
+		broadcastStr += fmt.Sprintf("\n  broadcast_address: %s", cfg.Host.BroadcastAddress)
+	}
+	if cfg.Host.BroadcastPort != 0 && cfg.Host.BroadcastPort != config.DefaultBroadcastPort {
+		broadcastStr += fmt.Sprintf("\n  broadcast_port: %d", cfg.Host.BroadcastPort)
 	}
 
-	cmd.Flags().String("path", "./config.yaml", "Path to save the generated config file")
-	return cmd
+	safeWebhookID := cfg.HomeAssistant.WebhookID
+	if len(safeWebhookID) > 4 {
+		safeWebhookID = safeWebhookID[:4] + "..."
+	}
+	cmd.Printf("host:\n  name: %s\n  address: %s\n  mac: %s%s\n\n", cfg.Host.Name, cfg.Host.Address, cfg.Host.MACAddress, broadcastStr)
+	cmd.Printf("homeassistant:\n  url: %s\n  webhook_id: %s\n\n", cfg.HomeAssistant.URL, safeWebhookID)
+	cmd.Printf("bootloader:\n  name: %s\n  config_path: %s\n\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
+	cmd.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)
 }

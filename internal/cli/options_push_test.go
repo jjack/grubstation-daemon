@@ -29,8 +29,6 @@ func createTempGrubConfig(t *testing.T) string {
 }
 
 func TestPushBootOptionsCommand(t *testing.T) {
-	t.Parallel()
-
 	var payload ha.PushPayload
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -97,8 +95,6 @@ func TestPushBootOptionsCommand(t *testing.T) {
 }
 
 func TestPushBootOptionsCommand_DefaultWOL(t *testing.T) {
-	t.Parallel()
-
 	var payload ha.PushPayload
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -167,8 +163,6 @@ func (m *mockPushBootloaderErr) DiscoverConfigPath(ctx context.Context) (string,
 }
 
 func TestPushBootOptionsCommand_BootloaderError(t *testing.T) {
-	t.Parallel()
-
 	cfg := &config.Config{
 		Bootloader: config.BootloaderConfig{
 			Name: "err",
@@ -204,8 +198,6 @@ func (m *mockPushBootloader) Setup(ctx context.Context, macAddress, haURL, webho
 func (m *mockPushBootloader) DiscoverConfigPath(ctx context.Context) (string, error) { return "", nil }
 
 func TestPushBootOptionsCommand_HAClientError(t *testing.T) {
-	t.Parallel()
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -228,8 +220,6 @@ func TestPushBootOptionsCommand_HAClientError(t *testing.T) {
 }
 
 func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
-	t.Parallel()
-
 	tempGrubPath := createTempGrubConfig(t)
 	cfg := &config.Config{
 		Bootloader: config.BootloaderConfig{
@@ -256,8 +246,6 @@ func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
 }
 
 func TestPushBootOptionsCommand_UnknownBootloader(t *testing.T) {
-	t.Parallel()
-
 	cfg := &config.Config{
 		Bootloader: config.BootloaderConfig{
 			Name: "unknown",

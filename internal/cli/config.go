@@ -10,7 +10,6 @@ func NewConfigCmd(deps *CommandDeps) *cobra.Command {
 		Short: "Manage the remote-boot-agent configuration",
 	}
 
-	cmd.AddCommand(NewConfigGenerateCmd(deps))
 	cmd.AddCommand(NewConfigValidateCmd(deps))
 
 	return cmd

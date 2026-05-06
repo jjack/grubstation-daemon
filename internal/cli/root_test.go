@@ -235,16 +235,16 @@ func TestCLI_PersistentPreRun_ConfigValidateFail(t *testing.T) {
 	}
 }
 
-func TestCLI_PersistentPreRun_ConfigGenerate(t *testing.T) {
+func TestCLI_PersistentPreRun_Setup(t *testing.T) {
 	cli := NewCLI()
 
-	cmd, _, err := cli.RootCmd.Find([]string{"config", "generate"})
+	cmd, _, err := cli.RootCmd.Find([]string{"setup"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if cmd.PersistentPreRunE == nil {
-		t.Fatal("expected config generate command to override PersistentPreRunE")
+		t.Fatal("expected setup command to override PersistentPreRunE")
 	}
 
 	err = cmd.PersistentPreRunE(cmd, []string{})

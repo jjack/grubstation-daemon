@@ -9,8 +9,6 @@ import (
 )
 
 func TestConfigValidateCmd_Valid(t *testing.T) {
-	t.Parallel()
-
 	cfg := &config.Config{
 		Host: config.HostConfig{
 			MACAddress:       "00:11:22:33:44:55",
@@ -48,8 +46,6 @@ func TestConfigValidateCmd_Valid(t *testing.T) {
 }
 
 func TestConfigValidateCmd_Invalid(t *testing.T) {
-	t.Parallel()
-
 	// An empty config should fail validation
 	cfg := &config.Config{}
 	deps := &CommandDeps{Config: cfg}
