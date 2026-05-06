@@ -101,5 +101,10 @@ func Save(cfg *Config, path string) error {
 	if err := v.WriteConfigAs(path); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
+
+	// Secure the config file to prevent unprivileged users from reading the Home Assistant webhook secret.
+	if err := os.Chmod(path, 0o600); err != nil {
+		return fmt.Errorf("failed to secure config file permissions: %w", err)
+	}
 	return nil
 }

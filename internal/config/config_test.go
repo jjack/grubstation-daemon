@@ -40,8 +40,13 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 		t.Fatalf("failed to save config: %v", err)
 	}
 
-	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
-		t.Fatalf("expected config file to exist at %s", cfgPath)
+	stat, err := os.Stat(cfgPath)
+	if err != nil {
+		t.Fatalf("expected config file to exist at %s, but stat failed: %v", cfgPath, err)
+	}
+
+	if stat.Mode().Perm() != 0o600 {
+		t.Errorf("expected config file permissions to be 0600, got %04o", stat.Mode().Perm())
 	}
 
 	// Test loading from the filesystem
