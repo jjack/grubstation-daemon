@@ -19,6 +19,7 @@ type mockInstallBootloader struct {
 	mac        string
 	url        string
 	webhook    string
+	warning    string
 }
 
 func (m *mockInstallBootloader) Name() string                      { return "mock-bl" }
@@ -32,6 +33,10 @@ func (m *mockInstallBootloader) Setup(ctx context.Context, macAddress, haURL, we
 	m.url = haURL
 	m.webhook = webhookID
 	return m.installErr
+}
+
+func (m *mockInstallBootloader) SetupWarning() string {
+	return m.warning
 }
 
 func (m *mockInstallBootloader) DiscoverConfigPath(ctx context.Context) (string, error) {
@@ -105,6 +110,44 @@ func TestApplyCmd_Success(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "Installation completed successfully") {
 		t.Errorf("expected success message, got %s", out.String())
+	}
+	if strings.Contains(out.String(), "Note:") {
+		t.Errorf("expected no warning message, got %s", out.String())
+	}
+}
+
+func TestApplyCmd_SetupWarning(t *testing.T) {
+	cfg := &config.Config{
+		Bootloader: config.BootloaderConfig{Name: "mock-bl"},
+		InitSystem: config.InitSystemConfig{Name: "mock-init"},
+	}
+
+	blMock := &mockInstallBootloader{warning: "CRITICAL HARDWARE WARNING"}
+	blReg := bootloader.NewRegistry()
+	blReg.Register("mock-bl", func() bootloader.Bootloader { return blMock })
+
+	initMock := &mockInstallInitSystem{}
+	initReg := initsystem.NewRegistry()
+	initReg.Register("mock-init", func() initsystem.InitSystem { return initMock })
+
+	deps := &CommandDeps{
+		Config:             cfg,
+		BootloaderRegistry: blReg,
+		InitRegistry:       initReg,
+	}
+
+	cmd := NewApplyCmd(deps)
+	cmd.Flags().String("config", "test-config.yaml", "")
+
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out.String(), "Note: CRITICAL HARDWARE WARNING") {
+		t.Errorf("expected warning message, got %s", out.String())
 	}
 }
 
@@ -260,6 +303,54 @@ func TestRunConfirm(t *testing.T) {
 	// Test the runConfirm function to verify initialization and provide coverage.
 	var val bool
 	_ = runConfirm(&val)
+}
+
+func TestSetupCmd_ConfigFlagFallback(t *testing.T) {
+	oldRunGenerateSurvey := runGenerateSurvey
+	oldRunConfirm := runConfirm
+	defer func() {
+		runGenerateSurvey = oldRunGenerateSurvey
+		runConfirm = oldRunConfirm
+	}()
+
+	runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+		return &config.Config{
+			Bootloader: config.BootloaderConfig{Name: "mock-bl"},
+			InitSystem: config.InitSystemConfig{Name: "mock-init"},
+		}, nil
+	}
+	runConfirm = func(installNow *bool) error { *installNow = false; return nil }
+
+	blMock := &mockInstallBootloader{}
+	initMock := &mockInstallInitSystem{}
+	blReg := bootloader.NewRegistry()
+	blReg.Register("mock-bl", func() bootloader.Bootloader { return blMock })
+	initReg := initsystem.NewRegistry()
+	initReg.Register("mock-init", func() initsystem.InitSystem { return initMock })
+
+	var savedPath string
+	sysResolver := &mockSystemResolver{
+		saveConfigFunc: func(cfg *config.Config, path string) error {
+			savedPath = path
+			return nil
+		},
+	}
+
+	deps := &CommandDeps{
+		Config:             &config.Config{},
+		BootloaderRegistry: blReg,
+		InitRegistry:       initReg,
+		SystemResolver:     sysResolver,
+	}
+
+	cmd := NewSetupCmd(deps)
+	cmd.ResetFlags() // Strip the "config" flag to force GetString to error out
+
+	_ = cmd.Execute() // We ignore execution err if any to verify the fallback below
+
+	if savedPath != "/etc/remote-boot-agent/config.yaml" {
+		t.Errorf("expected default fallback path /etc/remote-boot-agent/config.yaml, got %s", savedPath)
+	}
 }
 
 func TestSetupCmd_Execute(t *testing.T) {
