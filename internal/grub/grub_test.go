@@ -88,16 +88,16 @@ func TestGrub_Setup_Success(t *testing.T) {
 	fakeScriptPath := filepath.Join(tempDir, "99_ha_grub_os_reporter")
 
 	defer func(oldPath string, oldLook func(string) (string, error), oldCmd func(context.Context, string, ...string) *exec.Cmd) {
-		hassGrubOSReporterPath = oldPath
-		execLookPath = oldLook
-		execCommand = oldCmd
-	}(hassGrubOSReporterPath, execLookPath, execCommand)
+		HassGrubOSReporterPath = oldPath
+		ExecLookPath = oldLook
+		ExecCommand = oldCmd
+	}(HassGrubOSReporterPath, ExecLookPath, ExecCommand)
 
-	hassGrubOSReporterPath = fakeScriptPath
-	execCommand = fakeExecCommandSuccess
+	HassGrubOSReporterPath = fakeScriptPath
+	ExecCommand = fakeExecCommandSuccess
 
 	// Test success using update-grub
-	execLookPath = func(file string) (string, error) {
+	ExecLookPath = func(file string) (string, error) {
 		if file == "update-grub" {
 			return "/fake/update-grub", nil
 		}
@@ -120,7 +120,7 @@ func TestGrub_Setup_Success(t *testing.T) {
 	}
 
 	// Test fallback success using grub2-mkconfig
-	execLookPath = func(file string) (string, error) {
+	ExecLookPath = func(file string) (string, error) {
 		if file == "grub2-mkconfig" {
 			return "/fake/grub2-mkconfig", nil
 		}
@@ -142,10 +142,10 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	g := &Grub{}
 
 	defer func(oldPath string, oldLook func(string) (string, error), oldCmd func(context.Context, string, ...string) *exec.Cmd) {
-		hassGrubOSReporterPath = oldPath
-		execLookPath = oldLook
-		execCommand = oldCmd
-	}(hassGrubOSReporterPath, execLookPath, execCommand)
+		HassGrubOSReporterPath = oldPath
+		ExecLookPath = oldLook
+		ExecCommand = oldCmd
+	}(HassGrubOSReporterPath, ExecLookPath, ExecCommand)
 
 	// 1. Invalid URL
 	err := g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "://bad-url", AuthToken: "test_webhook"})
@@ -154,7 +154,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	}
 
 	// 2. File creation failure
-	hassGrubOSReporterPath = "/this/path/does/not/exist/99_script"
+	HassGrubOSReporterPath = "/this/path/does/not/exist/99_script"
 	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if err == nil || !strings.Contains(err.Error(), "failed to create grub script") {
 		t.Fatalf("expected file creation error, got %v", err)
@@ -162,10 +162,10 @@ func TestGrub_Setup_Errors(t *testing.T) {
 
 	// Fix path for subsequent tests
 	tempDir := t.TempDir()
-	hassGrubOSReporterPath = filepath.Join(tempDir, "99_ha_grub_os_reporter")
+	HassGrubOSReporterPath = filepath.Join(tempDir, "99_ha_grub_os_reporter")
 
 	// 3. No binary found in PATH
-	execLookPath = func(file string) (string, error) {
+	ExecLookPath = func(file string) (string, error) {
 		return "", errors.New("not found")
 	}
 	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
@@ -174,20 +174,20 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	}
 
 	// 4. update-grub command execution fails
-	execLookPath = func(file string) (string, error) {
+	ExecLookPath = func(file string) (string, error) {
 		if file == "update-grub" {
 			return "/fake/update-grub", nil
 		}
 		return "", errors.New("not found")
 	}
-	execCommand = fakeExecCommandFail
+	ExecCommand = fakeExecCommandFail
 	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if err == nil || !strings.Contains(err.Error(), "update-grub failed") {
 		t.Fatalf("expected update-grub execution error, got %v", err)
 	}
 
 	// 5. grub2-mkconfig command execution fails
-	execLookPath = func(file string) (string, error) {
+	ExecLookPath = func(file string) (string, error) {
 		if file == "grub2-mkconfig" {
 			return "/fake/grub2-mkconfig", nil
 		}
@@ -340,6 +340,37 @@ func TestGrub_GetBootOptions_PermissionDenied(t *testing.T) {
 			t.Skipf("Got non-permission error during file open, skipping strict permission check: %v", err)
 		}
 		t.Errorf("expected permission denied error, got: %v", err)
+	}
+}
+
+func TestGetBootOptions_ScannerError(t *testing.T) {
+	// Create a file with a line longer than the buffer to trigger a scanner error.
+	// The buffer has a max capacity of 1MB. We'll make a line longer than that.
+	const maxBufferCapacity = 1024 * 1024 // 1MB
+	longLine := strings.Repeat("a", maxBufferCapacity+1)
+	content := "menuentry 'Long Line OS' {\n" + longLine + "\n}\n"
+
+	tmpfile, err := os.CreateTemp(t.TempDir(), "grub.cfg")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+
+	if _, err := tmpfile.WriteString(content); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+	if err := tmpfile.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
+
+	g := &Grub{ConfigPath: tmpfile.Name()}
+	_, err = g.GetBootOptions(context.Background())
+
+	if err == nil {
+		t.Fatal("expected an error from scanner, but got nil")
+	}
+
+	if !strings.Contains(err.Error(), "error reading grub config") {
+		t.Errorf("expected error message to contain 'error reading grub config', got: %v", err)
 	}
 }
 

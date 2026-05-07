@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 
@@ -304,6 +307,85 @@ func TestSetupCmd_Execute(t *testing.T) {
 			},
 			wantErr:     "failed to install grub",
 			wantInstall: false,
+		},
+		{
+			name: "Success Install, Push Succeeds",
+			setup: func(t *testing.T, deps *CommandDeps, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+				// Mock successful grub setup
+				oldExecLookPath := grub.ExecLookPath
+				oldExecCommand := grub.ExecCommand
+				oldHassPath := grub.HassGrubOSReporterPath
+				grub.ExecLookPath = func(file string) (string, error) { return "/bin/true", nil }
+				grub.ExecCommand = func(ctx context.Context, command string, args ...string) *exec.Cmd {
+					return exec.CommandContext(ctx, "/bin/true")
+				}
+				grub.HassGrubOSReporterPath = t.TempDir() + "/99_ha_grub_os_reporter"
+				t.Cleanup(func() {
+					grub.ExecLookPath = oldExecLookPath
+					grub.ExecCommand = oldExecCommand
+					grub.HassGrubOSReporterPath = oldHassPath
+				})
+
+				// Mock successful GetBootOptions and a working HA endpoint
+				ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK)
+				}))
+				t.Cleanup(ts.Close)
+
+				tempGrub := t.TempDir() + "/grub.cfg"
+				_ = os.WriteFile(tempGrub, []byte("menuentry 'OS' {}"), 0o644)
+				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
+
+				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+					return &config.Config{
+						InitSystem:    config.InitSystemConfig{Name: "mock-init"},
+						HomeAssistant: config.HomeAssistantConfig{URL: ts.URL, WebhookID: "fake"},
+					}, nil
+				}
+				runConfirm = func(installNow *bool) error { *installNow = true; return nil }
+			},
+			wantInstall: true,
+			wantOut: []string{
+				"Installation completed successfully.",
+				"Pushing initial boot options to Home Assistant...",
+				"Successfully pushed initial state to Home Assistant.",
+			},
+		},
+		{
+			name: "Success Install, Push Fails",
+			setup: func(t *testing.T, deps *CommandDeps, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
+				// Mock successful grub setup
+				oldExecLookPath := grub.ExecLookPath
+				oldExecCommand := grub.ExecCommand
+				oldHassPath := grub.HassGrubOSReporterPath
+				grub.ExecLookPath = func(file string) (string, error) { return "/bin/true", nil }
+				grub.ExecCommand = func(ctx context.Context, command string, args ...string) *exec.Cmd {
+					return exec.CommandContext(ctx, "/bin/true")
+				}
+				grub.HassGrubOSReporterPath = t.TempDir() + "/99_ha_grub_os_reporter"
+				t.Cleanup(func() {
+					grub.ExecLookPath = oldExecLookPath
+					grub.ExecCommand = oldExecCommand
+					grub.HassGrubOSReporterPath = oldHassPath
+				})
+
+				// Make GetBootOptions fail to trigger error in PushBootOptions
+				deps.Grub = &grub.Grub{ConfigPath: "/non/existent/path"}
+
+				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+					return &config.Config{
+						InitSystem:    config.InitSystemConfig{Name: "mock-init"},
+						HomeAssistant: config.HomeAssistantConfig{URL: "http://fake", WebhookID: "fake"},
+					}, nil
+				}
+				runConfirm = func(installNow *bool) error { *installNow = true; return nil }
+			},
+			wantInstall: true,
+			wantOut: []string{
+				"Installation completed successfully.",
+				"Pushing initial boot options to Home Assistant...",
+				"Warning: failed to push initial state",
+			},
 		},
 	}
 

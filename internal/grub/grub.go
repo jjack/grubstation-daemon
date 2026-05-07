@@ -38,9 +38,9 @@ var (
 )
 
 var (
-	hassGrubOSReporterPath = "/etc/grub.d/99_ha_grub_os_reporter"
-	execLookPath           = exec.LookPath
-	execCommand            = exec.CommandContext
+	HassGrubOSReporterPath = "/etc/grub.d/99_ha_grub_os_reporter"
+	ExecLookPath           = exec.LookPath
+	ExecCommand            = exec.CommandContext
 )
 
 var configPaths = []string{
@@ -221,19 +221,19 @@ func (g *Grub) Setup(ctx context.Context, opts SetupOptions) error {
 		return fmt.Errorf("failed to execute grub template: %w", err)
 	}
 
-	if err := os.WriteFile(hassGrubOSReporterPath, []byte(content.String()), 0o755); err != nil {
+	if err := os.WriteFile(HassGrubOSReporterPath, []byte(content.String()), 0o755); err != nil {
 		return fmt.Errorf("failed to create grub script (are you running as root?): %w", err)
 	}
 
-	if path, err := execLookPath("update-grub"); err == nil {
-		out, err := execCommand(ctx, path).CombinedOutput()
+	if path, err := ExecLookPath("update-grub"); err == nil {
+		out, err := ExecCommand(ctx, path).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("update-grub failed: %s", string(out))
 		}
 		return nil
 	}
-	if path, err := execLookPath("grub2-mkconfig"); err == nil {
-		out, err := execCommand(ctx, path, "-o", "/boot/grub2/grub.cfg").CombinedOutput()
+	if path, err := ExecLookPath("grub2-mkconfig"); err == nil {
+		out, err := ExecCommand(ctx, path, "-o", "/boot/grub2/grub.cfg").CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("grub2-mkconfig failed: %s", string(out))
 		}
