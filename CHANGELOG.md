@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.0](https://github.com/jjack/grub-os-reporter/compare/v1.3.2...v1.4.0) (2026-05-07)
+
+
+### Features
+
+* auto-running "push" after successful setup ([847914a](https://github.com/jjack/grub-os-reporter/commit/847914aa49843b9a78eb025386cc17c4eec3bee0))
+
+
+### Bug Fixes
+
+* added flag strings to config ([a9a5dc7](https://github.com/jjack/grub-os-reporter/commit/a9a5dc75cd354d9f7c3222bb3a3c489fd5932eb8))
+* ensuring directory exists before saving config.yaml ([1f71fea](https://github.com/jjack/grub-os-reporter/commit/1f71fea1d5372fa47396d89137a465b2f3549eca))
+* more robust handling of grub networking ([72b14d6](https://github.com/jjack/grub-os-reporter/commit/72b14d6f2fc95b27258895ea9c4baad857903ec0))
+* removing my hard-coded test mac address from the grub template ([32ece9c](https://github.com/jjack/grub-os-reporter/commit/32ece9c78d88bda5d8d5fa7615ac09b88666da47))
+* securing newly created config file ([1d78da0](https://github.com/jjack/grub-os-reporter/commit/1d78da059f22a9f0c7b0d4ec89529e8f2c17334c))
+* using the final, real path for config files /etc/remote-boot-agent/ instead of $pwd ([bfdba77](https://github.com/jjack/grub-os-reporter/commit/bfdba774a98f13e06a0a3cb5b23616322ba3459c))
+
 ## 1.3.2 (2026-05-06)
 
 
