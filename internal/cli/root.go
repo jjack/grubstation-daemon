@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
-	"github.com/jjack/remote-boot-agent/internal/grub"
-	"github.com/jjack/remote-boot-agent/internal/homeassistant"
-	"github.com/jjack/remote-boot-agent/internal/initsystem"
-	"github.com/jjack/remote-boot-agent/internal/system"
+	"github.com/jjack/grub-os-reporter/internal/config"
+	"github.com/jjack/grub-os-reporter/internal/grub"
+	"github.com/jjack/grub-os-reporter/internal/homeassistant"
+	"github.com/jjack/grub-os-reporter/internal/initsystem"
+	"github.com/jjack/grub-os-reporter/internal/system"
 	"github.com/spf13/cobra"
 )
 
@@ -73,8 +73,8 @@ func NewCLI() *CLI {
 	var cfgFile string
 
 	rootCmd := &cobra.Command{
-		Use:           "remote-boot-agent",
-		Short:         "remote-boot-agent reads boot configurations and posts them to Home Assistant",
+		Use:           "grub-os-reporter",
+		Short:         "grub-os-reporter reads boot configurations and posts them to Home Assistant",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -101,7 +101,7 @@ func NewCLI() *CLI {
 		},
 	}
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "/etc/remote-boot-agent/config.yaml", "config file")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "/etc/grub-os-reporter/config.yaml", "config file")
 	rootCmd.PersistentFlags().String(config.FlagGrubConfig, "", "GRUB config path override")
 	rootCmd.PersistentFlags().String(config.FlagMac, "", "MAC Address override")
 	rootCmd.PersistentFlags().String(config.FlagName, "", "Name override")

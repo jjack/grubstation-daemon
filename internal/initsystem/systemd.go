@@ -16,13 +16,13 @@ const systemdName = "systemd"
 var systemdDir = "/run/systemd/system"
 
 var (
-	systemdServicePath = "/etc/systemd/system/remote-boot-agent.service"
+	systemdServicePath = "/etc/systemd/system/grub-os-reporter.service"
 	osExecutable       = os.Executable
 	osWriteFile        = os.WriteFile
 	execCommand        = exec.CommandContext
 )
 
-//go:embed templates/remote-boot-agent.service.tmpl
+//go:embed templates/grub-os-reporter.service.tmpl
 var systemdTemplate string
 
 type Systemd struct{}
@@ -78,7 +78,7 @@ func (s *Systemd) Setup(ctx context.Context, configPath string) error {
 		return fmt.Errorf("failed to reload systemd daemon: %s", string(out))
 	}
 
-	if out, err := execCommand(ctx, "systemctl", "enable", "remote-boot-agent.service").CombinedOutput(); err != nil {
+	if out, err := execCommand(ctx, "systemctl", "enable", "grub-os-reporter.service").CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to enable systemd service: %s", string(out))
 	}
 

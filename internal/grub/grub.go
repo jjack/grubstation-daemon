@@ -38,9 +38,9 @@ var (
 )
 
 var (
-	hassRemoteBootAgentPath = "/etc/grub.d/99_ha_remote_boot_agent"
-	execLookPath            = exec.LookPath
-	execCommand             = exec.CommandContext
+	hassGrubOSReporterPath = "/etc/grub.d/99_ha_grub_os_reporter"
+	execLookPath           = exec.LookPath
+	execCommand            = exec.CommandContext
 )
 
 var configPaths = []string{
@@ -51,7 +51,7 @@ var configPaths = []string{
 	"/boot/efi/EFI/ubuntu/grub.cfg",
 }
 
-//go:embed templates/99_remote_boot_agent.tmpl
+//go:embed templates/99_grub_os_reporter.tmpl
 var grubTemplate string
 
 // DiscoverConfigPath attempts to auto-detect the GRUB config file path.
@@ -221,7 +221,7 @@ func (g *Grub) Setup(ctx context.Context, opts SetupOptions) error {
 		return fmt.Errorf("failed to execute grub template: %w", err)
 	}
 
-	if err := os.WriteFile(hassRemoteBootAgentPath, []byte(content.String()), 0o755); err != nil {
+	if err := os.WriteFile(hassGrubOSReporterPath, []byte(content.String()), 0o755); err != nil {
 		return fmt.Errorf("failed to create grub script (are you running as root?): %w", err)
 	}
 

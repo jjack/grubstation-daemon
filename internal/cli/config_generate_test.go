@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/remote-boot-agent/internal/config"
-	"github.com/jjack/remote-boot-agent/internal/grub"
-	"github.com/jjack/remote-boot-agent/internal/initsystem"
+	"github.com/jjack/grub-os-reporter/internal/config"
+	"github.com/jjack/grub-os-reporter/internal/grub"
+	"github.com/jjack/grub-os-reporter/internal/initsystem"
 	"github.com/spf13/cobra"
 )
 
@@ -425,10 +425,10 @@ func TestPrintConfigSummary(t *testing.T) {
 		},
 	}
 
-	printConfigSummary(cmd, cfg, "/etc/remote-boot-agent/config.yaml")
+	printConfigSummary(cmd, cfg, "/etc/grub-os-reporter/config.yaml")
 
 	out := buf.String()
-	if !strings.Contains(out, "/etc/remote-boot-agent/config.yaml") {
+	if !strings.Contains(out, "/etc/grub-os-reporter/config.yaml") {
 		t.Errorf("expected config path, got %s", out)
 	}
 	if !strings.Contains(out, "broadcast_address: 192.168.1.255") {

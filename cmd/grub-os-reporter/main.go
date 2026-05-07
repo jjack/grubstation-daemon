@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/jjack/remote-boot-agent/internal/cli"
+	"github.com/jjack/grub-os-reporter/internal/cli"
 )
 
 func main() {

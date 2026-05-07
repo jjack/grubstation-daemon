@@ -16,7 +16,7 @@ before:
     - go generate ./...
 
 builds:
-  - main: ./cmd/remote-boot-agent
+  - main: ./cmd/grub-os-reporter
     env:
       - CGO_ENABLED=0
     goos:
@@ -38,7 +38,7 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
 
 nfpms:
-  - homepage: "https://github.com/jjack/remote-boot-agent"
+  - homepage: "https://github.com/jjack/grub-os-reporter"
     maintainer: "jjack"
     description: "Agent to manage bare-metal OS booting via Home Assistant and WOL"
     license: "MIT"

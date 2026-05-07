@@ -1,13 +1,13 @@
 # Agent Setup and Configuration
 
-After installation, you need to configure `remote-boot-agent` so it knows how to communicate with Home Assistant and your local network. You can do this via the automated setup wizard, or manually.
+After installation, you need to configure `grub-os-reporter` so it knows how to communicate with Home Assistant and your local network. You can do this via the automated setup wizard, or manually.
 
 ## 1. Automated Setup Wizard (Recommended)
 
 The easiest way to configure the agent and install the necessary system hooks is by running the `setup` command:
 
 ```bash
-sudo remote-boot-agent setup
+sudo grub-os-reporter setup
 ```
 
 This command launches an interactive wizard that autodetects your system settings and prompts you for:
@@ -23,12 +23,12 @@ This command launches an interactive wizard that autodetects your system setting
 If you answered "no" to the installation prompt during `setup`, or if you created the `config.yaml` manually (e.g., via Ansible), you can apply the hooks directly using the `apply` command:
 
 ```bash
-sudo remote-boot-agent apply --config /etc/remote-boot-agent/config.yaml
+sudo grub-os-reporter apply --config /etc/grub-os-reporter/config.yaml
 ```
 
 ## 3. Manual Configuration
 
-If you prefer to write the `config.yaml` entirely from scratch or automate it via tools like Ansible, use the structure below. Ensure this file is placed where the agent expects it (typically `/etc/remote-boot-agent/config.yaml`).
+If you prefer to write the `config.yaml` entirely from scratch or automate it via tools like Ansible, use the structure below. Ensure this file is placed where the agent expects it (typically `/etc/grub-os-reporter/config.yaml`).
 
 ```yaml
 # Host configuration details

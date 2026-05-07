@@ -1,14 +1,14 @@
-# Remote Boot Agent
+# Grub OS Reporter
 
-![GitHub](https://img.shields.io/github/license/jjack/remote-boot-agent)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/jjack/remote-boot-agent)
-[![GO Tests and Coverage](https://github.com/jjack/remote-boot-agent/actions/workflows/test.yml/badge.svg)](https://github.com/jjack/remote-boot-agent/actions/workflows/test.yml)
-[![CodeQL](https://github.com/jjack/remote-boot-agent/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/jjack/remote-boot-agent/actions/workflows/github-code-scanning/codeql)
-[![Codecov branch](https://img.shields.io/codecov/c/github/jjack/remote-boot-agent)](https://app.codecov.io/gh/jjack/remote-boot-agent)
+![GitHub](https://img.shields.io/github/license/jjack/grub-os-reporter)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/jjack/grub-os-reporter)
+[![GO Tests and Coverage](https://github.com/jjack/grub-os-reporter/actions/workflows/test.yml/badge.svg)](https://github.com/jjack/grub-os-reporter/actions/workflows/test.yml)
+[![CodeQL](https://github.com/jjack/grub-os-reporter/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/jjack/grub-os-reporter/actions/workflows/github-code-scanning/codeql)
+[![Codecov branch](https://img.shields.io/codecov/c/github/jjack/grub-os-reporter)](https://app.codecov.io/gh/jjack/grub-os-reporter)
 
-`remote-boot-agent` is a Go-based agent designed to manage bare-metal OS booting and selection via [Home Assistant](https://www.home-assistant.io/) and Wake-on-LAN (WOL). It helps enable a user to remotely select an operating system for a specific host, send a wake on lan packet, and have the machine dynamically boot into the chosen OS.
+`grub-os-reporter` is a Go-based agent designed to manage bare-metal OS booting and selection via [Home Assistant](https://www.home-assistant.io/) and Wake-on-LAN (WOL). It helps enable a user to remotely select an operating system for a specific host, send a wake on lan packet, and have the machine dynamically boot into the chosen OS.
 
-After installation, whenever your server shuts down, `remote-boot-agent` will read the available boot options and push them to Home Assistant through a webhook. After selecting an option in Home Assistant, you can either press the "Wake" button or just power the machine on normally. It will then boot with your newly selected options.
+After installation, whenever your server shuts down, `grub-os-reporter` will read the available boot options and push them to Home Assistant through a webhook. After selecting an option in Home Assistant, you can either press the "Wake" button or just power the machine on normally. It will then boot with your newly selected options.
 
 
 ## Supported Systems
@@ -22,15 +22,15 @@ After installation, whenever your server shuts down, `remote-boot-agent` will re
 
 **Requirements:**
 - [Home Assistant](https://www.home-assistant.io/)
-- [Home Assistant Remote Boot Manager](https://github.com/jjack/ha-remote-boot-manager) Integration
+- [Home Assistant Grub OS Selector](https://github.com/jjack/ha-grub-os-selector) Integration
 - Supported Bootloader and Init System (see above)
 
 **Recommended Installation:**
-1. Download the latest pre-built package for your OS from the [Releases Page](https://github.com/jjack/ha-remote-boot-manager/releases/latest).
-2. Install the package (e.g., `sudo dpkg -i remote-boot-agent_*_amd64.deb`).
+1. Download the latest pre-built package for your OS from the [Releases Page](https://github.com/jjack/ha-grub-os-reporter/releases/latest).
+2. Install the package (e.g., `sudo dpkg -i grub-os-reporter_*_amd64.deb`).
 3. Run the automated setup wizard to auto-detect and configure your network info, home assistant info, bootloader, and init system:
    ```bash
-   sudo remote-boot-agent setup
+   sudo grub-os-reporter setup
    ```
 
 ## Documentation

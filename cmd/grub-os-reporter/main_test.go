@@ -11,8 +11,8 @@ func TestMainExecutesWithoutError(t *testing.T) {
 	originalArgs := os.Args
 	defer func() { os.Args = originalArgs }()
 
-	// Overwrite args, "remote-boot-agent help" will exit 0
-	os.Args = []string{"remote-boot-agent", "--help"}
+	// Overwrite args, "grub-os-reporter help" will exit 0
+	os.Args = []string{"grub-os-reporter", "--help"}
 
 	// main normally prints to os.Stderr or calls os.Exit.
 	// Since help succeeds, it shouldn't call os.Exit(1).
@@ -22,7 +22,7 @@ func TestMainExecutesWithoutError(t *testing.T) {
 
 func TestMain_ExitError(t *testing.T) {
 	if os.Getenv("BE_CRASHER") == "1" {
-		os.Args = []string{"remote-boot-agent", "--unknown-flag"}
+		os.Args = []string{"grub-os-reporter", "--unknown-flag"}
 		main()
 		return
 	}

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
-	"github.com/jjack/remote-boot-agent/internal/grub"
-	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
+	"github.com/jjack/grub-os-reporter/internal/config"
+	"github.com/jjack/grub-os-reporter/internal/grub"
+	ha "github.com/jjack/grub-os-reporter/internal/homeassistant"
 )
 
 // createPushTempGrubConfig creates a temporary grub config file and returns its path and a cleanup function.

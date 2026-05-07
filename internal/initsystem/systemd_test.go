@@ -88,7 +88,7 @@ func TestSystemd_Install_Success(t *testing.T) {
 	systemdTemplate = "[Service]\nExecStart={{ .ExecPath }} push --config {{ .ConfigPath }}"
 	defer func() { systemdTemplate = oldSystemdTemplate }()
 
-	osExecutable = func() (string, error) { return "/fake/bin/remote-boot-agent", nil }
+	osExecutable = func() (string, error) { return "/fake/bin/grub-os-reporter", nil }
 	osWriteFile = func(name string, data []byte, perm os.FileMode) error { return nil }
 	execCommand = fakeExecCommandSuccess
 

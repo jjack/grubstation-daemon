@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
-	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
+	"github.com/jjack/grub-os-reporter/internal/config"
+	ha "github.com/jjack/grub-os-reporter/internal/homeassistant"
 
 	"github.com/spf13/cobra"
 )

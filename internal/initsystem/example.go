@@ -30,7 +30,7 @@ func (s *Example) Name() string {
 }
 
 // Install should perform the necessary steps to configure the init system to run
-// the 'remote-boot-agent options push' command automatically right before the system shuts down or reboots.
+// the 'grub-os-reporter options push' command automatically right before the system shuts down or reboots.
 func (s *Example) Setup(ctx context.Context, configPath string) error {
 	return nil
 }

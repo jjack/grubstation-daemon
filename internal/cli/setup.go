@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/remote-boot-agent/internal/grub"
-	"github.com/jjack/remote-boot-agent/internal/initsystem"
+	"github.com/jjack/grub-os-reporter/internal/grub"
+	"github.com/jjack/grub-os-reporter/internal/initsystem"
 	"github.com/spf13/cobra"
 )
 
@@ -110,7 +110,7 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 
 			cfgPath, err := cmd.Flags().GetString("config")
 			if err != nil {
-				cfgPath = "/etc/remote-boot-agent/config.yaml"
+				cfgPath = "/etc/grub-os-reporter/config.yaml"
 			}
 
 			printConfigSummary(cmd, cfg, cfgPath)
@@ -139,15 +139,15 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 				cmd.Println("\nPushing initial boot options to Home Assistant...")
 				if err := PushBootOptions(cmd.Context(), deps); err != nil {
 					cmd.Printf("Warning: failed to push initial state to Home Assistant: %v\n", err)
-					cmd.Println("You can try pushing manually later with 'remote-boot-agent options push'")
+					cmd.Println("You can try pushing manually later with 'grub-os-reporter options push'")
 				} else {
 					cmd.Println("Successfully pushed initial state to Home Assistant.")
 				}
 				return nil
 			}
 
-			cmd.Println("\nSetup complete. You can apply the system hooks later by running 'remote-boot-agent apply'")
-			cmd.Println("To populate Home Assistant immediately without rebooting, run: remote-boot-agent options push")
+			cmd.Println("\nSetup complete. You can apply the system hooks later by running 'grub-os-reporter apply'")
+			cmd.Println("To populate Home Assistant immediately without rebooting, run: grub-os-reporter options push")
 			return nil
 		},
 	}

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
-	"github.com/jjack/remote-boot-agent/internal/grub"
+	"github.com/jjack/grub-os-reporter/internal/config"
+	"github.com/jjack/grub-os-reporter/internal/grub"
 )
 
 func createListTempGrubConfig(t *testing.T, content string) string {

@@ -85,15 +85,15 @@ func TestHelperProcess(t *testing.T) {
 
 func TestGrub_Setup_Success(t *testing.T) {
 	tempDir := t.TempDir()
-	fakeScriptPath := filepath.Join(tempDir, "99_ha_remote_boot_agent")
+	fakeScriptPath := filepath.Join(tempDir, "99_ha_grub_os_reporter")
 
 	defer func(oldPath string, oldLook func(string) (string, error), oldCmd func(context.Context, string, ...string) *exec.Cmd) {
-		hassRemoteBootAgentPath = oldPath
+		hassGrubOSReporterPath = oldPath
 		execLookPath = oldLook
 		execCommand = oldCmd
-	}(hassRemoteBootAgentPath, execLookPath, execCommand)
+	}(hassGrubOSReporterPath, execLookPath, execCommand)
 
-	hassRemoteBootAgentPath = fakeScriptPath
+	hassGrubOSReporterPath = fakeScriptPath
 	execCommand = fakeExecCommandSuccess
 
 	// Test success using update-grub
@@ -142,10 +142,10 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	g := &Grub{}
 
 	defer func(oldPath string, oldLook func(string) (string, error), oldCmd func(context.Context, string, ...string) *exec.Cmd) {
-		hassRemoteBootAgentPath = oldPath
+		hassGrubOSReporterPath = oldPath
 		execLookPath = oldLook
 		execCommand = oldCmd
-	}(hassRemoteBootAgentPath, execLookPath, execCommand)
+	}(hassGrubOSReporterPath, execLookPath, execCommand)
 
 	// 1. Invalid URL
 	err := g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "://bad-url", AuthToken: "test_webhook"})
@@ -154,7 +154,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	}
 
 	// 2. File creation failure
-	hassRemoteBootAgentPath = "/this/path/does/not/exist/99_script"
+	hassGrubOSReporterPath = "/this/path/does/not/exist/99_script"
 	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if err == nil || !strings.Contains(err.Error(), "failed to create grub script") {
 		t.Fatalf("expected file creation error, got %v", err)
@@ -162,7 +162,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 
 	// Fix path for subsequent tests
 	tempDir := t.TempDir()
-	hassRemoteBootAgentPath = filepath.Join(tempDir, "99_ha_remote_boot_agent")
+	hassGrubOSReporterPath = filepath.Join(tempDir, "99_ha_grub_os_reporter")
 
 	// 3. No binary found in PATH
 	execLookPath = func(file string) (string, error) {

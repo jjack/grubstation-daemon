@@ -7,7 +7,7 @@ import (
 func NewConfigCmd(deps *CommandDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "Manage the remote-boot-agent configuration",
+		Short: "Manage the grub-os-reporter configuration",
 	}
 
 	cmd.AddCommand(NewConfigValidateCmd(deps))

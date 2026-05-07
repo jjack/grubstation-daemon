@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/remote-boot-agent/internal/config"
+	"github.com/jjack/grub-os-reporter/internal/config"
 	"github.com/spf13/cobra"
 )
 

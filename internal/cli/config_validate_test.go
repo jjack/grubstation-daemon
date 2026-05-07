@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
+	"github.com/jjack/grub-os-reporter/internal/config"
 )
 
 func TestConfigValidateCmd_Valid(t *testing.T) {

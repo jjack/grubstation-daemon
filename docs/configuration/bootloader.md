@@ -1,6 +1,6 @@
 # Bootloader Configuration
 
-> **Note:** The `sudo remote-boot-agent setup` and `sudo remote-boot-agent apply` commands handle this automatically. You only need to follow these steps if you are manually configuring the system.
+> **Note:** The `sudo grub-os-reporter setup` and `sudo grub-os-reporter apply` commands handle this automatically. You only need to follow these steps if you are manually configuring the system.
 
 ## Configure GRUB
 

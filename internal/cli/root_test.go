@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
-	"github.com/jjack/remote-boot-agent/internal/initsystem"
+	"github.com/jjack/grub-os-reporter/internal/config"
+	"github.com/jjack/grub-os-reporter/internal/initsystem"
 )
 
 func TestDefaultSystemResolver(t *testing.T) {
@@ -55,8 +55,8 @@ func TestNewCLI(t *testing.T) {
 	if cli.RootCmd == nil {
 		t.Fatal("expected RootCmd to be initialized")
 	}
-	if cli.RootCmd.Use != "remote-boot-agent" {
-		t.Errorf("expected use 'remote-boot-agent', got %s", cli.RootCmd.Use)
+	if cli.RootCmd.Use != "grub-os-reporter" {
+		t.Errorf("expected use 'grub-os-reporter', got %s", cli.RootCmd.Use)
 	}
 }
 

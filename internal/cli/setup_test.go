@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/remote-boot-agent/internal/config"
-	"github.com/jjack/remote-boot-agent/internal/grub"
-	"github.com/jjack/remote-boot-agent/internal/initsystem"
+	"github.com/jjack/grub-os-reporter/internal/config"
+	"github.com/jjack/grub-os-reporter/internal/grub"
+	"github.com/jjack/grub-os-reporter/internal/initsystem"
 )
 
 type mockInstallInitSystem struct {
@@ -161,8 +161,8 @@ func TestSetupCmd_ConfigFlagFallback(t *testing.T) {
 
 	_ = cmd.Execute() // We ignore execution err if any to verify the fallback below
 
-	if savedPath != "/etc/remote-boot-agent/config.yaml" {
-		t.Errorf("expected default fallback path /etc/remote-boot-agent/config.yaml, got %s", savedPath)
+	if savedPath != "/etc/grub-os-reporter/config.yaml" {
+		t.Errorf("expected default fallback path /etc/grub-os-reporter/config.yaml, got %s", savedPath)
 	}
 }
 
@@ -201,7 +201,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 			wantInstall: false,
 			wantOut: []string{
 				"Setup complete. You can apply the system hooks later",
-				"To populate Home Assistant immediately without rebooting, run: remote-boot-agent options push",
+				"To populate Home Assistant immediately without rebooting, run: grub-os-reporter options push",
 			},
 		},
 		{

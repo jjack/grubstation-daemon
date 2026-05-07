@@ -1,4 +1,4 @@
-module github.com/jjack/remote-boot-agent
+module github.com/jjack/grub-os-reporter
 
 go 1.26.2
 
