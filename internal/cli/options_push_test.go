@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
+	"github.com/jjack/remote-boot-agent/internal/grub"
 	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
 )
 
-// createTempGrubConfig creates a temporary grub config file and returns its path and a cleanup function.
-func createTempGrubConfig(t *testing.T) string {
+// createPushTempGrubConfig creates a temporary grub config file and returns its path and a cleanup function.
+func createPushTempGrubConfig(t *testing.T) string {
 	tempGrub, err := os.CreateTemp("", "grub.cfg")
 	if err != nil {
 		t.Fatal(err)
@@ -43,7 +41,7 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tempGrubPath := createTempGrubConfig(t)
+	tempGrubPath := createPushTempGrubConfig(t)
 	cfg := &config.Config{
 		Host: config.HostConfig{
 			MACAddress:       "aa:bb:cc:dd:ee:ff",
@@ -52,20 +50,13 @@ func TestPushBootOptionsCommand(t *testing.T) {
 			Name:             "test-name",
 			Address:          "10.0.0.1",
 		},
-		Bootloader: config.BootloaderConfig{
-			Name:       "grub",
-			ConfigPath: tempGrubPath,
-		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       ts.URL,
 			WebhookID: "test-webhook",
 		},
 	}
 
-	registry := bootloader.NewRegistry()
-	registry.Register("grub", bootloader.NewGrub)
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
 	cmd := NewPushCmd(deps)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -85,9 +76,6 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	}
 	if payload.Address != "10.0.0.1" {
 		t.Errorf("expected address 10.0.0.1, got %s", payload.Address)
-	}
-	if payload.Bootloader != "grub" {
-		t.Errorf("expected bootloader grub, got %s", payload.Bootloader)
 	}
 	if len(payload.BootOptions) != 1 || payload.BootOptions[0] != "Test OS" {
 		t.Errorf("expected [Test OS], got %v", payload.BootOptions)
@@ -109,7 +97,7 @@ func TestPushBootOptionsCommand_DefaultWOL(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tempGrubPath := createTempGrubConfig(t)
+	tempGrubPath := createPushTempGrubConfig(t)
 	cfg := &config.Config{
 		Host: config.HostConfig{
 			MACAddress:       "aa:bb:cc:dd:ee:ff",
@@ -118,20 +106,13 @@ func TestPushBootOptionsCommand_DefaultWOL(t *testing.T) {
 			Name:             "test-name",
 			Address:          "10.0.0.1",
 		},
-		Bootloader: config.BootloaderConfig{
-			Name:       "grub",
-			ConfigPath: tempGrubPath,
-		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       ts.URL,
 			WebhookID: "test-webhook",
 		},
 	}
 
-	registry := bootloader.NewRegistry()
-	registry.Register("grub", bootloader.NewGrub)
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
 	cmd := NewPushCmd(deps)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -161,7 +142,7 @@ func TestPushBootOptionsCommand_ZeroWOL(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	tempGrubPath := createTempGrubConfig(t)
+	tempGrubPath := createPushTempGrubConfig(t)
 	cfg := &config.Config{
 		Host: config.HostConfig{
 			MACAddress:       "aa:bb:cc:dd:ee:ff",
@@ -170,20 +151,13 @@ func TestPushBootOptionsCommand_ZeroWOL(t *testing.T) {
 			Name:             "test-name",
 			Address:          "10.0.0.1",
 		},
-		Bootloader: config.BootloaderConfig{
-			Name:       "grub",
-			ConfigPath: tempGrubPath,
-		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       ts.URL,
 			WebhookID: "test-webhook",
 		},
 	}
 
-	registry := bootloader.NewRegistry()
-	registry.Register("grub", bootloader.NewGrub)
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
 	cmd := NewPushCmd(deps)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -198,33 +172,10 @@ func TestPushBootOptionsCommand_ZeroWOL(t *testing.T) {
 	}
 }
 
-type mockPushBootloaderErr struct{}
+func TestPushBootOptionsCommand_GrubError(t *testing.T) {
+	cfg := &config.Config{}
 
-func (m *mockPushBootloaderErr) Name() string                      { return "err" }
-func (m *mockPushBootloaderErr) IsActive(ctx context.Context) bool { return true }
-func (m *mockPushBootloaderErr) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return nil, errors.New("mock error")
-}
-
-func (m *mockPushBootloaderErr) Setup(ctx context.Context, opts bootloader.SetupOptions) error {
-	return nil
-}
-
-func (m *mockPushBootloaderErr) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return "", nil
-}
-
-func TestPushBootOptionsCommand_BootloaderError(t *testing.T) {
-	cfg := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name: "err",
-		},
-	}
-
-	registry := bootloader.NewRegistry()
-	registry.Register("err", func() bootloader.Bootloader { return &mockPushBootloaderErr{} })
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/invalid/path/grub.cfg"}}
 	cmd := NewPushCmd(deps)
 	err := cmd.Execute()
 
@@ -236,33 +187,17 @@ func TestPushBootOptionsCommand_BootloaderError(t *testing.T) {
 	}
 }
 
-type mockPushBootloader struct{}
-
-func (m *mockPushBootloader) Name() string                      { return "mock" }
-func (m *mockPushBootloader) IsActive(ctx context.Context) bool { return true }
-func (m *mockPushBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return []string{"OS 1"}, nil
-}
-
-func (m *mockPushBootloader) Setup(ctx context.Context, opts bootloader.SetupOptions) error {
-	return nil
-}
-func (m *mockPushBootloader) DiscoverConfigPath(ctx context.Context) (string, error) { return "", nil }
-
 func TestPushBootOptionsCommand_HAClientError(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
 
+	tempGrubPath := createPushTempGrubConfig(t)
 	cfg := &config.Config{
-		Bootloader:    config.BootloaderConfig{Name: "mock"},
 		HomeAssistant: config.HomeAssistantConfig{URL: ts.URL, WebhookID: "test"},
 	}
-	registry := bootloader.NewRegistry()
-	registry.Register("mock", func() bootloader.Bootloader { return &mockPushBootloader{} })
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
 	cmd := NewPushCmd(deps)
 	err := cmd.Execute()
 
@@ -272,21 +207,14 @@ func TestPushBootOptionsCommand_HAClientError(t *testing.T) {
 }
 
 func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
-	tempGrubPath := createTempGrubConfig(t)
+	tempGrubPath := createPushTempGrubConfig(t)
 	cfg := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name:       "grub",
-			ConfigPath: tempGrubPath,
-		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL: "",
 		},
 	}
 
-	registry := bootloader.NewRegistry()
-	registry.Register("grub", bootloader.NewGrub)
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
 	cmd := NewPushCmd(deps)
 	err := cmd.Execute()
 	if err == nil {
@@ -294,22 +222,5 @@ func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "homeassistant url and webhook_id must be configured") {
 		t.Errorf("unexpected error message: %v", err)
-	}
-}
-
-func TestPushBootOptionsCommand_UnknownBootloader(t *testing.T) {
-	cfg := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name: "unknown",
-		},
-	}
-
-	registry := bootloader.NewRegistry()
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
-	cmd := NewPushCmd(deps)
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("expected error")
 	}
 }

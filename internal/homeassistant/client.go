@@ -24,7 +24,6 @@ type PushPayload struct {
 	BroadcastPort    int      `json:"broadcast_port,omitempty"`
 	Name             string   `json:"name"`
 	Address          string   `json:"address"`
-	Bootloader       string   `json:"bootloader"`
 	BootOptions      []string `json:"boot_options"`
 }
 

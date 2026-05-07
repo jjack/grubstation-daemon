@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 	ha "github.com/jjack/remote-boot-agent/internal/homeassistant"
 
@@ -16,15 +15,7 @@ import (
 var ErrMissingHAConfig = errors.New("homeassistant url and webhook_id must be configured")
 
 func PushBootOptions(ctx context.Context, deps *CommandDeps) error {
-	bl, err := deps.Bootloader(ctx)
-	if err != nil {
-		return err
-	}
-
-	blCfg := deps.Config.Bootloader
-	bootOptions, err := bl.GetBootOptions(ctx, bootloader.Config{
-		ConfigPath: blCfg.ConfigPath,
-	})
+	bootOptions, err := deps.Grub.GetBootOptions(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get boot options: %w", err)
 	}
@@ -45,7 +36,6 @@ func PushBootOptions(ctx context.Context, deps *CommandDeps) error {
 		MACAddress:       hostCfg.MACAddress,
 		BroadcastAddress: broadcastAddress,
 		BroadcastPort:    broadcastPort,
-		Bootloader:       bl.Name(),
 		Name:             hostCfg.Name,
 		Address:          hostCfg.Address,
 		BootOptions:      bootOptions,
@@ -65,10 +55,10 @@ func PushBootOptions(ctx context.Context, deps *CommandDeps) error {
 	slog.Debug("Payload", "payload", payload)
 
 	if err := haClient.Push(ctx, payload); err != nil {
-		return fmt.Errorf("failed to push state to HA webhook: %w", err)
+		return fmt.Errorf("failed to push boot options to HA webhook: %w", err)
 	}
 
-	slog.Debug("Successfully pushed bootloader state to Home Assistant")
+	slog.Debug("Successfully pushed boot options to Home Assistant")
 	return nil
 }
 
@@ -80,7 +70,7 @@ func NewPushCmd(deps *CommandDeps) *cobra.Command {
 			if err := PushBootOptions(cmd.Context(), deps); err != nil {
 				return err
 			}
-			cmd.Println("Successfully pushed bootloader state to Home Assistant")
+			cmd.Println("Successfully pushed boot options to Home Assistant")
 			return nil
 		},
 	}

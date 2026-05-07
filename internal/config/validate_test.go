@@ -1,37 +1,8 @@
 package config
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
-
-func TestValidateBootloaderConfigPath(t *testing.T) {
-	tempDir := t.TempDir()
-	validPath := filepath.Join(tempDir, "grub.cfg")
-	if err := os.WriteFile(validPath, []byte(""), 0o644); err != nil {
-		t.Fatalf("failed to write temp file: %v", err)
-	}
-
-	tests := []struct {
-		name    string
-		path    string
-		wantErr bool
-	}{
-		{"valid path", validPath, false},
-		{"empty path", "", true},
-		{"not exist", filepath.Join(tempDir, "missing.cfg"), true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateBootloaderConfigPath(tt.path)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateBootloaderConfigPath() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
 
 func TestValidateMACAddress(t *testing.T) {
 	tests := []struct {

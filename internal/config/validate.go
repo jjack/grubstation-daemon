@@ -5,37 +5,24 @@ import (
 	"log/slog"
 	"net"
 	"net/url"
-	"os"
 	"regexp"
 	"strconv"
 )
 
 var (
-	ErrBootloaderConfigPathEmpty    = errors.New("bootloader config path cannot be empty")
-	ErrBootloaderConfigPathNotExist = errors.New("bootloader config path does not exist")
-	ErrAddressEmpty                 = errors.New("address cannot be empty")
-	ErrInvalidBroadcastAddress      = errors.New("invalid WOL address: must be a valid IP address")
-	ErrInvalidBroadcastPort         = errors.New("invalid WOL port: must be a number between 1 and 65535")
-	ErrInvalidHost                  = errors.New("host must be a valid IP address or hostname (letters, numbers, hyphens, dots)")
-	ErrInvalidMACAddress            = errors.New("invalid MAC address format")
-	ErrInvalidURL                   = errors.New("invalid URL format")
-	ErrMACAddressEmpty              = errors.New("mac address cannot be empty")
-	ErrHTTPSUnsupported             = errors.New("https is not supported by grub; please use an http:// url")
-	ErrNameEmpty                    = errors.New("name cannot be empty")
-	ErrURLEmpty                     = errors.New("url cannot be empty")
-	ErrWebhookIDEmpty               = errors.New("webhook id cannot be empty")
-	ErrWebhookIDInvalidChar         = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
+	ErrAddressEmpty            = errors.New("address cannot be empty")
+	ErrInvalidBroadcastAddress = errors.New("invalid WOL address: must be a valid IP address")
+	ErrInvalidBroadcastPort    = errors.New("invalid WOL port: must be a number between 1 and 65535")
+	ErrInvalidHost             = errors.New("host must be a valid IP address or hostname (letters, numbers, hyphens, dots)")
+	ErrInvalidMACAddress       = errors.New("invalid MAC address format")
+	ErrInvalidURL              = errors.New("invalid URL format")
+	ErrMACAddressEmpty         = errors.New("mac address cannot be empty")
+	ErrHTTPSUnsupported        = errors.New("https is not supported by grub; please use an http:// url")
+	ErrNameEmpty               = errors.New("name cannot be empty")
+	ErrURLEmpty                = errors.New("url cannot be empty")
+	ErrWebhookIDEmpty          = errors.New("webhook id cannot be empty")
+	ErrWebhookIDInvalidChar    = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
 )
-
-func ValidateBootloaderConfigPath(v string) error {
-	if v == "" {
-		return ErrBootloaderConfigPathEmpty
-	}
-	if _, err := os.Stat(v); os.IsNotExist(err) {
-		return ErrBootloaderConfigPathNotExist
-	}
-	return nil
-}
 
 func ValidateMACAddress(v string) error {
 	if v == "" {

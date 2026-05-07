@@ -1,4 +1,4 @@
-package bootloader
+package grub
 
 import (
 	"context"
@@ -10,29 +10,19 @@ import (
 	"testing"
 )
 
-func TestGrubBootloader(t *testing.T) {
-	bl := NewGrub()
-
-	if bl.Name() != grubBootloader {
-		t.Errorf("expected bootloader name 'grub', got %s", bl.Name())
-	}
-
+func TestGrub(t *testing.T) {
 	// Point to the standard Go testdata directory
 	testDataPath := filepath.Join("testdata", "grub.cfg")
 	if _, err := os.Stat(testDataPath); os.IsNotExist(err) {
 		t.Skipf("Real grub.cfg not found at %s, skipping test", testDataPath)
 	}
 
-	originalPaths := grubPaths
-	defer func() { grubPaths = originalPaths }()
-	grubPaths = []string{testDataPath}
+	originalPaths := configPaths
+	defer func() { configPaths = originalPaths }()
+	configPaths = []string{testDataPath}
 
-	bootOptions, err := bl.GetBootOptions(context.Background(), Config{ConfigPath: testDataPath})
-
-	if !bl.IsActive(context.Background()) {
-		t.Error("expected grub bootloader to be logically active")
-	}
-
+	g := &Grub{ConfigPath: testDataPath}
+	bootOptions, err := g.GetBootOptions(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error from grub GetBootOptions, got: %v", err)
 	}
@@ -94,7 +84,6 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestGrub_Setup_Success(t *testing.T) {
-	bl := NewGrub()
 	tempDir := t.TempDir()
 	fakeScriptPath := filepath.Join(tempDir, "99_ha_remote_boot_agent")
 
@@ -115,7 +104,8 @@ func TestGrub_Setup_Success(t *testing.T) {
 		return "", errors.New("not found")
 	}
 
-	err := bl.Setup(context.Background(), SetupOptions{
+	g := &Grub{}
+	err := g.Setup(context.Background(), SetupOptions{
 		TargetMAC: "aa:bb:cc:dd:ee:ff",
 		TargetURL: "http://hass.local:8123",
 		AuthToken: "test_webhook",
@@ -137,7 +127,7 @@ func TestGrub_Setup_Success(t *testing.T) {
 		return "", errors.New("not found")
 	}
 
-	err = bl.Setup(context.Background(), SetupOptions{
+	err = g.Setup(context.Background(), SetupOptions{
 		TargetMAC: "aa:bb:cc:dd:ee:ff",
 		TargetURL: "http://hass.local:8123",
 		AuthToken: "test_webhook",
@@ -148,8 +138,8 @@ func TestGrub_Setup_Success(t *testing.T) {
 }
 
 func TestGrub_Setup_Errors(t *testing.T) {
-	bl := NewGrub()
 	ctx := context.Background()
+	g := &Grub{}
 
 	defer func(oldPath string, oldLook func(string) (string, error), oldCmd func(context.Context, string, ...string) *exec.Cmd) {
 		hassRemoteBootAgentPath = oldPath
@@ -158,14 +148,14 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	}(hassRemoteBootAgentPath, execLookPath, execCommand)
 
 	// 1. Invalid URL
-	err := bl.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "://bad-url", AuthToken: "test_webhook"})
+	err := g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "://bad-url", AuthToken: "test_webhook"})
 	if !errors.Is(err, ErrInvalidHAURL) {
 		t.Fatalf("expected ErrInvalidHAURL, got %v", err)
 	}
 
 	// 2. File creation failure
 	hassRemoteBootAgentPath = "/this/path/does/not/exist/99_script"
-	err = bl.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if err == nil || !strings.Contains(err.Error(), "failed to create grub script") {
 		t.Fatalf("expected file creation error, got %v", err)
 	}
@@ -178,7 +168,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	execLookPath = func(file string) (string, error) {
 		return "", errors.New("not found")
 	}
-	err = bl.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if !errors.Is(err, ErrNoGrubTool) {
 		t.Fatalf("expected ErrNoGrubTool, got %v", err)
 	}
@@ -191,7 +181,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 		return "", errors.New("not found")
 	}
 	execCommand = fakeExecCommandFail
-	err = bl.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if err == nil || !strings.Contains(err.Error(), "update-grub failed") {
 		t.Fatalf("expected update-grub execution error, got %v", err)
 	}
@@ -203,23 +193,21 @@ func TestGrub_Setup_Errors(t *testing.T) {
 		}
 		return "", errors.New("not found")
 	}
-	err = bl.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if err == nil || !strings.Contains(err.Error(), "grub2-mkconfig failed") {
 		t.Fatalf("expected grub2-mkconfig execution error, got %v", err)
 	}
 }
 
-func TestGrubBootloader_FileNotFound(t *testing.T) {
-	bl := NewGrub()
-	_, err := bl.GetBootOptions(context.Background(), Config{ConfigPath: "/tmp/nonexistent/grub.cfg"})
+func TestGrub_FileNotFound(t *testing.T) {
+	g := &Grub{ConfigPath: "/tmp/nonexistent/grub.cfg"}
+	_, err := g.GetBootOptions(context.Background())
 	if err == nil {
 		t.Fatal("expected error on nonexistent grub config, got nil")
 	}
 }
 
-func TestGrubBootloader_AutoDiscovery(t *testing.T) {
-	bl := NewGrub()
-
+func TestGrub_AutoDiscovery(t *testing.T) {
 	// Temporarily override the tracked paths to point to a temp dir so that the environment doesn't affect it
 	tempDir := t.TempDir()
 	fakeGrubPath := filepath.Join(tempDir, "grub.cfg")
@@ -227,11 +215,12 @@ func TestGrubBootloader_AutoDiscovery(t *testing.T) {
 		t.Fatalf("failed to write temp grub config: %v", err)
 	}
 
-	originalPaths := grubPaths
-	defer func() { grubPaths = originalPaths }()
-	grubPaths = []string{fakeGrubPath}
+	originalPaths := configPaths
+	defer func() { configPaths = originalPaths }()
+	configPaths = []string{fakeGrubPath}
 
-	bootOptions, err := bl.GetBootOptions(context.Background(), Config{})
+	g := &Grub{}
+	bootOptions, err := g.GetBootOptions(context.Background())
 	if err != nil {
 		t.Fatalf("expected auto-discovery to find grub config without error, got: %v", err)
 	}
@@ -241,29 +230,27 @@ func TestGrubBootloader_AutoDiscovery(t *testing.T) {
 	}
 }
 
-func TestGrubBootloader_AutoDiscovery_Fail(t *testing.T) {
-	bl := NewGrub()
+func TestGrub_AutoDiscovery_Fail(t *testing.T) {
+	originalPaths := configPaths
+	defer func() { configPaths = originalPaths }()
+	configPaths = []string{"/tmp/definitely-do-not-exist"}
 
-	originalPaths := grubPaths
-	defer func() { grubPaths = originalPaths }()
-	grubPaths = []string{"/tmp/definitely-do-not-exist"}
-
-	_, err := bl.GetBootOptions(context.Background(), Config{})
+	g := &Grub{}
+	_, err := g.GetBootOptions(context.Background())
 	if err == nil {
 		t.Fatal("expected failure to find any grub config")
 	}
 }
 
-func TestGrubBootloader_RealConfig(t *testing.T) {
-	bl := NewGrub()
-
+func TestGrub_RealConfig(t *testing.T) {
 	// Point to the standard Go testdata directory
 	testDataPath := filepath.Join("testdata", "grub.cfg")
 	if _, err := os.Stat(testDataPath); os.IsNotExist(err) {
 		t.Skipf("Real grub.cfg not found at %s, skipping test", testDataPath)
 	}
 
-	bootOptions, err := bl.GetBootOptions(context.Background(), Config{ConfigPath: testDataPath})
+	g := &Grub{ConfigPath: testDataPath}
+	bootOptions, err := g.GetBootOptions(context.Background())
 	if err != nil {
 		t.Fatalf("failed to parse real grub config: %v", err)
 	}
@@ -307,26 +294,21 @@ func TestCountStructuralBraces(t *testing.T) {
 	}
 }
 
-func TestGrub_IsActive_And_Discover(t *testing.T) {
-	bl := NewGrub()
-
+func TestGrub_Discover(t *testing.T) {
 	tempDir := t.TempDir()
 	fakeGrubPath := filepath.Join(tempDir, "grub.cfg")
 	if err := os.WriteFile(fakeGrubPath, []byte(""), 0o644); err != nil {
 		t.Fatalf("failed to write temp grub config: %v", err)
 	}
 
-	originalPaths := grubPaths
-	defer func() { grubPaths = originalPaths }()
+	originalPaths := configPaths
+	defer func() { configPaths = originalPaths }()
 
 	// Test success cases
-	grubPaths = []string{fakeGrubPath}
+	configPaths = []string{fakeGrubPath}
 
-	if !bl.IsActive(context.Background()) {
-		t.Error("expected IsActive to be true when config exists")
-	}
-
-	path, err := bl.DiscoverConfigPath(context.Background())
+	g := &Grub{}
+	path, err := g.DiscoverConfigPath(context.Background())
 	if err != nil {
 		t.Errorf("expected no error from DiscoverConfigPath, got %v", err)
 	}
@@ -334,26 +316,22 @@ func TestGrub_IsActive_And_Discover(t *testing.T) {
 		t.Errorf("expected discovered path %s, got %s", fakeGrubPath, path)
 	}
 
-	// Test failure cases
-	grubPaths = []string{filepath.Join(tempDir, "does-not-exist.cfg")}
-	if bl.IsActive(context.Background()) {
-		t.Error("expected IsActive to be false when config does not exist")
-	}
-	_, err = bl.DiscoverConfigPath(context.Background())
-	if !errors.Is(err, ErrGrubConfigNotFound) {
-		t.Errorf("expected ErrGrubConfigNotFound, got %v", err)
+	// Test error case
+	configPaths = []string{"/nonexistent/grub.cfg"}
+	_, err = g.DiscoverConfigPath(context.Background())
+	if !errors.Is(err, ErrConfigNotFound) {
+		t.Errorf("expected ErrConfigNotFound, got %v", err)
 	}
 }
 
 func TestGrub_GetBootOptions_PermissionDenied(t *testing.T) {
-	bl := NewGrub()
-
 	tempFile := filepath.Join(t.TempDir(), "unreadable.cfg")
 	if err := os.WriteFile(tempFile, []byte("test"), 0o200); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
 
-	_, err := bl.GetBootOptions(context.Background(), Config{ConfigPath: tempFile})
+	g := &Grub{ConfigPath: tempFile}
+	_, err := g.GetBootOptions(context.Background())
 	if err == nil {
 		t.Skip("expected error reading write-only file (running as root?)")
 	}
@@ -366,15 +344,15 @@ func TestGrub_GetBootOptions_PermissionDenied(t *testing.T) {
 }
 
 func TestGrub_Setup_TemplateErrors(t *testing.T) {
-	bl := NewGrub()
 	ctx := context.Background()
 
 	originalTemplate := grubTemplate
 	defer func() { grubTemplate = originalTemplate }()
+	g := &Grub{}
 
 	// 1. Template parse error
 	grubTemplate = "{{ unclosed"
-	err := bl.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err := g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if err == nil || !strings.Contains(err.Error(), "failed to parse grub template") {
 		t.Fatalf("expected template parse error, got %v", err)
 	}
@@ -382,21 +360,15 @@ func TestGrub_Setup_TemplateErrors(t *testing.T) {
 	// 2. Template execute error
 	// Accessing a nonexistent field on a string will cause template execution to fail
 	grubTemplate = "{{ .Host.NonExistentField }}"
-	err = bl.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
 	if err == nil || !strings.Contains(err.Error(), "failed to execute grub template") {
 		t.Fatalf("expected template execute error, got %v", err)
 	}
 }
 
 func TestGrub_SetupWarning(t *testing.T) {
-	g := NewGrub()
-
-	warner, ok := g.(interface{ SetupWarning() string })
-	if !ok {
-		t.Fatalf("expected Grub to implement the optional SetupWarning() interface")
-	}
-
-	warning := warner.SetupWarning()
+	g := &Grub{}
+	warning := g.SetupWarning()
 	if !strings.Contains(warning, "troubleshoot your GRUB network settings") {
 		t.Errorf("expected warning to mention troubleshooting, got: %s", warning)
 	}

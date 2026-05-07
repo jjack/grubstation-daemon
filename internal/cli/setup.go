@@ -1,42 +1,41 @@
 package cli
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
+	"github.com/jjack/remote-boot-agent/internal/grub"
+	"github.com/jjack/remote-boot-agent/internal/initsystem"
 	"github.com/spf13/cobra"
 )
 
 var osMkdirAll = os.MkdirAll
 
 func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error {
-	bl, err := deps.Bootloader(cmd.Context())
-	if err != nil {
-		return err
-	}
-
 	sys, err := deps.InitSystem(cmd.Context())
 	if err != nil {
 		return err
 	}
 
-	opts := bootloader.SetupOptions{
+	absConfig, err := filepath.Abs(cfgFile)
+	if err != nil {
+		return fmt.Errorf("failed to resolve config path: %w", err)
+	}
+
+	opts := grub.SetupOptions{
 		TargetMAC: deps.Config.Host.MACAddress,
 		TargetURL: deps.Config.HomeAssistant.URL,
 		AuthToken: deps.Config.HomeAssistant.WebhookID,
 	}
 
-	cmd.Printf("Installing into bootloader: %s\n", bl.Name())
-	if err := bl.Setup(cmd.Context(), opts); err != nil {
-		return fmt.Errorf("failed to install bootloader: %w", err)
-	}
-
-	absConfig, err := filepath.Abs(cfgFile)
-	if err != nil {
-		return fmt.Errorf("failed to resolve config path: %w", err)
+	cmd.Printf("Installing into grub...\n")
+	if err := deps.Grub.Setup(cmd.Context(), opts); err != nil {
+		return fmt.Errorf("failed to install grub: %w", err)
 	}
 
 	cmd.Printf("Installing into init system: %s\n", sys.Name())
@@ -46,11 +45,8 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error
 
 	cmd.Println("Installation completed successfully.")
 
-	// Optional interface check to see if the bootloader has any hardware warnings to share
-	if warner, ok := bl.(interface{ SetupWarning() string }); ok {
-		if warning := warner.SetupWarning(); warning != "" {
-			cmd.Printf("\nNote: %s\n", warning)
-		}
+	if warning := deps.Grub.SetupWarning(); warning != "" {
+		cmd.Printf("\nNote: %s\n", warning)
 	}
 	return nil
 }
@@ -58,7 +54,7 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error
 func NewApplyCmd(deps *CommandDeps) *cobra.Command {
 	return &cobra.Command{
 		Use:   "apply",
-		Short: "Apply the current configuration to the bootloader and init system",
+		Short: "Apply the current configuration to the grub and init system",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgFile, err := cmd.Flags().GetString("config")
 			if err != nil {
@@ -71,10 +67,25 @@ func NewApplyCmd(deps *CommandDeps) *cobra.Command {
 
 var runConfirm = func(installNow *bool) error {
 	return huh.NewConfirm().
-		Title("Would you like to install the bootloader and init system hooks now?").
+		Title("Would you like to install the grub and init system hooks now?").
 		Description("(Requires root/sudo privileges)").
 		Value(installNow).
 		Run()
+}
+
+func ensureSupport(ctx context.Context, deps *CommandDeps) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	_, err := deps.InitRegistry.Detect(ctx)
+	if err != nil {
+		if errors.Is(err, initsystem.ErrNotSupported) {
+			supported := strings.Join(deps.InitRegistry.SupportedInitSystems(), ", ")
+			return fmt.Errorf("no supported init system detected. Please ensure you have one of the following installed: %s", supported)
+		}
+		return err
+	}
+	return nil
 }
 
 func NewSetupCmd(deps *CommandDeps) *cobra.Command {

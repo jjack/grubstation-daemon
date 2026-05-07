@@ -17,10 +17,6 @@ func TestConfigValidateCmd_Valid(t *testing.T) {
 			BroadcastAddress: "192.168.1.255",
 			BroadcastPort:    9,
 		},
-		Bootloader: config.BootloaderConfig{
-			Name:       "grub",
-			ConfigPath: "/boot/grub/grub.cfg",
-		},
 		InitSystem: config.InitSystemConfig{
 			Name: "systemd",
 		},

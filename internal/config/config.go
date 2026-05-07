@@ -14,13 +14,12 @@ const (
 )
 
 const (
+	FlagGrubConfig       = "grub-config"
 	FlagMac              = "mac"
 	FlagName             = "name"
 	FlagAddress          = "address"
 	FlagBroadcastAddress = "broadcast-address"
 	FlagBroadcastPort    = "broadcast-port"
-	FlagBootloader       = "bootloader"
-	FlagBootloaderPath   = "bootloader-path"
 	FlagInitSystem       = "init-system"
 	FlagHassURL          = "hass-url"
 	FlagHassWebhook      = "hass-webhook"
@@ -30,13 +29,12 @@ var viperBindPFlag = func(v *viper.Viper, key string, flag *pflag.Flag) error { 
 
 type Config struct {
 	Host          HostConfig          `mapstructure:"host"`
-	Bootloader    BootloaderConfig    `mapstructure:"bootloader"`
 	InitSystem    InitSystemConfig    `mapstructure:"initsystem"`
 	HomeAssistant HomeAssistantConfig `mapstructure:"homeassistant"`
+	Grub          GrubConfig          `mapstructure:"grub"`
 }
 
-type BootloaderConfig struct {
-	Name       string `mapstructure:"name"`
+type GrubConfig struct {
 	ConfigPath string `mapstructure:"config_path"`
 }
 
@@ -69,13 +67,12 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 
 	if flags != nil {
 		flagMap := map[string]string{
+			"grub.config_path":         FlagGrubConfig,
 			"host.mac":                 FlagMac,
 			"host.name":                FlagName,
 			"host.address":             FlagAddress,
 			"host.broadcast_address":   FlagBroadcastAddress,
 			"host.broadcast_port":      FlagBroadcastPort,
-			"bootloader.name":          FlagBootloader,
-			"bootloader.config_path":   FlagBootloaderPath,
 			"initsystem.name":          FlagInitSystem,
 			"homeassistant.url":        FlagHassURL,
 			"homeassistant.webhook_id": FlagHassWebhook,
@@ -116,11 +113,12 @@ func Save(cfg *Config, path string) error {
 		v.Set("host.broadcast_port", cfg.Host.BroadcastPort)
 	}
 
-	v.Set("bootloader.name", cfg.Bootloader.Name)
-	v.Set("bootloader.config_path", cfg.Bootloader.ConfigPath)
 	v.Set("initsystem.name", cfg.InitSystem.Name)
 	v.Set("homeassistant.url", cfg.HomeAssistant.URL)
 	v.Set("homeassistant.webhook_id", cfg.HomeAssistant.WebhookID)
+	if cfg.Grub.ConfigPath != "" {
+		v.Set("grub.config_path", cfg.Grub.ConfigPath)
+	}
 
 	if err := v.WriteConfigAs(path); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)

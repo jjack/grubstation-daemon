@@ -20,11 +20,9 @@ homeassistant:
   # The UI entity type to create in Home Assistant
   entity_type: "button"
 
-# Bootloader configuration
-bootloader:
-  # The name of the supported bootloader (e.g., "grub")
-  name:        "grub"
-  # The absolute path to the bootloader's main configuration file
+# GRUB configuration
+grub:
+  # The absolute path to GRUB's main configuration file
   config_path: "/boot/grub/grub.cfg"
 
 # OS Init system configuration

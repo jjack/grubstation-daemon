@@ -1,41 +1,31 @@
 package cli
 
 import (
-	"context"
-	"errors"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
+	"github.com/jjack/remote-boot-agent/internal/grub"
 )
 
-type mockListBootloader struct{}
-
-func (m *mockListBootloader) Name() string                      { return "example" }
-func (m *mockListBootloader) IsActive(ctx context.Context) bool { return true }
-func (m *mockListBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return []string{"Ubuntu", "Windows"}, nil
+func createListTempGrubConfig(t *testing.T, content string) string {
+	tempGrub, err := os.CreateTemp("", "grub.cfg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = tempGrub.Write([]byte(content))
+	_ = tempGrub.Close()
+	t.Cleanup(func() { _ = os.Remove(tempGrub.Name()) })
+	return tempGrub.Name()
 }
-
-func (m *mockListBootloader) Setup(ctx context.Context, opts bootloader.SetupOptions) error {
-	return nil
-}
-func (m *mockListBootloader) DiscoverConfigPath(ctx context.Context) (string, error) { return "", nil }
 
 func TestGetBootOptionsCommand(t *testing.T) {
-	cfg := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name: "example",
-		},
-	}
+	cfg := &config.Config{}
+	tempGrubPath := createListTempGrubConfig(t, "menuentry 'Ubuntu' {}\nmenuentry 'Windows' {}\n")
 
-	registry := bootloader.NewRegistry()
-	registry.Register("example", func() bootloader.Bootloader { return &mockListBootloader{} })
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
 	cmd := NewListCmd(deps)
 
 	// Intercept stdout
@@ -55,9 +45,6 @@ func TestGetBootOptionsCommand(t *testing.T) {
 	out, _ := io.ReadAll(r)
 	output := string(out)
 
-	if !strings.Contains(output, "Bootloader: example") {
-		t.Errorf("output missing bootloader name: %s", output)
-	}
 	if !strings.Contains(output, "- Ubuntu") {
 		t.Errorf("output missing boot option 'Ubuntu': %s", output)
 	}
@@ -66,33 +53,10 @@ func TestGetBootOptionsCommand(t *testing.T) {
 	}
 }
 
-type mockListBootloaderErr struct{}
+func TestGetBootOptionsCommand_GrubError(t *testing.T) {
+	cfg := &config.Config{}
 
-func (m *mockListBootloaderErr) Name() string                      { return "err" }
-func (m *mockListBootloaderErr) IsActive(ctx context.Context) bool { return true }
-func (m *mockListBootloaderErr) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return nil, errors.New("mock error")
-}
-
-func (m *mockListBootloaderErr) Setup(ctx context.Context, opts bootloader.SetupOptions) error {
-	return nil
-}
-
-func (m *mockListBootloaderErr) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return "", nil
-}
-
-func TestGetBootOptionsCommand_BootloaderError(t *testing.T) {
-	cfg := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name: "err",
-		},
-	}
-
-	registry := bootloader.NewRegistry()
-	registry.Register("err", func() bootloader.Bootloader { return &mockListBootloaderErr{} })
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: t.TempDir()}}
 	cmd := NewListCmd(deps)
 	err := cmd.Execute()
 
@@ -104,33 +68,11 @@ func TestGetBootOptionsCommand_BootloaderError(t *testing.T) {
 	}
 }
 
-type mockListBootloaderEmpty struct{}
-
-func (m *mockListBootloaderEmpty) Name() string                      { return "empty" }
-func (m *mockListBootloaderEmpty) IsActive(ctx context.Context) bool { return true }
-func (m *mockListBootloaderEmpty) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return []string{}, nil
-}
-
-func (m *mockListBootloaderEmpty) Setup(ctx context.Context, opts bootloader.SetupOptions) error {
-	return nil
-}
-
-func (m *mockListBootloaderEmpty) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return "", nil
-}
-
 func TestGetBootOptionsCommand_EmptyOptions(t *testing.T) {
-	cfg := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name: "empty",
-		},
-	}
+	cfg := &config.Config{}
+	tempGrubPath := createListTempGrubConfig(t, "")
 
-	registry := bootloader.NewRegistry()
-	registry.Register("empty", func() bootloader.Bootloader { return &mockListBootloaderEmpty{} })
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
 	cmd := NewListCmd(deps)
 
 	oldStdout := os.Stdout
@@ -145,26 +87,5 @@ func TestGetBootOptionsCommand_EmptyOptions(t *testing.T) {
 	out, _ := io.ReadAll(r)
 	if !strings.Contains(string(out), "(None found)") {
 		t.Errorf("output missing '(None found)': %s", string(out))
-	}
-}
-
-func TestGetBootOptionsCommand_UnknownBootloader(t *testing.T) {
-	cfg := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name: "unknown",
-		},
-	}
-
-	registry := bootloader.NewRegistry() // Empty registry for unknown bootloader
-
-	deps := &CommandDeps{Config: cfg, BootloaderRegistry: registry}
-	cmd := NewListCmd(deps)
-	err := cmd.Execute()
-
-	if err == nil {
-		t.Fatal("expected error for unknown bootloader, got nil")
-	}
-	if !strings.Contains(err.Error(), "specified bootloader unknown not supported") {
-		t.Errorf("unexpected error message: %v", err)
 	}
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
+	"github.com/jjack/remote-boot-agent/internal/grub"
 	"github.com/jjack/remote-boot-agent/internal/homeassistant"
 	"github.com/jjack/remote-boot-agent/internal/initsystem"
 	"github.com/jjack/remote-boot-agent/internal/system"
@@ -50,28 +50,24 @@ func (d *DefaultSystemResolver) SaveConfig(cfg *config.Config, path string) erro
 }
 
 type CommandDeps struct {
-	Config             *config.Config
-	BootloaderRegistry *bootloader.Registry
-	InitRegistry       *initsystem.Registry
-	SystemResolver     SystemResolver
+	Config         *config.Config
+	Grub           *grub.Grub
+	InitRegistry   *initsystem.Registry
+	SystemResolver SystemResolver
 }
 
-func (d *CommandDeps) Bootloader(ctx context.Context) (bootloader.Bootloader, error) {
-	return ResolveBootloader(ctx, d.Config.Bootloader.Name, d.BootloaderRegistry)
-}
-
-func (d *CommandDeps) InitSystem(ctx context.Context) (initsystem.InitSystem, error) {
-	return ResolveInitSystem(ctx, d.Config.InitSystem.Name, d.InitRegistry)
+func (cd *CommandDeps) InitSystem(ctx context.Context) (initsystem.InitSystem, error) {
+	return ResolveInitSystem(ctx, cd.Config.InitSystem.Name, cd.InitRegistry)
 }
 
 func NewCLI() *CLI {
 	cli := &CLI{}
 
 	deps := &CommandDeps{
-		Config:             &config.Config{},
-		BootloaderRegistry: bootloader.NewRegistry(),
-		InitRegistry:       initsystem.NewRegistry(),
-		SystemResolver:     &DefaultSystemResolver{},
+		Config:         &config.Config{},
+		Grub:           &grub.Grub{},
+		InitRegistry:   initsystem.NewRegistry(),
+		SystemResolver: &DefaultSystemResolver{},
 	}
 
 	var cfgFile string
@@ -82,6 +78,10 @@ func NewCLI() *CLI {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if cmd.Name() == "help" {
+				return nil
+			}
+
 			cfg, err := config.Load(cfgFile, cmd.Flags())
 			if err != nil {
 				return err
@@ -93,23 +93,25 @@ func NewCLI() *CLI {
 
 			*deps.Config = *cfg
 			cli.Config = deps.Config
+
+			if cfg.Grub.ConfigPath != "" {
+				deps.Grub.ConfigPath = cfg.Grub.ConfigPath
+			}
 			return nil
 		},
 	}
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "/etc/remote-boot-agent/config.yaml", "config file")
+	rootCmd.PersistentFlags().String(config.FlagGrubConfig, "", "GRUB config path override")
 	rootCmd.PersistentFlags().String(config.FlagMac, "", "MAC Address override")
 	rootCmd.PersistentFlags().String(config.FlagName, "", "Name override")
 	rootCmd.PersistentFlags().String(config.FlagAddress, "", "Address override")
 	rootCmd.PersistentFlags().String(config.FlagBroadcastAddress, "", "Broadcast address override for WOL")
 	rootCmd.PersistentFlags().Int(config.FlagBroadcastPort, 9, "Broadcast port override for WOL")
-	rootCmd.PersistentFlags().String(config.FlagBootloader, "", "Bootloader type override (e.g., grub)")
-	rootCmd.PersistentFlags().String(config.FlagBootloaderPath, "", "Bootloader config path override")
 	rootCmd.PersistentFlags().String(config.FlagInitSystem, "", "Initsystem override (e.g., systemd)")
 	rootCmd.PersistentFlags().String(config.FlagHassURL, "", "Home Assistant URL override")
 	rootCmd.PersistentFlags().String(config.FlagHassWebhook, "", "Home Assistant Webhook ID override")
 
-	deps.BootloaderRegistry.Register("grub", bootloader.NewGrub)
 	deps.InitRegistry.Register("systemd", initsystem.NewSystemd)
 
 	rootCmd.AddCommand(NewOptionsCmd(deps))
@@ -126,22 +128,6 @@ func NewCLI() *CLI {
 
 func (cli *CLI) Execute() error {
 	return cli.RootCmd.Execute()
-}
-
-func ResolveBootloader(ctx context.Context, name string, registry *bootloader.Registry) (bootloader.Bootloader, error) {
-	if name != "" {
-		bl := registry.Get(name)
-		if bl == nil {
-			return nil, fmt.Errorf("specified bootloader %s not supported", name)
-		}
-		return bl, nil
-	}
-
-	bl, err := registry.Detect(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("bootloader detection failed: %w", err)
-	}
-	return bl, nil
 }
 
 func ResolveInitSystem(ctx context.Context, name string, registry *initsystem.Registry) (initsystem.InitSystem, error) {

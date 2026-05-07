@@ -5,12 +5,13 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
 	"strings"
 	"testing"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
+	"github.com/jjack/remote-boot-agent/internal/grub"
 	"github.com/jjack/remote-boot-agent/internal/initsystem"
 	"github.com/spf13/cobra"
 )
@@ -67,57 +68,34 @@ func (m *mockSystemResolver) SaveConfig(cfg *config.Config, path string) error {
 	return nil
 }
 
-type mockSurveyBootloader struct{}
-
-func (m *mockSurveyBootloader) Name() string                      { return "grub" }
-func (m *mockSurveyBootloader) IsActive(ctx context.Context) bool { return true }
-func (m *mockSurveyBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return nil, nil
-}
-
-func (m *mockSurveyBootloader) Setup(ctx context.Context, opts bootloader.SetupOptions) error {
-	return nil
-}
-
-func (m *mockSurveyBootloader) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return "/boot/grub/grub.cfg", nil
-}
-
 type mockSurveyInitSystem struct{}
 
 func (m *mockSurveyInitSystem) Name() string                                       { return "systemd" }
 func (m *mockSurveyInitSystem) IsActive(ctx context.Context) bool                  { return true }
 func (m *mockSurveyInitSystem) Setup(ctx context.Context, configPath string) error { return nil }
 
-func setupSurveyDeps() *CommandDeps {
-	blReg := bootloader.NewRegistry()
-	blReg.Register("grub", func() bootloader.Bootloader { return &mockSurveyBootloader{} })
-
+func setupSurveyDeps(t *testing.T) *CommandDeps {
 	initReg := initsystem.NewRegistry()
 	initReg.Register("systemd", func() initsystem.InitSystem { return &mockSurveyInitSystem{} })
-
-	return &CommandDeps{BootloaderRegistry: blReg, InitRegistry: initReg, SystemResolver: &mockSystemResolver{}}
+	tempGrub := t.TempDir() + "/grub.cfg"
+	_ = os.WriteFile(tempGrub, []byte(""), 0o644)
+	return &CommandDeps{Grub: &grub.Grub{ConfigPath: tempGrub}, InitRegistry: initReg, SystemResolver: &mockSystemResolver{}}
 }
 
 func TestGenerateConfigSurvey_Success(t *testing.T) {
 	oldRunHostInfoForm := runHostInfoForm
 	oldRunWOLForm := runWOLForm
-	oldRunBootloaderForm := runBootloaderForm
 	oldRunInitSystemForm := runInitSystemForm
 	oldRunHAForm := runHAForm
 	defer func() {
 		runHostInfoForm = oldRunHostInfoForm
 		runWOLForm = oldRunWOLForm
-		runBootloaderForm = oldRunBootloaderForm
 		runInitSystemForm = oldRunInitSystemForm
 		runHAForm = oldRunHAForm
 	}()
 
 	runInitSystemForm = func(io []string) (initSystemResults, error) {
 		return initSystemResults{Name: "systemd"}, nil
-	}
-	runBootloaderForm = func(bo []string, d *CommandDeps, c context.Context) (bootloaderResults, error) {
-		return bootloaderResults{Name: "grub", ConfigPath: "/boot/grub/grub.cfg"}, nil
 	}
 	runHostInfoForm = func(resolver SystemResolver, io []huh.Option[string], im map[string]net.Interface, h string) (hostInfoResults, []huh.Option[string], error) {
 		bOpts := []huh.Option[string]{huh.NewOption("Subnet", "192.168.1.255")}
@@ -130,7 +108,7 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 		return haResults{URL: "http://hass.local:8123", WebhookID: "webhook123"}, nil
 	}
 
-	deps := setupSurveyDeps()
+	deps := setupSurveyDeps(t)
 	deps.SystemResolver = &mockSystemResolver{
 		getIPv4InfoFunc: func(inf net.Interface) ([]string, map[string]string) {
 			return []string{"192.168.1.100", "10.0.0.100"}, map[string]string{"192.168.1.100": "192.168.1.255", "10.0.0.100": "10.0.0.255"}
@@ -162,24 +140,19 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 func TestGenerateConfigSurvey_FormErrors(t *testing.T) {
 	oldRunHostInfoForm := runHostInfoForm
 	oldRunWOLForm := runWOLForm
-	oldRunBootloaderForm := runBootloaderForm
 	oldRunInitSystemForm := runInitSystemForm
 	oldRunHAForm := runHAForm
 	defer func() {
 		runHostInfoForm = oldRunHostInfoForm
 		runWOLForm = oldRunWOLForm
-		runBootloaderForm = oldRunBootloaderForm
 		runInitSystemForm = oldRunInitSystemForm
 		runHAForm = oldRunHAForm
 	}()
 
-	deps := setupSurveyDeps()
+	deps := setupSurveyDeps(t)
 
 	resetMocks := func() {
 		runInitSystemForm = func(io []string) (initSystemResults, error) { return initSystemResults{Name: "systemd"}, nil }
-		runBootloaderForm = func(bo []string, d *CommandDeps, c context.Context) (bootloaderResults, error) {
-			return bootloaderResults{Name: "grub", ConfigPath: "/boot/grub/grub.cfg"}, nil
-		}
 		runHostInfoForm = func(resolver SystemResolver, io []huh.Option[string], im map[string]net.Interface, h string) (hostInfoResults, []huh.Option[string], error) {
 			return hostInfoResults{Name: "test-name", IfaceName: "eth0", MACAddress: "00:11:22:33:44:55", HostAddress: "192.168.1.100"}, []huh.Option[string]{huh.NewOption("test", "test")}, nil
 		}
@@ -199,17 +172,6 @@ func TestGenerateConfigSurvey_FormErrors(t *testing.T) {
 		_, err := generateConfigInteractive(context.Background(), deps)
 		if err == nil || err.Error() != "simulated init error" {
 			t.Fatalf("expected simulated init error, got %v", err)
-		}
-		resetMocks()
-	})
-
-	t.Run("Bootloader Form Error", func(t *testing.T) {
-		runBootloaderForm = func(bo []string, d *CommandDeps, c context.Context) (bootloaderResults, error) {
-			return bootloaderResults{}, errors.New("simulated bl error")
-		}
-		_, err := generateConfigInteractive(context.Background(), deps)
-		if err == nil || err.Error() != "simulated bl error" {
-			t.Fatalf("expected simulated bl error, got %v", err)
 		}
 		resetMocks()
 	})
@@ -246,7 +208,7 @@ func TestGenerateConfigSurvey_FormErrors(t *testing.T) {
 	})
 
 	t.Run("Detect System Hostname Error", func(t *testing.T) {
-		d := setupSurveyDeps()
+		d := setupSurveyDeps(t)
 		d.SystemResolver = &mockSystemResolver{
 			detectSystemHostnameFunc: func() (string, error) { return "", errors.New("simulated hostname error") },
 		}
@@ -257,7 +219,7 @@ func TestGenerateConfigSurvey_FormErrors(t *testing.T) {
 	})
 
 	t.Run("Get WOL Interfaces Error", func(t *testing.T) {
-		d := setupSurveyDeps()
+		d := setupSurveyDeps(t)
 		d.SystemResolver = &mockSystemResolver{
 			getWOLInterfacesFunc: func() ([]net.Interface, error) { return nil, errors.New("simulated wol interfaces error") },
 		}
@@ -271,15 +233,29 @@ func TestGenerateConfigSurvey_FormErrors(t *testing.T) {
 func TestGenerateConfigSurvey_OptErrors(t *testing.T) {
 	t.Run("Invalid MAC Address", func(t *testing.T) {
 		oldRunHostInfoForm := runHostInfoForm
+		oldRunInitSystemForm := runInitSystemForm
+		oldRunWOLForm := runWOLForm
+		oldRunHAForm := runHAForm
 
+		runInitSystemForm = func(io []string) (initSystemResults, error) { return initSystemResults{Name: "systemd"}, nil }
 		runHostInfoForm = func(resolver SystemResolver, io []huh.Option[string], im map[string]net.Interface, h string) (hostInfoResults, []huh.Option[string], error) {
 			return hostInfoResults{Name: "test", IfaceName: "eth0", MACAddress: "invalid-mac"}, []huh.Option[string]{}, nil
 		}
+		runWOLForm = func(bo []huh.Option[string]) (wolResults, error) {
+			return wolResults{Broadcast: "192.168.1.255", WOLPort: "9"}, nil
+		}
+		runHAForm = func(u string) (haResults, error) {
+			return haResults{URL: "http://hass.local:8123", WebhookID: "webhook123"}, nil
+		}
+
 		defer func() {
 			runHostInfoForm = oldRunHostInfoForm
+			runInitSystemForm = oldRunInitSystemForm
+			runWOLForm = oldRunWOLForm
+			runHAForm = oldRunHAForm
 		}()
 
-		deps := setupSurveyDeps()
+		deps := setupSurveyDeps(t)
 		deps.SystemResolver = &mockSystemResolver{
 			getWOLInterfacesFunc: func() ([]net.Interface, error) {
 				return []net.Interface{{Name: "eth0", HardwareAddr: nil}}, nil
@@ -395,13 +371,11 @@ func TestBuildBroadcastOptions(t *testing.T) {
 func TestGenerateConfigSurvey_ContextCancelBeforeHA(t *testing.T) {
 	oldRunHostInfoForm := runHostInfoForm
 	oldRunWOLForm := runWOLForm
-	oldRunBootloaderForm := runBootloaderForm
 	oldRunInitSystemForm := runInitSystemForm
 	oldRunHAForm := runHAForm
 	defer func() {
 		runHostInfoForm = oldRunHostInfoForm
 		runWOLForm = oldRunWOLForm
-		runBootloaderForm = oldRunBootloaderForm
 		runInitSystemForm = oldRunInitSystemForm
 		runHAForm = oldRunHAForm
 	}()
@@ -409,16 +383,13 @@ func TestGenerateConfigSurvey_ContextCancelBeforeHA(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	runInitSystemForm = func(io []string) (initSystemResults, error) { return initSystemResults{}, nil }
-	runBootloaderForm = func(bo []string, d *CommandDeps, c context.Context) (bootloaderResults, error) {
-		return bootloaderResults{}, nil
-	}
 	runHostInfoForm = func(resolver SystemResolver, io []huh.Option[string], im map[string]net.Interface, h string) (hostInfoResults, []huh.Option[string], error) {
 		return hostInfoResults{MACAddress: "00:11:22:33:44:55"}, nil, nil
 	}
 	runWOLForm = func(bo []huh.Option[string]) (wolResults, error) { cancel(); return wolResults{WOLPort: "9"}, nil }
 	runHAForm = func(u string) (haResults, error) { return haResults{}, nil }
 
-	deps := setupSurveyDeps()
+	deps := setupSurveyDeps(t)
 	deps.SystemResolver = &mockSystemResolver{
 		discoverHomeAssistantFunc: func(c context.Context) (string, error) { <-c.Done(); return "", c.Err() },
 		getWOLInterfacesFunc: func() ([]net.Interface, error) {
@@ -449,10 +420,6 @@ func TestPrintConfigSummary(t *testing.T) {
 			URL:       "http://ha.local:8123",
 			WebhookID: "abcdef12345",
 		},
-		Bootloader: config.BootloaderConfig{
-			Name:       "grub",
-			ConfigPath: "/boot/grub/grub.cfg",
-		},
 		InitSystem: config.InitSystemConfig{
 			Name: "systemd",
 		},
@@ -473,122 +440,4 @@ func TestPrintConfigSummary(t *testing.T) {
 	if !strings.Contains(out, "abcd...") {
 		t.Errorf("expected truncated webhook id, got %s", out)
 	}
-}
-
-type mockInactiveBootloader struct{}
-
-func (m *mockInactiveBootloader) Name() string                      { return "inactive-bl" }
-func (m *mockInactiveBootloader) IsActive(ctx context.Context) bool { return false }
-func (m *mockInactiveBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return nil, nil
-}
-
-func (m *mockInactiveBootloader) Setup(ctx context.Context, opts bootloader.SetupOptions) error {
-	return nil
-}
-
-func (m *mockInactiveBootloader) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return "", nil
-}
-
-type mockInactiveInitSystem struct{}
-
-func (m *mockInactiveInitSystem) Name() string                                       { return "inactive-init" }
-func (m *mockInactiveInitSystem) IsActive(ctx context.Context) bool                  { return false }
-func (m *mockInactiveInitSystem) Setup(ctx context.Context, configPath string) error { return nil }
-
-func TestEnsureSupport(t *testing.T) {
-	t.Run("Bootloader Not Supported", func(t *testing.T) {
-		deps := setupSurveyDeps()
-		blReg := bootloader.NewRegistry()
-		blReg.Register("inactive-bl", func() bootloader.Bootloader { return &mockInactiveBootloader{} })
-		deps.BootloaderRegistry = blReg
-
-		err := ensureSupport(context.Background(), deps)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "no supported bootloader detected") {
-			t.Errorf("expected bootloader not supported error, got %v", err)
-		}
-		if !strings.Contains(err.Error(), "inactive-bl") {
-			t.Errorf("expected error to list 'inactive-bl', got %v", err)
-		}
-	})
-
-	t.Run("InitSystem Not Supported", func(t *testing.T) {
-		deps := setupSurveyDeps()
-		initReg := initsystem.NewRegistry()
-		initReg.Register("inactive-init", func() initsystem.InitSystem { return &mockInactiveInitSystem{} })
-		deps.InitRegistry = initReg
-
-		err := ensureSupport(context.Background(), deps)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "no supported init system detected") {
-			t.Errorf("expected init system not supported error, got %v", err)
-		}
-		if !strings.Contains(err.Error(), "inactive-init") {
-			t.Errorf("expected error to list 'inactive-init', got %v", err)
-		}
-	})
-}
-
-type contextCancelingBootloader struct {
-	cancel context.CancelFunc
-}
-
-func (m *contextCancelingBootloader) Name() string                      { return "canceler" }
-func (m *contextCancelingBootloader) IsActive(ctx context.Context) bool { m.cancel(); return true }
-func (m *contextCancelingBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return nil, nil
-}
-
-func (m *contextCancelingBootloader) Setup(ctx context.Context, opts bootloader.SetupOptions) error {
-	return nil
-}
-
-func (m *contextCancelingBootloader) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return "", nil
-}
-
-func TestEnsureSupport_GenericErrors(t *testing.T) {
-	t.Run("Bootloader Generic Error", func(t *testing.T) {
-		deps := setupSurveyDeps()
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel() // Cancel immediately
-
-		err := ensureSupport(ctx, deps)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !errors.Is(err, context.Canceled) {
-			t.Errorf("expected context.Canceled, got %v", err)
-		}
-	})
-
-	t.Run("InitSystem Generic Error", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		blReg := bootloader.NewRegistry()
-		blReg.Register("canceler", func() bootloader.Bootloader { return &contextCancelingBootloader{cancel: cancel} })
-
-		initReg := initsystem.NewRegistry()
-		initReg.Register("systemd", func() initsystem.InitSystem { return &mockSurveyInitSystem{} })
-
-		deps := &CommandDeps{
-			BootloaderRegistry: blReg,
-			InitRegistry:       initReg,
-		}
-
-		err := ensureSupport(ctx, deps)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !errors.Is(err, context.Canceled) {
-			t.Errorf("expected context.Canceled, got %v", err)
-		}
-	})
 }

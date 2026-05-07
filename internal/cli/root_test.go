@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
 	"github.com/jjack/remote-boot-agent/internal/initsystem"
 )
@@ -58,71 +57,6 @@ func TestNewCLI(t *testing.T) {
 	}
 	if cli.RootCmd.Use != "remote-boot-agent" {
 		t.Errorf("expected use 'remote-boot-agent', got %s", cli.RootCmd.Use)
-	}
-}
-
-type mockRootBootloader struct{}
-
-func (m *mockRootBootloader) Name() string                      { return "example" }
-func (m *mockRootBootloader) IsActive(ctx context.Context) bool { return true }
-func (m *mockRootBootloader) GetBootOptions(ctx context.Context, cfg bootloader.Config) ([]string, error) {
-	return nil, nil
-}
-
-func (m *mockRootBootloader) Setup(ctx context.Context, opts bootloader.SetupOptions) error {
-	return nil
-}
-func (m *mockRootBootloader) DiscoverConfigPath(ctx context.Context) (string, error) { return "", nil }
-
-func TestResolveBootloader(t *testing.T) {
-	cfg := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name: "example",
-		},
-	}
-
-	registry := bootloader.NewRegistry()
-	registry.Register("example", func() bootloader.Bootloader { return &mockRootBootloader{} })
-
-	bl, err := ResolveBootloader(context.Background(), cfg.Bootloader.Name, registry)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if bl.Name() != "example" {
-		t.Errorf("expected 'example', got %s", bl.Name())
-	}
-
-	// Invalid bootloader
-	cfgInvalid := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name: "invalid-bootloader",
-		},
-	}
-	_, errInvalid := ResolveBootloader(context.Background(), cfgInvalid.Bootloader.Name, registry)
-	if errInvalid == nil {
-		t.Fatal("expected error for invalid bootloader")
-	}
-
-	// Empty bootloader string triggers Detect
-	cfgEmpty := &config.Config{
-		Bootloader: config.BootloaderConfig{
-			Name: "",
-		},
-	}
-	// example always returns true for IsActive so Detect will find it
-	blDetect, errDetect := ResolveBootloader(context.Background(), cfgEmpty.Bootloader.Name, registry)
-	if errDetect != nil {
-		t.Fatalf("expected no error detecting, got %v", errDetect)
-	}
-	if blDetect == nil {
-		t.Fatal("expected detected bootloader to not be nil")
-	}
-
-	// Detect fail
-	emptyRegistry := bootloader.NewRegistry()
-	_, errDetectFail := ResolveBootloader(context.Background(), "", emptyRegistry)
-	if errDetectFail == nil {
-		t.Fatal("expected error when detecting bootloader fails")
 	}
 }
 
@@ -183,19 +117,12 @@ func TestResolveInitSystem(t *testing.T) {
 func TestCLI_Execute(t *testing.T) {
 	cli := NewCLI()
 
-	// Create a temp grub config to satisfy the command
-	grubFile, err := os.CreateTemp("", "grub-*.cfg")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.Remove(grubFile.Name()) }()
-
-	cli.RootCmd.SetArgs([]string{"options", "list", "--config", "../../config.sample.yaml", "--bootloader-path", grubFile.Name()})
+	cli.RootCmd.SetArgs([]string{"help"})
 
 	var b bytes.Buffer
 	cli.RootCmd.SetOut(&b)
 
-	err = cli.Execute()
+	err := cli.Execute()
 	if err != nil {
 		t.Fatalf("execute failed: %v", err)
 	}

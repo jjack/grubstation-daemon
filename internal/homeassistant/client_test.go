@@ -38,7 +38,6 @@ func TestClient_Push(t *testing.T) {
 		MACAddress:       "aa:bb:cc:dd",
 		Name:             "test-name",
 		Address:          "10.0.0.1",
-		Bootloader:       "grub",
 		BootOptions:      []string{"Ubuntu", "Windows"},
 		BroadcastAddress: "192.168.1.255",
 		BroadcastPort:    9,

@@ -13,7 +13,7 @@ sudo remote-boot-agent setup
 This command launches an interactive wizard that autodetects your system settings and prompts you for:
 
 1. **Init System:** Autodetects and configures your init system (e.g., `systemd`) to run on shutdown.
-2. **Bootloader:** Autodetects your bootloader (e.g., `grub`) and configures the necessary network boot integration.
+2. **GRUB:** Autodetects your GRUB configuration and configures the necessary network boot integration.
 3. **Host Information:** Lets you select the physical network interface, MAC address, and IP address for the machine.
 4. **Wake-on-LAN (WOL):** Configures the broadcast address and port for WOL packets.
 5. **Home Assistant:** Configures the URL and Webhook ID for integration (often auto-discovered on your network).
@@ -53,11 +53,9 @@ homeassistant:
   # The UI entity type to create in Home Assistant
   entity_type: "button"
 
-# Bootloader configuration
-bootloader:
-  # The name of the supported bootloader (e.g., "grub")
-  name:        "grub"
-  # The absolute path to the bootloader's main configuration file
+# GRUB configuration
+grub:
+  # The absolute path to GRUB's main configuration file
   config_path: "/boot/grub/grub.cfg"
 
 # OS Init system configuration

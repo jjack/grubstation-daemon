@@ -2,16 +2,13 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/remote-boot-agent/internal/bootloader"
 	"github.com/jjack/remote-boot-agent/internal/config"
-	"github.com/jjack/remote-boot-agent/internal/initsystem"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +17,6 @@ var (
 
 	runHostInfoForm   = defaultRunHostInfoForm
 	runWOLForm        = defaultRunWOLForm
-	runBootloaderForm = defaultRunBootloaderForm
 	runInitSystemForm = defaultRunInitSystemForm
 	runHAForm         = defaultRunHAForm
 )
@@ -92,38 +88,6 @@ func defaultRunInitSystemForm(initOpts []string) (initSystemResults, error) {
 		huh.NewGroup(
 			huh.NewSelect[string]().Title("Autodetected Supported Init Systems:").Options(huh.NewOptions(initOpts...)...).Value(&res.Name),
 		).Title("Init System Configuration"),
-	).Run()
-	return res, err
-}
-
-type bootloaderResults struct {
-	Name       string
-	ConfigPath string
-}
-
-func defaultRunBootloaderForm(blOpts []string, deps *CommandDeps, ctx context.Context) (bootloaderResults, error) {
-	res := bootloaderResults{}
-	err := huh.NewForm(
-		huh.NewGroup(
-			huh.NewSelect[string]().Title("Autodetected Supported Bootloaders:").Options(huh.NewOptions(blOpts...)...).Value(&res.Name),
-		).Title("Bootloader Configuration"),
-	).Run()
-	if err != nil {
-		return res, err
-	}
-
-	bl := deps.BootloaderRegistry.Get(res.Name)
-	if bl != nil {
-		res.ConfigPath, _ = bl.DiscoverConfigPath(ctx)
-	}
-
-	err = huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().
-				Title("Bootloader Config Path:").
-				Value(&res.ConfigPath).
-				Validate(config.ValidateBootloaderConfigPath),
-		).Title("Bootloader Configuration"),
 	).Run()
 	return res, err
 }
@@ -268,15 +232,9 @@ func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.
 
 	ifaceOpts, ifaceMap := buildIfaceOptions(deps.SystemResolver, wolInterfaces)
 
-	blOpts := deps.BootloaderRegistry.SupportedBootloaders()
 	initOpts := deps.InitRegistry.SupportedInitSystems()
 
 	initRes, err := runInitSystemForm(initOpts)
-	if err != nil {
-		return nil, err
-	}
-
-	blRes, err := runBootloaderForm(blOpts, deps, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -319,10 +277,6 @@ func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.
 			BroadcastAddress: wolRes.Broadcast,
 			BroadcastPort:    wolPort,
 		},
-		Bootloader: config.BootloaderConfig{
-			Name:       blRes.Name,
-			ConfigPath: blRes.ConfigPath,
-		},
 		InitSystem: config.InitSystemConfig{
 			Name: initRes.Name,
 		},
@@ -331,27 +285,6 @@ func generateConfigInteractive(ctx context.Context, deps *CommandDeps) (*config.
 			WebhookID: haRes.WebhookID,
 		},
 	}, nil
-}
-
-func ensureSupport(ctx context.Context, deps *CommandDeps) error {
-	_, err := deps.BootloaderRegistry.Detect(ctx)
-	if err != nil {
-		if errors.Is(err, bootloader.ErrNotSupported) {
-			supported := strings.Join(deps.BootloaderRegistry.SupportedBootloaders(), ", ")
-			return fmt.Errorf("no supported bootloader detected. Please ensure you have one of the following installed: %s", supported)
-		}
-		return err
-	}
-
-	_, err = deps.InitRegistry.Detect(ctx)
-	if err != nil {
-		if errors.Is(err, initsystem.ErrNotSupported) {
-			supported := strings.Join(deps.InitRegistry.SupportedInitSystems(), ", ")
-			return fmt.Errorf("no supported init system detected. Please ensure you have one of the following installed: %s", supported)
-		}
-		return err
-	}
-	return nil
 }
 
 func printConfigSummary(cmd *cobra.Command, cfg *config.Config, cfgPath string) {
@@ -373,6 +306,5 @@ func printConfigSummary(cmd *cobra.Command, cfg *config.Config, cfgPath string) 
 	}
 	cmd.Printf("host:\n  name: %s\n  address: %s\n  mac: %s%s\n\n", cfg.Host.Name, cfg.Host.Address, cfg.Host.MACAddress, broadcastStr)
 	cmd.Printf("homeassistant:\n  url: %s\n  webhook_id: %s\n\n", cfg.HomeAssistant.URL, safeWebhookID)
-	cmd.Printf("bootloader:\n  name: %s\n  config_path: %s\n\n", cfg.Bootloader.Name, cfg.Bootloader.ConfigPath)
 	cmd.Printf("initsystem:\n  name: %s\n", cfg.InitSystem.Name)
 }

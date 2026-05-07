@@ -21,16 +21,15 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 			BroadcastAddress: "192.168.1.255",
 			BroadcastPort:    9,
 		},
-		Bootloader: BootloaderConfig{
-			Name:       "grub",
-			ConfigPath: "/boot/grub/grub.cfg",
-		},
 		InitSystem: InitSystemConfig{
 			Name: "systemd",
 		},
 		HomeAssistant: HomeAssistantConfig{
 			URL:       "http://ha.local",
 			WebhookID: "test-webhook",
+		},
+		Grub: GrubConfig{
+			ConfigPath: "/boot/grub/grub.cfg",
 		},
 	}
 
@@ -58,11 +57,11 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 	if loadedCfg.Host.MACAddress != cfg.Host.MACAddress {
 		t.Errorf("expected MAC %s, got %s", cfg.Host.MACAddress, loadedCfg.Host.MACAddress)
 	}
-	if loadedCfg.Bootloader.ConfigPath != cfg.Bootloader.ConfigPath {
-		t.Errorf("expected Bootloader path %s, got %s", cfg.Bootloader.ConfigPath, loadedCfg.Bootloader.ConfigPath)
-	}
 	if loadedCfg.HomeAssistant.WebhookID != cfg.HomeAssistant.WebhookID {
 		t.Errorf("expected Webhook ID %s, got %s", cfg.HomeAssistant.WebhookID, loadedCfg.HomeAssistant.WebhookID)
+	}
+	if loadedCfg.Grub.ConfigPath != cfg.Grub.ConfigPath {
+		t.Errorf("expected Grub ConfigPath %s, got %s", cfg.Grub.ConfigPath, loadedCfg.Grub.ConfigPath)
 	}
 }
 
@@ -77,10 +76,6 @@ func TestConfig_SaveAndLoad_Defaults(t *testing.T) {
 			Address:          "10.0.0.1",
 			BroadcastAddress: DefaultBroadcastAddress,
 			BroadcastPort:    DefaultBroadcastPort,
-		},
-		Bootloader: BootloaderConfig{
-			Name:       "grub",
-			ConfigPath: "/boot/grub/grub.cfg",
 		},
 		InitSystem: InitSystemConfig{
 			Name: "systemd",
@@ -150,22 +145,20 @@ func TestLoad_WithFlags(t *testing.T) {
 	fs.String(FlagAddress, "", "")
 	fs.String(FlagBroadcastAddress, "", "")
 	fs.Int(FlagBroadcastPort, 0, "")
-	fs.String(FlagBootloader, "", "")
-	fs.String(FlagBootloaderPath, "", "")
 	fs.String(FlagInitSystem, "", "")
 	fs.String(FlagHassURL, "", "")
 	fs.String(FlagHassWebhook, "", "")
+	fs.String(FlagGrubConfig, "", "")
 
 	_ = fs.Set(FlagMac, "aa:bb:cc:dd:ee:ff")
 	_ = fs.Set(FlagName, "flag-name")
 	_ = fs.Set(FlagAddress, "flag-address")
 	_ = fs.Set(FlagBroadcastAddress, "1.1.1.1")
 	_ = fs.Set(FlagBroadcastPort, "7")
-	_ = fs.Set(FlagBootloader, "grub-flag")
-	_ = fs.Set(FlagBootloaderPath, "/flag/path")
 	_ = fs.Set(FlagInitSystem, "sysd-flag")
 	_ = fs.Set(FlagHassURL, "http://flag")
 	_ = fs.Set(FlagHassWebhook, "flag-webhook")
+	_ = fs.Set(FlagGrubConfig, "/flag/grub.cfg")
 
 	tempDir := t.TempDir()
 	cfgPath := filepath.Join(tempDir, "config.yaml")
@@ -193,12 +186,6 @@ func TestLoad_WithFlags(t *testing.T) {
 	if cfg.Host.BroadcastPort != 7 {
 		t.Errorf("expected broadcast port 7, got %v", cfg.Host.BroadcastPort)
 	}
-	if cfg.Bootloader.Name != "grub-flag" {
-		t.Errorf("expected bootloader name grub-flag, got %v", cfg.Bootloader.Name)
-	}
-	if cfg.Bootloader.ConfigPath != "/flag/path" {
-		t.Errorf("expected bootloader path /flag/path, got %v", cfg.Bootloader.ConfigPath)
-	}
 	if cfg.InitSystem.Name != "sysd-flag" {
 		t.Errorf("expected init system sysd-flag, got %v", cfg.InitSystem.Name)
 	}
@@ -207,5 +194,8 @@ func TestLoad_WithFlags(t *testing.T) {
 	}
 	if cfg.HomeAssistant.WebhookID != "flag-webhook" {
 		t.Errorf("expected webhook flag-webhook, got %v", cfg.HomeAssistant.WebhookID)
+	}
+	if cfg.Grub.ConfigPath != "/flag/grub.cfg" {
+		t.Errorf("expected grub config /flag/grub.cfg, got %v", cfg.Grub.ConfigPath)
 	}
 }

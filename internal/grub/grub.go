@@ -1,4 +1,4 @@
-package bootloader
+package grub
 
 import (
 	"bufio"
@@ -20,12 +20,21 @@ const (
 	maxBufferCapacity = 1024 * 1024 // 1MB
 )
 
-const grubBootloader = "grub"
+// Grub represents the GRUB bootloader on this system.
+type Grub struct {
+	ConfigPath string
+}
+
+type SetupOptions struct {
+	TargetMAC string
+	TargetURL string
+	AuthToken string
+}
 
 var (
-	ErrGrubConfigNotFound = errors.New("no grub config found in known locations")
-	ErrInvalidHAURL       = errors.New("invalid home assistant url: scheme and host are required")
-	ErrNoGrubTool         = errors.New("neither update-grub nor grub2-mkconfig found in PATH")
+	ErrConfigNotFound = errors.New("no grub config found in known locations")
+	ErrInvalidHAURL   = errors.New("invalid home assistant url: scheme and host are required")
+	ErrNoGrubTool     = errors.New("neither update-grub nor grub2-mkconfig found in PATH")
 )
 
 var (
@@ -34,7 +43,7 @@ var (
 	execCommand             = exec.CommandContext
 )
 
-var grubPaths = []string{
+var configPaths = []string{
 	"/boot/grub/grub.cfg",
 	"/boot/grub2/grub.cfg",
 	"/boot/efi/EFI/fedora/grub.cfg",
@@ -45,32 +54,18 @@ var grubPaths = []string{
 //go:embed templates/99_remote_boot_agent.tmpl
 var grubTemplate string
 
-type Grub struct{}
-
-func NewGrub() Bootloader {
-	return &Grub{}
-}
-
-func (g *Grub) Name() string {
-	return grubBootloader
-}
-
-func (g *Grub) IsActive(ctx context.Context) bool {
-	_, err := findGrubConfig()
-	return err == nil
-}
-
+// DiscoverConfigPath attempts to auto-detect the GRUB config file path.
 func (g *Grub) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return findGrubConfig()
+	return findConfig()
 }
 
-func findGrubConfig() (string, error) {
-	for _, path := range grubPaths {
+func findConfig() (string, error) {
+	for _, path := range configPaths {
 		if _, err := os.Stat(path); err == nil {
 			return path, nil
 		}
 	}
-	return "", ErrGrubConfigNotFound
+	return "", ErrConfigNotFound
 }
 
 // countStructuralBraces ignores braces inside strings or comments to accurately track GRUB submenu lexical scoping.
@@ -112,17 +107,18 @@ func countStructuralBraces(line string) (int, int) {
 	return opens, closes
 }
 
-func (g *Grub) GetBootOptions(ctx context.Context, cfg Config) ([]string, error) {
+// GetBootOptions parses the GRUB configuration and returns available boot options.
+func (g *Grub) GetBootOptions(ctx context.Context) ([]string, error) {
 	slog.Debug("Parsing GRUB boot options...")
 
 	var grubPath string
 	var err error
 
-	if cfg.ConfigPath != "" {
-		grubPath = cfg.ConfigPath
+	if g.ConfigPath != "" {
+		grubPath = g.ConfigPath
 		slog.Debug("Using explicit GRUB config path", slog.String("path", grubPath))
 	} else {
-		grubPath, err = findGrubConfig()
+		grubPath, err = findConfig()
 		if err != nil {
 			return nil, fmt.Errorf("failed to locate grub config: %w", err)
 		}
@@ -198,8 +194,7 @@ func (g *Grub) GetBootOptions(ctx context.Context, cfg Config) ([]string, error)
 	return options, nil
 }
 
-// Install creates a new GRUB script in /etc/grub.d and updates the GRUB config by calling
-// update-grub or grub2-mkconfig.
+// Setup creates a GRUB remote boot agent script in /etc/grub.d and updates the GRUB config.
 func (g *Grub) Setup(ctx context.Context, opts SetupOptions) error {
 	u, err := url.Parse(opts.TargetURL)
 	if err != nil || u.Scheme == "" || u.Host == "" {
