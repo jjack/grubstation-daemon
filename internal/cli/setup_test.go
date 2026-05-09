@@ -282,16 +282,16 @@ func TestSetupCmd_Execute(t *testing.T) {
 				// Mock successful grub setup
 				oldExecLookPath := grub.ExecLookPath
 				oldExecCommand := grub.ExecCommand
-				oldHassPath := grub.HassGrubOSReporterPath
+				oldHassPath := grub.HassGrubStationPath
 				grub.ExecLookPath = func(file string) (string, error) { return "/bin/true", nil }
 				grub.ExecCommand = func(ctx context.Context, command string, args ...string) *exec.Cmd {
 					return exec.CommandContext(ctx, "/bin/true")
 				}
-				grub.HassGrubOSReporterPath = t.TempDir() + "/99_ha_grub_os_reporter"
+				grub.HassGrubStationPath = t.TempDir() + "/99_ha_grub_os_reporter"
 				t.Cleanup(func() {
 					grub.ExecLookPath = oldExecLookPath
 					grub.ExecCommand = oldExecCommand
-					grub.HassGrubOSReporterPath = oldHassPath
+					grub.HassGrubStationPath = oldHassPath
 				})
 
 				// Mock successful GetBootOptions and a working HA endpoint
@@ -325,16 +325,16 @@ func TestSetupCmd_Execute(t *testing.T) {
 				// Mock successful grub setup
 				oldExecLookPath := grub.ExecLookPath
 				oldExecCommand := grub.ExecCommand
-				oldHassPath := grub.HassGrubOSReporterPath
+				oldHassPath := grub.HassGrubStationPath
 				grub.ExecLookPath = func(file string) (string, error) { return "/bin/true", nil }
 				grub.ExecCommand = func(ctx context.Context, command string, args ...string) *exec.Cmd {
 					return exec.CommandContext(ctx, "/bin/true")
 				}
-				grub.HassGrubOSReporterPath = t.TempDir() + "/99_ha_grub_os_reporter"
+				grub.HassGrubStationPath = t.TempDir() + "/99_ha_grub_os_reporter"
 				t.Cleanup(func() {
 					grub.ExecLookPath = oldExecLookPath
 					grub.ExecCommand = oldExecCommand
-					grub.HassGrubOSReporterPath = oldHassPath
+					grub.HassGrubStationPath = oldHassPath
 				})
 
 				// Make GetBootOptions fail to trigger error in PushBootOptions

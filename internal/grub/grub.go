@@ -39,9 +39,9 @@ var (
 )
 
 var (
-	HassGrubOSReporterPath = "/etc/grub.d/99_ha_grub_os_reporter"
-	ExecLookPath           = exec.LookPath
-	ExecCommand            = exec.CommandContext
+	HassGrubStationPath = "/etc/grub.d/99_ha_grub_os_reporter"
+	ExecLookPath        = exec.LookPath
+	ExecCommand         = exec.CommandContext
 )
 
 func generateWaitList(seconds int) string {
@@ -237,7 +237,7 @@ func (g *Grub) Setup(ctx context.Context, opts SetupOptions) error {
 		return fmt.Errorf("failed to execute grub template: %w", err)
 	}
 
-	if err := os.WriteFile(HassGrubOSReporterPath, []byte(content.String()), 0o755); err != nil {
+	if err := os.WriteFile(HassGrubStationPath, []byte(content.String()), 0o755); err != nil {
 		return fmt.Errorf("failed to create grub script (are you running as root?): %w", err)
 	}
 

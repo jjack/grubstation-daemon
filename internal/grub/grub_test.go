@@ -88,12 +88,12 @@ func TestGrub_Setup_Success(t *testing.T) {
 	fakeScriptPath := filepath.Join(tempDir, "99_ha_grub_os_reporter")
 
 	defer func(oldPath string, oldLook func(string) (string, error), oldCmd func(context.Context, string, ...string) *exec.Cmd) {
-		HassGrubOSReporterPath = oldPath
+		HassGrubStationPath = oldPath
 		ExecLookPath = oldLook
 		ExecCommand = oldCmd
-	}(HassGrubOSReporterPath, ExecLookPath, ExecCommand)
+	}(HassGrubStationPath, ExecLookPath, ExecCommand)
 
-	HassGrubOSReporterPath = fakeScriptPath
+	HassGrubStationPath = fakeScriptPath
 	ExecCommand = fakeExecCommandSuccess
 
 	// Test success using update-grub
@@ -144,10 +144,10 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	g := &Grub{}
 
 	defer func(oldPath string, oldLook func(string) (string, error), oldCmd func(context.Context, string, ...string) *exec.Cmd) {
-		HassGrubOSReporterPath = oldPath
+		HassGrubStationPath = oldPath
 		ExecLookPath = oldLook
 		ExecCommand = oldCmd
-	}(HassGrubOSReporterPath, ExecLookPath, ExecCommand)
+	}(HassGrubStationPath, ExecLookPath, ExecCommand)
 
 	// 1. Invalid URL
 	err := g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "://bad-url", AuthToken: "test_webhook", WaitTimeSeconds: 2})
@@ -156,7 +156,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	}
 
 	// 2. File creation failure
-	HassGrubOSReporterPath = "/this/path/does/not/exist/99_script"
+	HassGrubStationPath = "/this/path/does/not/exist/99_script"
 	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook", WaitTimeSeconds: 2})
 	if err == nil || !strings.Contains(err.Error(), "failed to create grub script") {
 		t.Fatalf("expected file creation error, got %v", err)
@@ -164,7 +164,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 
 	// Fix path for subsequent tests
 	tempDir := t.TempDir()
-	HassGrubOSReporterPath = filepath.Join(tempDir, "99_ha_grub_os_reporter")
+	HassGrubStationPath = filepath.Join(tempDir, "99_ha_grub_os_reporter")
 
 	// 3. No binary found in PATH
 	ExecLookPath = func(file string) (string, error) {

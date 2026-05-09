@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	windowsServiceName        = "GrubOSReporter"
+	windowsServiceName        = "GrubStation"
 	windowsServiceDisplayName = "GrubStation"
 	windowsServiceDescription = "Persistent daemon for reporting boot options and remote shutdown"
 )

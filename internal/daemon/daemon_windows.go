@@ -13,7 +13,7 @@ import (
 	"golang.org/x/sys/windows/svc"
 )
 
-const windowsServiceName = "GrubOSReporter"
+const windowsServiceName = "GrubStation"
 
 // Run starts the daemon, optionally as a Windows service.
 func (d *Daemon) Run(ctx context.Context) error {
