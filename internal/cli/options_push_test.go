@@ -89,57 +89,6 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	}
 }
 
-func TestPushBootOptionsCommand_DefaultWOL(t *testing.T) {
-	var payload ha.PushPayload
-
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			t.Fatalf("failed to read body: %v", err)
-		}
-		if err := json.Unmarshal(body, &payload); err != nil {
-			t.Fatalf("failed to parse json: %v", err)
-		}
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	}))
-	defer ts.Close()
-
-	tempGrubPath := createPushTempGrubConfig(t)
-	cfg := &config.Config{
-		Host: config.HostConfig{
-			MACAddress: "aa:bb:cc:dd:ee:ff",
-			Name:       "test-name",
-			Address:    "10.0.0.1",
-		},
-		WakeOnLan: config.WakeOnLanConfig{
-			Address: config.DefaultWolAddress,
-			Port:    config.DefaultWolPort,
-		},
-		HomeAssistant: config.HomeAssistantConfig{
-			URL:       ts.URL,
-			WebhookID: "test-webhook",
-		},
-		Daemon: config.DaemonConfig{
-			ReportBootOptions: true,
-		},
-	}
-
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
-	cmd := NewPushCmd(deps)
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Ensure the defaults are mapped to empty/zero so they get stripped via omitempty in the JSON
-	if payload.WolAddress != "" {
-		t.Errorf("expected broadcast address to be omitted (empty string), got %s", payload.WolAddress)
-	}
-	if payload.WolPort != 0 {
-		t.Errorf("expected WOL port to be omitted (0), got %d", payload.WolPort)
-	}
-}
-
 func TestPushBootOptionsCommand_ZeroWOL(t *testing.T) {
 	var payload ha.PushPayload
 

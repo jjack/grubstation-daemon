@@ -43,25 +43,18 @@ func (r *Reporter) PushBootOptions(ctx context.Context, token string) error {
 	hostCfg := r.Config.Host
 	wolCfg := r.Config.WakeOnLan
 	haCfg := r.Config.HomeAssistant
-
-	wolAddress := wolCfg.Address
-	if wolAddress == config.DefaultWolAddress {
-		wolAddress = ""
-	}
-	wolPort := wolCfg.Port
-	if wolPort == config.DefaultWolPort {
-		wolPort = 0
-	}
+	daemonCfg := r.Config.Daemon
 
 	payload := ha.PushPayload{
 		MACAddress:   hostCfg.MACAddress,
-		WolAddress:   wolAddress,
-		WolPort:      wolPort,
+		WolAddress:   wolCfg.Address,
+		WolPort:      wolCfg.Port,
 		Name:         hostCfg.Name,
 		Address:      hostCfg.Address,
 		BootOptions:  bootOptions,
 		APIToken:     token,
 		AgentVersion: version.Version,
+		AgentPort:    daemonCfg.ListenPort,
 		Service:      r.ServiceName,
 	}
 

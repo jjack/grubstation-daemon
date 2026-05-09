@@ -105,15 +105,6 @@ menuentry 'Windows' {
 	if receivedPayload.Service != "test-service" {
 		t.Errorf("expected service test-service, got %s", receivedPayload.Service)
 	}
-
-	// Test default WOL logic
-	cfg.WakeOnLan.Address = config.DefaultWolAddress
-	cfg.WakeOnLan.Port = config.DefaultWolPort
-	receivedPayload = ha.PushPayload{}
-	_ = r.PushBootOptions(context.Background(), "token")
-	if receivedPayload.WolAddress != "" || receivedPayload.WolPort != 0 {
-		t.Errorf("expected default WOL info to be zeroed in payload, got %s:%d", receivedPayload.WolAddress, receivedPayload.WolPort)
-	}
 }
 
 func TestReporter_PushBootOptions_NoGrubReporting(t *testing.T) {

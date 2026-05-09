@@ -31,6 +31,7 @@ type PushPayload struct {
 	BootOptions  []string `json:"boot_options"`
 	APIToken     string   `json:"api_key,omitempty"`
 	AgentVersion string   `json:"agent_version,omitempty"`
+	AgentPort    int      `json:"agent_port,omitempty"`
 	Service      string   `json:"os_service,omitempty"`
 }
 
