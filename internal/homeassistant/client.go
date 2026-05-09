@@ -23,16 +23,16 @@ type Client struct {
 }
 
 type PushPayload struct {
-	MACAddress   string   `json:"mac"`
-	WolAddress   string   `json:"broadcast_address,omitempty"`
-	WolPort      int      `json:"broadcast_port,omitempty"`
-	Name         string   `json:"name"`
-	Address      string   `json:"address"`
-	BootOptions  []string `json:"boot_options"`
-	APIToken     string   `json:"api_key,omitempty"`
-	AgentVersion string   `json:"agent_version,omitempty"`
-	AgentPort    int      `json:"agent_port,omitempty"`
-	Service      string   `json:"os_service,omitempty"`
+	MACAddress     string   `json:"mac"`
+	WolAddress     string   `json:"broadcast_address,omitempty"`
+	WolPort        int      `json:"broadcast_port,omitempty"`
+	Name           string   `json:"name"`
+	Address        string   `json:"address"`
+	BootOptions    []string `json:"boot_options"`
+	APIToken       string   `json:"api_key,omitempty"`
+	Version        string   `json:"daemon_version,omitempty"`
+	Port           int      `json:"daemon_port,omitempty"`
+	ServiceManager string   `json:"service_manager,omitempty"`
 }
 
 func NewClient(baseURL, webhookID string, httpClient *http.Client) *Client {

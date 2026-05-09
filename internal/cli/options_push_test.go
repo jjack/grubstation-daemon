@@ -12,7 +12,7 @@ import (
 	"github.com/jjack/grubstation-cli/internal/config"
 	"github.com/jjack/grubstation-cli/internal/grub"
 	ha "github.com/jjack/grubstation-cli/internal/homeassistant"
-	"github.com/jjack/grubstation-cli/internal/service"
+	"github.com/jjack/grubstation-cli/internal/service_manager"
 )
 
 // createPushTempGrubConfig creates a temporary grub config file and returns its path and a cleanup function.
@@ -63,7 +63,7 @@ func TestPushBootOptionsCommand(t *testing.T) {
 		},
 	}
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, Registry: service_manager.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -125,7 +125,7 @@ func TestPushBootOptionsCommand_ZeroWOL(t *testing.T) {
 		},
 	}
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, Registry: service_manager.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -147,7 +147,7 @@ func TestPushBootOptionsCommand_GrubError(t *testing.T) {
 		},
 	}
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/invalid/path/grub.cfg"}, ServiceRegistry: service.NewRegistry()}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/invalid/path/grub.cfg"}, Registry: service_manager.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	err := cmd.Execute()
 
@@ -169,7 +169,7 @@ func TestPushBootOptionsCommand_HAClientError(t *testing.T) {
 	cfg := &config.Config{
 		HomeAssistant: config.HomeAssistantConfig{URL: ts.URL, WebhookID: "test"},
 	}
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, Registry: service_manager.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	err := cmd.Execute()
 
@@ -186,7 +186,7 @@ func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
 		},
 	}
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, Registry: service_manager.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	err := cmd.Execute()
 	if err == nil {

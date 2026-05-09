@@ -1,6 +1,6 @@
 //go:build linux
 
-package service
+package service_manager
 
 import (
 	"context"
@@ -29,7 +29,7 @@ var systemdTemplate string
 
 type Systemd struct{}
 
-func NewSystemd() ServiceManager {
+func NewSystemd() Manager {
 	return &Systemd{}
 }
 

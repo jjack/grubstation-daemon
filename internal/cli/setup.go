@@ -13,7 +13,7 @@ import (
 	"github.com/jjack/grubstation-cli/internal/config"
 	"github.com/jjack/grubstation-cli/internal/grub"
 	"github.com/jjack/grubstation-cli/internal/reporter"
-	"github.com/jjack/grubstation-cli/internal/service"
+	"github.com/jjack/grubstation-cli/internal/service_manager"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +23,7 @@ var (
 )
 
 func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error {
-	svc, err := deps.ServiceManager(cmd.Context())
+	mgr, err := deps.Manager(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -47,13 +47,13 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error
 		}
 	}
 
-	cmd.Printf("Installing into service manager: %s\n", svc.Name())
-	if err := svc.Install(cmd.Context(), absConfig); err != nil {
-		return fmt.Errorf("failed to install service: %w", err)
+	cmd.Printf("Installing into service manager: %s\n", mgr.Name())
+	if err := mgr.Install(cmd.Context(), absConfig); err != nil {
+		return fmt.Errorf("failed to install manager: %w", err)
 	}
 
 	cmd.Printf("Starting service...\n")
-	if err := svc.Start(cmd.Context()); err != nil {
+	if err := mgr.Start(cmd.Context()); err != nil {
 		cmd.Printf("Warning: failed to start service: %v\n", err)
 	}
 
@@ -93,10 +93,10 @@ func ensureSupport(ctx context.Context, deps *CommandDeps) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	_, err := deps.ServiceRegistry.Detect(ctx)
+	_, err := deps.Registry.Detect(ctx)
 	if err != nil {
-		if errors.Is(err, service.ErrNotSupported) {
-			supported := strings.Join(deps.ServiceRegistry.SupportedServices(), ", ")
+		if errors.Is(err, service_manager.ErrNotSupported) {
+			supported := strings.Join(deps.Registry.SupportedServices(), ", ")
 			return fmt.Errorf("no supported service manager detected. Please ensure you have one of the following installed: %s", supported)
 		}
 		return err
@@ -188,12 +188,12 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 				}
 
 				cmd.Println("\nPushing initial boot options to Home Assistant...")
-				svcMgr, _ := deps.ServiceManager(cmd.Context())
-				svcName := ""
-				if svcMgr != nil {
-					svcName = svcMgr.Name()
+				mgr, _ := deps.Manager(cmd.Context())
+				mgrName := ""
+				if mgr != nil {
+					mgrName = mgr.Name()
 				}
-				rep := reporter.New(deps.Config, deps.Grub, svcName)
+				rep := reporter.New(deps.Config, deps.Grub, mgrName)
 				if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
 					cmd.Printf("Warning: failed to push initial state to Home Assistant: %v\n", err)
 					cmd.Println("You can try pushing manually later with 'grubstation options push'")

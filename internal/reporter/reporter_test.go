@@ -17,7 +17,7 @@ import (
 
 func TestReporter_PushBootOptions_MissingConfig(t *testing.T) {
 	cfg := &config.Config{}
-	r := New(cfg, nil, "test-service")
+	r := New(cfg, nil, "test-manager")
 
 	err := r.PushBootOptions(context.Background(), "token")
 	if err != ErrMissingHAConfig {
@@ -81,7 +81,7 @@ menuentry 'Windows' {
 	}
 
 	g := &grub.Grub{ConfigPath: grubCfgPath}
-	r := New(cfg, g, "test-service")
+	r := New(cfg, g, "test-manager")
 
 	// 4. Execute
 	err = r.PushBootOptions(context.Background(), "tofu-token")
@@ -102,8 +102,8 @@ menuentry 'Windows' {
 	if receivedPayload.BootOptions[0] != "Linux" || receivedPayload.BootOptions[1] != "Windows" {
 		t.Errorf("unexpected boot options: %v", receivedPayload.BootOptions)
 	}
-	if receivedPayload.Service != "test-service" {
-		t.Errorf("expected service test-service, got %s", receivedPayload.Service)
+	if receivedPayload.ServiceManager != "test-manager" {
+		t.Errorf("expected service manager test-manager, got %s", receivedPayload.ServiceManager)
 	}
 }
 
@@ -122,7 +122,7 @@ func TestReporter_PushBootOptions_NoGrubReporting(t *testing.T) {
 		HomeAssistant: config.HomeAssistantConfig{URL: server.URL, WebhookID: "id"},
 		Daemon:        config.DaemonConfig{ReportBootOptions: false},
 	}
-	r := New(cfg, nil, "service")
+	r := New(cfg, nil, "manager")
 	err := r.PushBootOptions(context.Background(), "token")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -140,7 +140,7 @@ func TestReporter_PushBootOptions_GrubError(t *testing.T) {
 	}
 	// Use an invalid path to trigger GetBootOptions error
 	g := &grub.Grub{ConfigPath: "/non/existent/path/grub.cfg"}
-	r := New(cfg, g, "test-service")
+	r := New(cfg, g, "test-manager")
 
 	err := r.PushBootOptions(context.Background(), "token")
 	if err == nil {
@@ -166,7 +166,7 @@ func TestReporter_PushBootOptions_PushError(t *testing.T) {
 			ReportBootOptions: false,
 		},
 	}
-	r := New(cfg, nil, "test-service")
+	r := New(cfg, nil, "test-manager")
 
 	err := r.PushBootOptions(context.Background(), "token")
 	if err == nil {

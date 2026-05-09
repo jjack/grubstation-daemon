@@ -1,11 +1,11 @@
-package service
+package service_manager
 
 import (
 	"context"
 	"sort"
 )
 
-type Factory func() ServiceManager
+type Factory func() Manager
 
 type Registry struct {
 	services map[string]Factory
@@ -21,14 +21,14 @@ func (r *Registry) Register(name string, factory Factory) {
 	r.services[name] = factory
 }
 
-func (r *Registry) Get(name string) ServiceManager {
+func (r *Registry) Get(name string) Manager {
 	if factory, ok := r.services[name]; ok {
 		return factory()
 	}
 	return nil
 }
 
-func (r *Registry) Detect(ctx context.Context) (ServiceManager, error) {
+func (r *Registry) Detect(ctx context.Context) (Manager, error) {
 	var names []string
 	for name := range r.services {
 		names = append(names, name)
@@ -36,9 +36,9 @@ func (r *Registry) Detect(ctx context.Context) (ServiceManager, error) {
 	sort.Strings(names)
 
 	for _, name := range names {
-		svc := r.services[name]()
-		if svc.IsActive(ctx) {
-			return svc, nil
+		mgr := r.services[name]()
+		if mgr.IsActive(ctx) {
+			return mgr, nil
 		}
 	}
 	return nil, ErrNotSupported

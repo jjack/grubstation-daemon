@@ -1,12 +1,12 @@
-package service
+package service_manager
 
 import (
 	"context"
 	"errors"
 )
 
-// ServiceManager defines the interface for managing the agent as a background service.
-type ServiceManager interface {
+// Manager defines the interface for managing the agent as a background service.
+type Manager interface {
 	Name() string
 	IsActive(ctx context.Context) bool
 	Install(ctx context.Context, configPath string) error

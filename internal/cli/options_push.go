@@ -20,12 +20,12 @@ func NewPushCmd(deps *CommandDeps) *cobra.Command {
 				slog.Debug("Could not push via daemon socket, falling back to direct push", "error", err)
 			}
 
-			svcMgr, _ := deps.ServiceManager(cmd.Context())
-			svcName := ""
-			if svcMgr != nil {
-				svcName = svcMgr.Name()
+			mgr, _ := deps.Manager(cmd.Context())
+			mgrName := ""
+			if mgr != nil {
+				mgrName = mgr.Name()
 			}
-			rep := reporter.New(deps.Config, deps.Grub, svcName)
+			rep := reporter.New(deps.Config, deps.Grub, mgrName)
 			if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
 				return err
 			}

@@ -18,14 +18,14 @@ var ErrMissingHAConfig = errors.New("homeassistant url and webhook_id must be co
 type Reporter struct {
 	Config      *config.Config
 	Grub        *grub.Grub
-	ServiceName string
+	ManagerName string
 }
 
-func New(cfg *config.Config, g *grub.Grub, serviceName string) *Reporter {
+func New(cfg *config.Config, g *grub.Grub, managerName string) *Reporter {
 	return &Reporter{
 		Config:      cfg,
 		Grub:        g,
-		ServiceName: serviceName,
+		ManagerName: managerName,
 	}
 }
 
@@ -46,16 +46,16 @@ func (r *Reporter) PushBootOptions(ctx context.Context, token string) error {
 	daemonCfg := r.Config.Daemon
 
 	payload := ha.PushPayload{
-		MACAddress:   hostCfg.MACAddress,
-		WolAddress:   wolCfg.Address,
-		WolPort:      wolCfg.Port,
-		Name:         hostCfg.Name,
-		Address:      hostCfg.Address,
-		BootOptions:  bootOptions,
-		APIToken:     token,
-		AgentVersion: version.Version,
-		AgentPort:    daemonCfg.ListenPort,
-		Service:      r.ServiceName,
+		MACAddress:     hostCfg.MACAddress,
+		WolAddress:     wolCfg.Address,
+		WolPort:        wolCfg.Port,
+		Name:           hostCfg.Name,
+		Address:        hostCfg.Address,
+		BootOptions:    bootOptions,
+		APIToken:       token,
+		Version:        version.Version,
+		Port:           daemonCfg.ListenPort,
+		ServiceManager: r.ManagerName,
 	}
 
 	if haCfg.URL == "" || haCfg.WebhookID == "" {

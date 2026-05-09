@@ -36,14 +36,14 @@ func TestClient_Push(t *testing.T) {
 
 	client := NewClient(ts.URL, "test-webhook", nil)
 	payload := PushPayload{
-		MACAddress:   "aa:bb:cc:dd",
-		Name:         "test-name",
-		Address:      "10.0.0.1",
-		BootOptions:  []string{"Ubuntu", "Windows"},
-		WolAddress:   "192.168.1.255",
-		WolPort:      9,
-		AgentVersion: "v1.0.0",
-		Service:      "linux",
+		MACAddress:     "aa:bb:cc:dd",
+		Name:           "test-name",
+		Address:        "10.0.0.1",
+		BootOptions:    []string{"Ubuntu", "Windows"},
+		WolAddress:     "192.168.1.255",
+		WolPort:        9,
+		Version:        "v1.0.0",
+		ServiceManager: "systemd",
 	}
 
 	err := client.Push(context.Background(), payload)
@@ -54,11 +54,11 @@ func TestClient_Push(t *testing.T) {
 	if receivedPayload.MACAddress != "aa:bb:cc:dd" {
 		t.Errorf("expected MAC aa:bb:cc:dd, got %s", receivedPayload.MACAddress)
 	}
-	if receivedPayload.AgentVersion != "v1.0.0" {
-		t.Errorf("expected agent version v1.0.0, got %s", receivedPayload.AgentVersion)
+	if receivedPayload.Version != "v1.0.0" {
+		t.Errorf("expected agent version v1.0.0, got %s", receivedPayload.Version)
 	}
-	if receivedPayload.Service != "linux" {
-		t.Errorf("expected service linux, got %s", receivedPayload.Service)
+	if receivedPayload.ServiceManager != "systemd" {
+		t.Errorf("expected service manager systemd, got %s", receivedPayload.ServiceManager)
 	}
 	if len(receivedPayload.BootOptions) != 2 {
 		t.Errorf("expected 2 OSs, got %d", len(receivedPayload.BootOptions))

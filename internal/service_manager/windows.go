@@ -1,6 +1,6 @@
 //go:build windows
 
-package service
+package service_manager
 
 import (
 	"context"
@@ -20,7 +20,7 @@ const (
 
 type WindowsService struct{}
 
-func NewWindowsService() ServiceManager {
+func NewWindowsService() Manager {
 	return &WindowsService{}
 }
 

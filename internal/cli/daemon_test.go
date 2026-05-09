@@ -10,7 +10,7 @@ import (
 	"github.com/jjack/grubstation-cli/internal/config"
 	"github.com/jjack/grubstation-cli/internal/daemon"
 	"github.com/jjack/grubstation-cli/internal/grub"
-	"github.com/jjack/grubstation-cli/internal/service"
+	"github.com/jjack/grubstation-cli/internal/service_manager"
 )
 
 type mockDaemonRunner struct {
@@ -43,7 +43,7 @@ func TestNewDaemonCmd_RunEInvokesDaemon(t *testing.T) {
 	cfg := &config.Config{
 		Daemon: config.DaemonConfig{ListenPort: 1234, ReportBootOptions: true},
 	}
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/tmp/grub.cfg"}, ServiceRegistry: service.NewRegistry()}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/tmp/grub.cfg"}, Registry: service_manager.NewRegistry()}
 	cmd := NewDaemonCmd(deps)
 	cmd.SetOut(&bytes.Buffer{})
 
