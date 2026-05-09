@@ -84,7 +84,7 @@ func (s *Systemd) Install(ctx context.Context, configPath string) error {
 		return fmt.Errorf("failed to reload systemd daemon: %s", string(out))
 	}
 
-	if out, err := execCommand(ctx, "systemctl", "enable", "grubstation-cli.service").CombinedOutput(); err != nil {
+	if out, err := execCommand(ctx, "systemctl", "enable", "grubstation.service").CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to enable systemd service: %s", string(out))
 	}
 
@@ -92,8 +92,8 @@ func (s *Systemd) Install(ctx context.Context, configPath string) error {
 }
 
 func (s *Systemd) Uninstall(ctx context.Context) error {
-	_ = execCommand(ctx, "systemctl", "stop", "grubstation-cli.service").Run()
-	_ = execCommand(ctx, "systemctl", "disable", "grubstation-cli.service").Run()
+	_ = execCommand(ctx, "systemctl", "stop", "grubstation.service").Run()
+	_ = execCommand(ctx, "systemctl", "disable", "grubstation.service").Run()
 
 	if err := os.Remove(systemdServicePath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove systemd service file: %w", err)
@@ -107,14 +107,14 @@ func (s *Systemd) Uninstall(ctx context.Context) error {
 }
 
 func (s *Systemd) Start(ctx context.Context) error {
-	if out, err := execCommand(ctx, "systemctl", "start", "grubstation-cli.service").CombinedOutput(); err != nil {
+	if out, err := execCommand(ctx, "systemctl", "start", "grubstation.service").CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to start systemd service: %s", string(out))
 	}
 	return nil
 }
 
 func (s *Systemd) Stop(ctx context.Context) error {
-	if out, err := execCommand(ctx, "systemctl", "stop", "grubstation-cli.service").CombinedOutput(); err != nil {
+	if out, err := execCommand(ctx, "systemctl", "stop", "grubstation.service").CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to stop systemd service: %s", string(out))
 	}
 	return nil
