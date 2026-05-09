@@ -1,6 +1,6 @@
 {
     "name": "Go",
-    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+    "image": "mcr.microsoft.com/devcontainers/go:1.26",
     "customizations": {
         "vscode": {
             "settings": {
@@ -11,24 +11,13 @@
                 "editor.formatOnType": false,
                 "files.trimFinalNewlines": false,
                 "go.toolsManagement.checkForUpdates": "local",
-                "go.useLanguageServer": true,
-                "githubLocalActions.actCommand": "/usr/local/bin/act"
+                "go.useLanguageServer": true
             },
             "extensions": [
-                "golang.Go",
-                "sanjulaganepola.github-local-actions"
+                "golang.Go"
             ]
         }
     },
     "remoteUser": "vscode",
-    "features": {
-        "ghcr.io/devcontainers/features/go:1": {
-            "version": "1.26"
-        },
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {
-            "version": "latest",
-            "moby": false
-        },
-        "ghcr.io/devcontainers-extra/features/act:1": {}
-    }
+    "features": {}
 }
