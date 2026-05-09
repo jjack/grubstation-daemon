@@ -7,11 +7,11 @@ import (
 	"net"
 	"os"
 
-	"github.com/jjack/grub-os-reporter/internal/config"
-	"github.com/jjack/grub-os-reporter/internal/grub"
-	"github.com/jjack/grub-os-reporter/internal/homeassistant"
-	"github.com/jjack/grub-os-reporter/internal/host"
-	"github.com/jjack/grub-os-reporter/internal/service"
+	"github.com/jjack/grubstation-cli/internal/config"
+	"github.com/jjack/grubstation-cli/internal/grub"
+	"github.com/jjack/grubstation-cli/internal/homeassistant"
+	"github.com/jjack/grubstation-cli/internal/host"
+	"github.com/jjack/grubstation-cli/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -86,8 +86,8 @@ func NewCLI() *CLI {
 	var debugMode bool
 
 	rootCmd := &cobra.Command{
-		Use:           "grub-os-reporter",
-		Short:         "grub-os-reporter reads boot configurations and posts them to Home Assistant",
+		Use:           "grubstation",
+		Short:         "grubstation reads boot configurations and posts them to Home Assistant",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

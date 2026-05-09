@@ -13,7 +13,7 @@ import (
 	"syscall"
 )
 
-var SocketPath = "/var/run/grub-os-reporter.sock"
+var SocketPath = "/var/run/grubstation.sock"
 
 // Run starts the daemon and waits for termination signals.
 func (d *Daemon) Run(ctx context.Context) error {

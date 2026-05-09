@@ -1,10 +1,10 @@
 # Init System Configuration
 
-> **Note:** The `sudo grub-os-reporter setup` and `sudo grub-os-reporter apply` commands handle this automatically. You only need to follow these steps if you are manually configuring the system.
+> **Note:** The `sudo grubstation setup` and `sudo grubstation apply` commands handle this automatically. You only need to follow these steps if you are manually configuring the system.
 
 ## Configure the Init Manager Shutdown Hook
 
-To run the `push` command on every system shutdown, create a systemd service file at `/etc/systemd/system/grub-os-reporter.service`:
+To run the `push` command on every system shutdown, create a systemd service file at `/etc/systemd/system/grubstation.service`:
 
 ```ini
 [Unit]
@@ -15,7 +15,7 @@ Requires=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/grub-os-reporter options push --config /etc/grub-os-reporter/config.yaml
+ExecStart=/usr/local/bin/grubstation options push --config /etc/grubstation/config.yaml
 TimeoutSec=10
 
 [Install]
@@ -26,5 +26,5 @@ Enable and reload the daemon:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable grub-os-reporter.service
+sudo systemctl enable grubstation.service
 ```

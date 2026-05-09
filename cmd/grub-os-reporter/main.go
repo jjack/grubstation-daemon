@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/jjack/grub-os-reporter/internal/cli"
+	"github.com/jjack/grubstation-cli/internal/cli"
 )
 
 func main() {

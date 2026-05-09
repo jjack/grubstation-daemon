@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/grub-os-reporter/internal/config"
+	"github.com/jjack/grubstation-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -428,10 +428,10 @@ func TestPrintConfigSummary(t *testing.T) {
 		},
 	}
 
-	PrintConfigSummary(cmd, cfg, "/etc/grub-os-reporter/config.yaml")
+	PrintConfigSummary(cmd, cfg, "/etc/grubstation/config.yaml")
 
 	out := buf.String()
-	if !strings.Contains(out, "/etc/grub-os-reporter/config.yaml") {
+	if !strings.Contains(out, "/etc/grubstation/config.yaml") {
 		t.Errorf("expected config path, got %s", out)
 	}
 	if !strings.Contains(out, "address: 192.168.1.255") {

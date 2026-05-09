@@ -1,4 +1,4 @@
-module github.com/jjack/grub-os-reporter
+module github.com/jjack/grubstation-cli
 
 go 1.26.2
 

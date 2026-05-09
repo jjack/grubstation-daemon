@@ -14,7 +14,7 @@ import (
 
 const (
 	windowsServiceName        = "GrubOSReporter"
-	windowsServiceDisplayName = "Grub OS Reporter"
+	windowsServiceDisplayName = "GrubStation"
 	windowsServiceDescription = "Persistent daemon for reporting boot options and remote shutdown"
 )
 
@@ -60,7 +60,7 @@ func (w *WindowsService) Install(ctx context.Context, configPath string) error {
 		return err
 	}
 
-	// The service will run: grub-os-reporter.exe daemon --config C:\path\to\config.yaml
+	// The service will run: grubstation.exe daemon --config C:\path\to\config.yaml
 	s, err = m.CreateService(windowsServiceName, exepath, mgr.Config{
 		DisplayName:    windowsServiceDisplayName,
 		Description:    windowsServiceDescription,

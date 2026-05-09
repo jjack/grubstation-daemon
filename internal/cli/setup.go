@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/grub-os-reporter/internal/cli/survey"
-	"github.com/jjack/grub-os-reporter/internal/config"
-	"github.com/jjack/grub-os-reporter/internal/grub"
-	"github.com/jjack/grub-os-reporter/internal/reporter"
-	"github.com/jjack/grub-os-reporter/internal/service"
+	"github.com/jjack/grubstation-cli/internal/cli/survey"
+	"github.com/jjack/grubstation-cli/internal/config"
+	"github.com/jjack/grubstation-cli/internal/grub"
+	"github.com/jjack/grubstation-cli/internal/reporter"
+	"github.com/jjack/grubstation-cli/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -117,7 +117,7 @@ func defaultCheckWriteAccess(path string) error {
 
 	// File doesn't exist, check directory for write access.
 	dir := filepath.Dir(path)
-	testFile := filepath.Join(dir, ".grub-os-reporter-write-test")
+	testFile := filepath.Join(dir, ".grubstation-write-test")
 	f, err := os.Create(testFile)
 	if err != nil {
 		return fmt.Errorf("no write access to directory %s (try running with sudo?): %w", dir, err)
@@ -196,15 +196,15 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 				rep := reporter.New(deps.Config, deps.Grub, svcName)
 				if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
 					cmd.Printf("Warning: failed to push initial state to Home Assistant: %v\n", err)
-					cmd.Println("You can try pushing manually later with 'grub-os-reporter options push'")
+					cmd.Println("You can try pushing manually later with 'grubstation options push'")
 				} else {
 					cmd.Println("Successfully pushed initial state to Home Assistant.")
 				}
 				return nil
 			}
 
-			cmd.Println("\nSetup complete. You can apply the system hooks later by running 'grub-os-reporter apply'")
-			cmd.Println("To populate Home Assistant immediately without rebooting, run: grub-os-reporter options push")
+			cmd.Println("\nSetup complete. You can apply the system hooks later by running 'grubstation apply'")
+			cmd.Println("To populate Home Assistant immediately without rebooting, run: grubstation options push")
 			return nil
 		},
 	}

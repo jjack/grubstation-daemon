@@ -11,8 +11,8 @@ config.yaml
 # Test binary, built with `go test -c`
 *.test
 
-# Test binary, built with `go build -o grub-os-reporter ./cmd/grub-os-reporter`
-/grub-os-reporter
+# Test binary, built with `go build -o grubstation ./cmd/grubstation`
+/grubstation
 
 # Output directory for locally built binaries
 /bin/

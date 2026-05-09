@@ -18,13 +18,13 @@ const systemdName = "systemd"
 var systemdDir = "/run/systemd/system"
 
 var (
-	systemdServicePath = "/etc/systemd/system/grub-os-reporter.service"
+	systemdServicePath = "/etc/systemd/system/grubstation.service"
 	osExecutable       = os.Executable
 	osWriteFile        = os.WriteFile
 	execCommand        = exec.CommandContext
 )
 
-//go:embed templates/grub-os-reporter.service.tmpl
+//go:embed templates/grubstation.service.tmpl
 var systemdTemplate string
 
 type Systemd struct{}
@@ -84,7 +84,7 @@ func (s *Systemd) Install(ctx context.Context, configPath string) error {
 		return fmt.Errorf("failed to reload systemd daemon: %s", string(out))
 	}
 
-	if out, err := execCommand(ctx, "systemctl", "enable", "grub-os-reporter.service").CombinedOutput(); err != nil {
+	if out, err := execCommand(ctx, "systemctl", "enable", "grubstation-cli.service").CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to enable systemd service: %s", string(out))
 	}
 
@@ -92,8 +92,8 @@ func (s *Systemd) Install(ctx context.Context, configPath string) error {
 }
 
 func (s *Systemd) Uninstall(ctx context.Context) error {
-	_ = execCommand(ctx, "systemctl", "stop", "grub-os-reporter.service").Run()
-	_ = execCommand(ctx, "systemctl", "disable", "grub-os-reporter.service").Run()
+	_ = execCommand(ctx, "systemctl", "stop", "grubstation-cli.service").Run()
+	_ = execCommand(ctx, "systemctl", "disable", "grubstation-cli.service").Run()
 
 	if err := os.Remove(systemdServicePath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove systemd service file: %w", err)
@@ -107,14 +107,14 @@ func (s *Systemd) Uninstall(ctx context.Context) error {
 }
 
 func (s *Systemd) Start(ctx context.Context) error {
-	if out, err := execCommand(ctx, "systemctl", "start", "grub-os-reporter.service").CombinedOutput(); err != nil {
+	if out, err := execCommand(ctx, "systemctl", "start", "grubstation-cli.service").CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to start systemd service: %s", string(out))
 	}
 	return nil
 }
 
 func (s *Systemd) Stop(ctx context.Context) error {
-	if out, err := execCommand(ctx, "systemctl", "stop", "grub-os-reporter.service").CombinedOutput(); err != nil {
+	if out, err := execCommand(ctx, "systemctl", "stop", "grubstation-cli.service").CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to stop systemd service: %s", string(out))
 	}
 	return nil

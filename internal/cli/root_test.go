@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jjack/grub-os-reporter/internal/config"
+	"github.com/jjack/grubstation-cli/internal/config"
 )
 
 func TestDefaultSystemResolver(t *testing.T) {
@@ -54,8 +54,8 @@ func TestNewCLI(t *testing.T) {
 	if cli.RootCmd == nil {
 		t.Fatal("expected RootCmd to be initialized")
 	}
-	if cli.RootCmd.Use != "grub-os-reporter" {
-		t.Errorf("expected use 'grub-os-reporter', got %s", cli.RootCmd.Use)
+	if cli.RootCmd.Use != "grubstation" {
+		t.Errorf("expected use 'grubstation', got %s", cli.RootCmd.Use)
 	}
 }
 

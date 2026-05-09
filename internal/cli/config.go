@@ -7,7 +7,7 @@ import (
 func NewConfigCmd(deps *CommandDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config",
-		Short: "Manage the grub-os-reporter configuration",
+		Short: "Manage the grubstation configuration",
 	}
 
 	cmd.AddCommand(NewConfigValidateCmd(deps))

@@ -3,8 +3,8 @@ package cli
 import (
 	"log/slog"
 
-	"github.com/jjack/grub-os-reporter/internal/daemon"
-	"github.com/jjack/grub-os-reporter/internal/reporter"
+	"github.com/jjack/grubstation-cli/internal/daemon"
+	"github.com/jjack/grubstation-cli/internal/reporter"
 	"github.com/spf13/cobra"
 )
 

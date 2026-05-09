@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/grub-os-reporter/internal/config"
-	"github.com/jjack/grub-os-reporter/internal/grub"
-	ha "github.com/jjack/grub-os-reporter/internal/homeassistant"
-	"github.com/jjack/grub-os-reporter/internal/service"
+	"github.com/jjack/grubstation-cli/internal/config"
+	"github.com/jjack/grubstation-cli/internal/grub"
+	ha "github.com/jjack/grubstation-cli/internal/homeassistant"
+	"github.com/jjack/grubstation-cli/internal/service"
 )
 
 // createPushTempGrubConfig creates a temporary grub config file and returns its path and a cleanup function.

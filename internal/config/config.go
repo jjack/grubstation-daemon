@@ -17,9 +17,9 @@ const (
 
 func DefaultConfigPath() string {
 	if runtime.GOOS == "windows" {
-		return filepath.Join(os.Getenv("AppData"), "grub-os-reporter", "config.yaml")
+		return filepath.Join(os.Getenv("AppData"), "grubstation", "config.yaml")
 	}
-	return "/etc/grub-os-reporter/config.yaml"
+	return "/etc/grubstation/config.yaml"
 }
 
 const (

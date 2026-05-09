@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/grub-os-reporter/internal/cli/survey"
-	"github.com/jjack/grub-os-reporter/internal/config"
-	"github.com/jjack/grub-os-reporter/internal/grub"
-	"github.com/jjack/grub-os-reporter/internal/service"
+	"github.com/jjack/grubstation-cli/internal/cli/survey"
+	"github.com/jjack/grubstation-cli/internal/config"
+	"github.com/jjack/grubstation-cli/internal/grub"
+	"github.com/jjack/grubstation-cli/internal/service"
 )
 
 type mockInstallInitSystem struct {
@@ -150,8 +150,8 @@ func TestSetupCmd_ConfigFlagFallback(t *testing.T) {
 		t.Fatalf("expected no error from setup fallback, got %v", err)
 	}
 
-	if savedPath != "/etc/grub-os-reporter/config.yaml" {
-		t.Errorf("expected default fallback path /etc/grub-os-reporter/config.yaml, got %s", savedPath)
+	if savedPath != "/etc/grubstation/config.yaml" {
+		t.Errorf("expected default fallback path /etc/grubstation/config.yaml, got %s", savedPath)
 	}
 }
 
@@ -188,7 +188,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 			wantInstall: false,
 			wantOut: []string{
 				"Setup complete. You can apply the system hooks later",
-				"To populate Home Assistant immediately without rebooting, run: grub-os-reporter options push",
+				"To populate Home Assistant immediately without rebooting, run: grubstation options push",
 			},
 		},
 		{
@@ -489,7 +489,6 @@ func TestSurveyDepsAdapter(t *testing.T) {
 	if got := adapter.GetSystemResolver(); got != deps.SystemResolver {
 		t.Fatalf("expected system resolver to be returned")
 	}
-
 }
 
 func TestApplyCmd_StartServiceWarning(t *testing.T) {
@@ -591,7 +590,7 @@ type mockSurveyDeps struct {
 	resolver *mockSystemResolver
 }
 
-func (m *mockSurveyDeps) GetSystemResolver() survey.SystemResolver          { return m.resolver }
+func (m *mockSurveyDeps) GetSystemResolver() survey.SystemResolver { return m.resolver }
 
 func setupSurveyDeps(t *testing.T) *mockSurveyDeps {
 	return &mockSurveyDeps{

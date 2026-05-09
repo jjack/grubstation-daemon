@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/grub-os-reporter/internal/config"
-	"github.com/jjack/grub-os-reporter/internal/grub"
-	ha "github.com/jjack/grub-os-reporter/internal/homeassistant"
+	"github.com/jjack/grubstation-cli/internal/config"
+	"github.com/jjack/grubstation-cli/internal/grub"
+	ha "github.com/jjack/grubstation-cli/internal/homeassistant"
 )
 
 func TestReporter_PushBootOptions_MissingConfig(t *testing.T) {
