@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/jjack/grubstation-cli/internal/cli"
+	"github.com/jjack/grubstation-daemon/internal/cli"
 )
 
 func main() {

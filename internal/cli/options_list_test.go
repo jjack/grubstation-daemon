@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/grubstation-cli/internal/config"
-	"github.com/jjack/grubstation-cli/internal/grub"
+	"github.com/jjack/grubstation-daemon/internal/config"
+	"github.com/jjack/grubstation-daemon/internal/grub"
 )
 
 func createListTempGrubConfig(t *testing.T, content string) string {

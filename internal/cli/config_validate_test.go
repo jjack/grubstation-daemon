@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/grubstation-cli/internal/config"
+	"github.com/jjack/grubstation-daemon/internal/config"
 )
 
 func TestConfigValidateCmd_Valid(t *testing.T) {

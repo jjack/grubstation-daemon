@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jjack/grubstation-cli/internal/config"
+	"github.com/jjack/grubstation-daemon/internal/config"
 )
 
 func TestDefaultSystemResolver(t *testing.T) {

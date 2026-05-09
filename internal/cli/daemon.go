@@ -3,8 +3,8 @@ package cli
 import (
 	"context"
 
-	"github.com/jjack/grubstation-cli/internal/daemon"
-	"github.com/jjack/grubstation-cli/internal/reporter"
+	"github.com/jjack/grubstation-daemon/internal/daemon"
+	"github.com/jjack/grubstation-daemon/internal/reporter"
 	"github.com/spf13/cobra"
 )
 

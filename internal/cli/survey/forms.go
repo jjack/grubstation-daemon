@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/grubstation-cli/internal/config"
+	"github.com/jjack/grubstation-daemon/internal/config"
 	"github.com/spf13/cobra"
 )
 

@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
-	"github.com/jjack/grubstation-cli/internal/cli/survey"
-	"github.com/jjack/grubstation-cli/internal/config"
-	"github.com/jjack/grubstation-cli/internal/grub"
-	"github.com/jjack/grubstation-cli/internal/reporter"
-	"github.com/jjack/grubstation-cli/internal/service_manager"
+	"github.com/jjack/grubstation-daemon/internal/cli/survey"
+	"github.com/jjack/grubstation-daemon/internal/config"
+	"github.com/jjack/grubstation-daemon/internal/grub"
+	"github.com/jjack/grubstation-daemon/internal/reporter"
+	"github.com/jjack/grubstation-daemon/internal/service_manager"
 	"github.com/spf13/cobra"
 )
 
