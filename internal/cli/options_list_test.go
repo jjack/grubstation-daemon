@@ -22,7 +22,9 @@ func createListTempGrubConfig(t *testing.T, content string) string {
 }
 
 func TestGetBootOptionsCommand(t *testing.T) {
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		Daemon: config.DaemonConfig{ReportBootOptions: true},
+	}
 	tempGrubPath := createListTempGrubConfig(t, "menuentry 'Ubuntu' {}\nmenuentry 'Windows' {}\n")
 
 	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
@@ -54,7 +56,9 @@ func TestGetBootOptionsCommand(t *testing.T) {
 }
 
 func TestGetBootOptionsCommand_GrubError(t *testing.T) {
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		Daemon: config.DaemonConfig{ReportBootOptions: true},
+	}
 
 	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: t.TempDir()}}
 	cmd := NewListCmd(deps)
@@ -69,7 +73,9 @@ func TestGetBootOptionsCommand_GrubError(t *testing.T) {
 }
 
 func TestGetBootOptionsCommand_EmptyOptions(t *testing.T) {
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		Daemon: config.DaemonConfig{ReportBootOptions: true},
+	}
 	tempGrubPath := createListTempGrubConfig(t, "")
 
 	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}

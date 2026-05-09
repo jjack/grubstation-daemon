@@ -12,6 +12,7 @@ import (
 	"github.com/jjack/grub-os-reporter/internal/config"
 	"github.com/jjack/grub-os-reporter/internal/grub"
 	ha "github.com/jjack/grub-os-reporter/internal/homeassistant"
+	"github.com/jjack/grub-os-reporter/internal/service"
 )
 
 // createPushTempGrubConfig creates a temporary grub config file and returns its path and a cleanup function.
@@ -38,25 +39,31 @@ func TestPushBootOptionsCommand(t *testing.T) {
 			t.Fatalf("failed to parse json: %v", err)
 		}
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
 	}))
 	defer ts.Close()
 
 	tempGrubPath := createPushTempGrubConfig(t)
 	cfg := &config.Config{
 		Host: config.HostConfig{
-			MACAddress:       "aa:bb:cc:dd:ee:ff",
-			BroadcastAddress: "192.168.1.255",
-			BroadcastPort:    7, // use a custom port to ensure it gets passed
-			Name:             "test-name",
-			Address:          "10.0.0.1",
+			MACAddress: "aa:bb:cc:dd:ee:ff",
+			Name:       "test-name",
+			Address:    "10.0.0.1",
+		},
+		WakeOnLan: config.WakeOnLanConfig{
+			Address: "192.168.1.255",
+			Port:    7,
 		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       ts.URL,
 			WebhookID: "test-webhook",
 		},
+		Daemon: config.DaemonConfig{
+			ReportBootOptions: true,
+		},
 	}
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -65,11 +72,11 @@ func TestPushBootOptionsCommand(t *testing.T) {
 	if payload.MACAddress != "aa:bb:cc:dd:ee:ff" {
 		t.Errorf("expected MAC address aa:bb:cc:dd:ee:ff, got %s", payload.MACAddress)
 	}
-	if payload.BroadcastAddress != "192.168.1.255" {
-		t.Errorf("expected broadcast address 192.168.1.255, got %s", payload.BroadcastAddress)
+	if payload.WolAddress != "192.168.1.255" {
+		t.Errorf("expected broadcast address 192.168.1.255, got %s", payload.WolAddress)
 	}
-	if payload.BroadcastPort != 7 {
-		t.Errorf("expected custom WOL port 7, got %d", payload.BroadcastPort)
+	if payload.WolPort != 7 {
+		t.Errorf("expected custom WOL port 7, got %d", payload.WolPort)
 	}
 	if payload.Name != "test-name" {
 		t.Errorf("expected name test-name, got %s", payload.Name)
@@ -94,36 +101,42 @@ func TestPushBootOptionsCommand_DefaultWOL(t *testing.T) {
 			t.Fatalf("failed to parse json: %v", err)
 		}
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
 	}))
 	defer ts.Close()
 
 	tempGrubPath := createPushTempGrubConfig(t)
 	cfg := &config.Config{
 		Host: config.HostConfig{
-			MACAddress:       "aa:bb:cc:dd:ee:ff",
-			BroadcastAddress: config.DefaultBroadcastAddress,
-			BroadcastPort:    config.DefaultBroadcastPort,
-			Name:             "test-name",
-			Address:          "10.0.0.1",
+			MACAddress: "aa:bb:cc:dd:ee:ff",
+			Name:       "test-name",
+			Address:    "10.0.0.1",
+		},
+		WakeOnLan: config.WakeOnLanConfig{
+			Address: config.DefaultWolAddress,
+			Port:    config.DefaultWolPort,
 		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       ts.URL,
 			WebhookID: "test-webhook",
 		},
+		Daemon: config.DaemonConfig{
+			ReportBootOptions: true,
+		},
 	}
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Ensure the defaults are mapped to empty/zero so they get stripped via omitempty in the JSON
-	if payload.BroadcastAddress != "" {
-		t.Errorf("expected broadcast address to be omitted (empty string), got %s", payload.BroadcastAddress)
+	if payload.WolAddress != "" {
+		t.Errorf("expected broadcast address to be omitted (empty string), got %s", payload.WolAddress)
 	}
-	if payload.BroadcastPort != 0 {
-		t.Errorf("expected WOL port to be omitted (0), got %d", payload.BroadcastPort)
+	if payload.WolPort != 0 {
+		t.Errorf("expected WOL port to be omitted (0), got %d", payload.WolPort)
 	}
 }
 
@@ -139,43 +152,53 @@ func TestPushBootOptionsCommand_ZeroWOL(t *testing.T) {
 			t.Fatalf("failed to parse json: %v", err)
 		}
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
 	}))
 	defer ts.Close()
 
 	tempGrubPath := createPushTempGrubConfig(t)
 	cfg := &config.Config{
 		Host: config.HostConfig{
-			MACAddress:       "aa:bb:cc:dd:ee:ff",
-			BroadcastAddress: "", // Zero value instead of default
-			BroadcastPort:    0,  // Zero value instead of default
-			Name:             "test-name",
-			Address:          "10.0.0.1",
+			MACAddress: "aa:bb:cc:dd:ee:ff",
+			Name:       "test-name",
+			Address:    "10.0.0.1",
+		},
+		WakeOnLan: config.WakeOnLanConfig{
+			Address: "",
+			Port:    0,
 		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       ts.URL,
 			WebhookID: "test-webhook",
 		},
+		Daemon: config.DaemonConfig{
+			ReportBootOptions: true,
+		},
 	}
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Ensure the empty/zero values are handled correctly so they get stripped via omitempty in the JSON
-	if payload.BroadcastAddress != "" {
-		t.Errorf("expected broadcast address to be omitted (empty string), got %s", payload.BroadcastAddress)
+	if payload.WolAddress != "" {
+		t.Errorf("expected broadcast address to be omitted (empty string), got %s", payload.WolAddress)
 	}
-	if payload.BroadcastPort != 0 {
-		t.Errorf("expected WOL port to be omitted (0), got %d", payload.BroadcastPort)
+	if payload.WolPort != 0 {
+		t.Errorf("expected WOL port to be omitted (0), got %d", payload.WolPort)
 	}
 }
 
 func TestPushBootOptionsCommand_GrubError(t *testing.T) {
-	cfg := &config.Config{}
+	cfg := &config.Config{
+		Daemon: config.DaemonConfig{
+			ReportBootOptions: true,
+		},
+	}
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/invalid/path/grub.cfg"}}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/invalid/path/grub.cfg"}, ServiceRegistry: service.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	err := cmd.Execute()
 
@@ -197,7 +220,7 @@ func TestPushBootOptionsCommand_HAClientError(t *testing.T) {
 	cfg := &config.Config{
 		HomeAssistant: config.HomeAssistantConfig{URL: ts.URL, WebhookID: "test"},
 	}
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	err := cmd.Execute()
 
@@ -214,7 +237,7 @@ func TestPushBootOptionsCommand_MissingHAConfig(t *testing.T) {
 		},
 	}
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: tempGrubPath}, ServiceRegistry: service.NewRegistry()}
 	cmd := NewPushCmd(deps)
 	err := cmd.Execute()
 	if err == nil {

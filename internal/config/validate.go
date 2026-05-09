@@ -10,19 +10,37 @@ import (
 )
 
 var (
-	ErrAddressEmpty            = errors.New("address cannot be empty")
-	ErrInvalidBroadcastAddress = errors.New("invalid WOL address: must be a valid IP address")
-	ErrInvalidBroadcastPort    = errors.New("invalid WOL port: must be a number between 1 and 65535")
-	ErrInvalidHost             = errors.New("host must be a valid IP address or hostname (letters, numbers, hyphens, dots)")
-	ErrInvalidMACAddress       = errors.New("invalid MAC address format")
-	ErrInvalidURL              = errors.New("invalid URL format")
-	ErrMACAddressEmpty         = errors.New("mac address cannot be empty")
-	ErrHTTPSUnsupported        = errors.New("https is not supported by grub; please use an http:// url")
-	ErrNameEmpty               = errors.New("name cannot be empty")
-	ErrURLEmpty                = errors.New("url cannot be empty")
-	ErrWebhookIDEmpty          = errors.New("webhook id cannot be empty")
-	ErrWebhookIDInvalidChar    = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
+	ErrAddressEmpty          = errors.New("address cannot be empty")
+	ErrInvalidWolAddress     = errors.New("invalid WOL address: must be a valid IP address")
+	ErrInvalidWolPort        = errors.New("invalid WOL port: must be a number between 1 and 65535")
+	ErrGrubConfigPathEmpty   = errors.New("grub config path cannot be empty")
+	ErrGrubWaitTimeInvalid   = errors.New("grub wait time must be a number between 1 and 300 seconds")
+	ErrGrubWaitTimeEmpty     = errors.New("grub wait time cannot be empty")
+	ErrGrubWaitTimeNotNumber = errors.New("grub wait time must be a number")
+	ErrInvalidHost           = errors.New("host must be a valid IP address or hostname (letters, numbers, hyphens, dots)")
+	ErrInvalidMACAddress     = errors.New("invalid MAC address format")
+	ErrInvalidURL            = errors.New("invalid URL format")
+	ErrMACAddressEmpty       = errors.New("mac address cannot be empty")
+	ErrHTTPSUnsupported      = errors.New("https is not supported by grub; please use an http:// url")
+	ErrNameEmpty             = errors.New("name cannot be empty")
+	ErrURLEmpty              = errors.New("url cannot be empty")
+	ErrWebhookIDEmpty        = errors.New("webhook id cannot be empty")
+	ErrWebhookIDInvalidChar  = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
 )
+
+func ValidateGrubWaitTime(v string) error {
+	if v == "" {
+		return ErrGrubWaitTimeEmpty
+	}
+	val, err := strconv.Atoi(v)
+	if err != nil {
+		return ErrGrubWaitTimeNotNumber
+	}
+	if val < 1 || val > 300 {
+		return ErrGrubWaitTimeInvalid
+	}
+	return nil
+}
 
 func ValidateMACAddress(v string) error {
 	if v == "" {
@@ -59,18 +77,18 @@ func ValidateWebhookID(v string) error {
 	return nil
 }
 
-func ValidateBroadcastAddress(v string) error {
+func ValidateWolAddress(v string) error {
 	// empty means use the default address - 255.255.255.255
 	if v == "" {
 		return nil
 	}
 	if net.ParseIP(v) == nil {
-		return ErrInvalidBroadcastAddress
+		return ErrInvalidWolAddress
 	}
 	return nil
 }
 
-func ValidateBroadcastPort(v string) error {
+func ValidateWolPort(v string) error {
 	// empty means use the default port - 9
 	if v == "" {
 		return nil
@@ -78,7 +96,7 @@ func ValidateBroadcastPort(v string) error {
 	port, err := strconv.Atoi(v)
 	if err != nil || port < 1 || port > 65535 {
 		slog.Error("Invalid WOL port", "port", port)
-		return ErrInvalidBroadcastPort
+		return ErrInvalidWolPort
 	}
 	return nil
 }
@@ -99,14 +117,17 @@ func (c *Config) Validate() error {
 	if err := ValidateWebhookID(c.HomeAssistant.WebhookID); err != nil {
 		return err
 	}
-	portStr := ""
-	if c.Host.BroadcastPort != 0 {
-		portStr = strconv.Itoa(c.Host.BroadcastPort)
+	if c.Daemon.ReportBootOptions && c.Grub.ConfigPath == "" {
+		return ErrGrubConfigPathEmpty
 	}
-	if err := ValidateBroadcastPort(portStr); err != nil {
+	portStr := ""
+	if c.WakeOnLan.Port != 0 {
+		portStr = strconv.Itoa(c.WakeOnLan.Port)
+	}
+	if err := ValidateWolPort(portStr); err != nil {
 		return err
 	}
-	if err := ValidateBroadcastAddress(c.Host.BroadcastAddress); err != nil {
+	if err := ValidateWolAddress(c.WakeOnLan.Address); err != nil {
 		return err
 	}
 	return nil

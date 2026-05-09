@@ -1,4 +1,4 @@
-package system
+package host
 
 import (
 	"errors"
@@ -220,8 +220,8 @@ func TestGetIPv4Info_IPv6(t *testing.T) {
 	if len(ips) != 1 || ips[0] != "2001:db8::1" {
 		t.Errorf("expected ips to contain 2001:db8::1, got %v", ips)
 	}
-	if broadcasts["2001:db8::1"] == "" {
-		t.Errorf("expected broadcast to be calculated for IPv6")
+	if broadcasts["2001:db8::1"] != "" {
+		t.Errorf("expected NO broadcast to be calculated for IPv6")
 	}
 }
 

@@ -9,15 +9,21 @@ import (
 	"strings"
 
 	"charm.land/huh/v2"
+	"github.com/jjack/grub-os-reporter/internal/cli/survey"
+	"github.com/jjack/grub-os-reporter/internal/config"
 	"github.com/jjack/grub-os-reporter/internal/grub"
-	"github.com/jjack/grub-os-reporter/internal/initsystem"
+	"github.com/jjack/grub-os-reporter/internal/reporter"
+	"github.com/jjack/grub-os-reporter/internal/service"
 	"github.com/spf13/cobra"
 )
 
-var osMkdirAll = os.MkdirAll
+var (
+	osMkdirAll       = os.MkdirAll
+	checkWriteAccess = defaultCheckWriteAccess
+)
 
 func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error {
-	sys, err := deps.InitSystem(cmd.Context())
+	svc, err := deps.ServiceManager(cmd.Context())
 	if err != nil {
 		return err
 	}
@@ -27,26 +33,36 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error
 		return fmt.Errorf("failed to resolve config path: %w", err)
 	}
 
-	opts := grub.SetupOptions{
-		TargetMAC: deps.Config.Host.MACAddress,
-		TargetURL: deps.Config.HomeAssistant.URL,
-		AuthToken: deps.Config.HomeAssistant.WebhookID,
+	if deps.Config.Daemon.ReportBootOptions {
+		opts := grub.SetupOptions{
+			TargetMAC:       deps.Config.Host.MACAddress,
+			TargetURL:       deps.Config.HomeAssistant.URL,
+			AuthToken:       deps.Config.HomeAssistant.WebhookID,
+			WaitTimeSeconds: deps.Config.Grub.WaitTimeSeconds,
+		}
+
+		cmd.Printf("Installing into grub...\n")
+		if err := deps.Grub.Setup(cmd.Context(), opts); err != nil {
+			return fmt.Errorf("failed to install grub: %w", err)
+		}
 	}
 
-	cmd.Printf("Installing into grub...\n")
-	if err := deps.Grub.Setup(cmd.Context(), opts); err != nil {
-		return fmt.Errorf("failed to install grub: %w", err)
+	cmd.Printf("Installing into service manager: %s\n", svc.Name())
+	if err := svc.Install(cmd.Context(), absConfig); err != nil {
+		return fmt.Errorf("failed to install service: %w", err)
 	}
 
-	cmd.Printf("Installing into init system: %s\n", sys.Name())
-	if err := sys.Setup(cmd.Context(), absConfig); err != nil {
-		return fmt.Errorf("failed to install init system: %w", err)
+	cmd.Printf("Starting service...\n")
+	if err := svc.Start(cmd.Context()); err != nil {
+		cmd.Printf("Warning: failed to start service: %v\n", err)
 	}
 
 	cmd.Println("Installation completed successfully.")
 
-	if warning := deps.Grub.SetupWarning(); warning != "" {
-		cmd.Printf("\nNote: %s\n", warning)
+	if deps.Config.Daemon.ReportBootOptions {
+		if warning := deps.Grub.SetupWarning(); warning != "" {
+			cmd.Printf("\nNote: %s\n", warning)
+		}
 	}
 	return nil
 }
@@ -67,7 +83,7 @@ func NewApplyCmd(deps *CommandDeps) *cobra.Command {
 
 var runConfirm = func(installNow *bool) error {
 	return huh.NewConfirm().
-		Title("Would you like to install the grub and init system hooks now?").
+		Title("Would you like to install the service now?").
 		Description("(Requires root/sudo privileges)").
 		Value(installNow).
 		Run()
@@ -77,15 +93,46 @@ func ensureSupport(ctx context.Context, deps *CommandDeps) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	_, err := deps.InitRegistry.Detect(ctx)
+	_, err := deps.ServiceRegistry.Detect(ctx)
 	if err != nil {
-		if errors.Is(err, initsystem.ErrNotSupported) {
-			supported := strings.Join(deps.InitRegistry.SupportedInitSystems(), ", ")
-			return fmt.Errorf("no supported init system detected. Please ensure you have one of the following installed: %s", supported)
+		if errors.Is(err, service.ErrNotSupported) {
+			supported := strings.Join(deps.ServiceRegistry.SupportedServices(), ", ")
+			return fmt.Errorf("no supported service manager detected. Please ensure you have one of the following installed: %s", supported)
 		}
 		return err
 	}
 	return nil
+}
+
+func defaultCheckWriteAccess(path string) error {
+	// If the file exists, check if it's writable.
+	if _, err := os.Stat(path); err == nil {
+		f, err := os.OpenFile(path, os.O_WRONLY, 0)
+		if err != nil {
+			return fmt.Errorf("config file %s is not writable (try running with sudo?): %w", path, err)
+		}
+		f.Close()
+		return nil
+	}
+
+	// File doesn't exist, check directory for write access.
+	dir := filepath.Dir(path)
+	testFile := filepath.Join(dir, ".grub-os-reporter-write-test")
+	f, err := os.Create(testFile)
+	if err != nil {
+		return fmt.Errorf("no write access to directory %s (try running with sudo?): %w", dir, err)
+	}
+	f.Close()
+	os.Remove(testFile)
+	return nil
+}
+
+type surveyDepsAdapter struct {
+	deps *CommandDeps
+}
+
+func (a surveyDepsAdapter) GetSystemResolver() survey.SystemResolver {
+	return a.deps.SystemResolver
 }
 
 func NewSetupCmd(deps *CommandDeps) *cobra.Command {
@@ -100,24 +147,28 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 				return err
 			}
 
-			// Clear the terminal screen before starting the interactive prompts
-			cmd.Print("\033[H\033[2J")
-
-			cfg, err := runGenerateSurvey(cmd.Context(), deps)
-			if err != nil {
-				return err
-			}
-
 			cfgPath, err := cmd.Flags().GetString("config")
-			if err != nil {
-				cfgPath = "/etc/grub-os-reporter/config.yaml"
+			if err != nil || cfgPath == "" {
+				cfgPath = config.DefaultConfigPath()
 			}
-
-			printConfigSummary(cmd, cfg, cfgPath)
 
 			if err := osMkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
 				return fmt.Errorf("failed to create config directory: %w", err)
 			}
+
+			if err := checkWriteAccess(cfgPath); err != nil {
+				return err
+			}
+
+			// Clear the terminal screen before starting the interactive prompts
+			cmd.Print("\033[H\033[2J")
+
+			cfg, err := survey.RunGenerateSurvey(cmd.Context(), surveyDepsAdapter{deps: deps})
+			if err != nil {
+				return err
+			}
+
+			survey.PrintConfigSummary(cmd, cfg, cfgPath)
 
 			if err := deps.SystemResolver.SaveConfig(cfg, cfgPath); err != nil {
 				return err
@@ -137,7 +188,13 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 				}
 
 				cmd.Println("\nPushing initial boot options to Home Assistant...")
-				if err := PushBootOptions(cmd.Context(), deps); err != nil {
+				svcMgr, _ := deps.ServiceManager(cmd.Context())
+				svcName := ""
+				if svcMgr != nil {
+					svcName = svcMgr.Name()
+				}
+				rep := reporter.New(deps.Config, deps.Grub, svcName)
+				if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
 					cmd.Printf("Warning: failed to push initial state to Home Assistant: %v\n", err)
 					cmd.Println("You can try pushing manually later with 'grub-os-reporter options push'")
 				} else {

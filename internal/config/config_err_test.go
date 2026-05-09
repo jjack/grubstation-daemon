@@ -76,7 +76,7 @@ func TestLoad_BindPFlagError(t *testing.T) {
 	}
 
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
-	fs.String(FlagMac, "", "")
+	fs.String(FlagWolAddress, "", "")
 
 	_, err := Load("", fs)
 	if err == nil || !strings.Contains(err.Error(), "mock bind error") {

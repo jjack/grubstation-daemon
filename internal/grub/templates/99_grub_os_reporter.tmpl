@@ -12,9 +12,9 @@ set fetch_success="0"
 # Safely store the URL as a string to prevent wildcard/query parser crashes.
 set boot_url="(http,{{ .Host }})/api/remote_boot_manager/{{ .MACAddress }}?token={{ .WebhookID }}"
 
-# Wait up to 35 seconds for Spanning Tree Protocol to clear
-# GRUB can't math, so we iterate over a literal list of 35 items
-for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35; do
+# Wait up to {{ .WaitTimeSeconds }} seconds for Spanning Tree Protocol to clear
+# GRUB can't math, so we iterate over a literal list of {{ .WaitTimeSeconds }} items
+for i in {{ .WaitList }}; do
     if net_bootp; then
         # Try to fetch the Home Assistant webhook using the safe variable
         if source $boot_url; then

@@ -5,12 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
 )
 
-const HTTP_CLIENT_TIMEOUT = 10 * time.Second
+const (
+	HttpClientTimeout = 10 * time.Second
+	OKResponse        = "OK"
+)
 
 type Client struct {
 	BaseURL    string
@@ -19,17 +23,20 @@ type Client struct {
 }
 
 type PushPayload struct {
-	MACAddress       string   `json:"mac"`
-	BroadcastAddress string   `json:"broadcast_address,omitempty"`
-	BroadcastPort    int      `json:"broadcast_port,omitempty"`
-	Name             string   `json:"name"`
-	Address          string   `json:"address"`
-	BootOptions      []string `json:"boot_options"`
+	MACAddress   string   `json:"mac"`
+	WolAddress   string   `json:"broadcast_address,omitempty"`
+	WolPort      int      `json:"broadcast_port,omitempty"`
+	Name         string   `json:"name"`
+	Address      string   `json:"address"`
+	BootOptions  []string `json:"boot_options"`
+	APIToken     string   `json:"api_key,omitempty"`
+	AgentVersion string   `json:"agent_version,omitempty"`
+	Service      string   `json:"os_service,omitempty"`
 }
 
 func NewClient(baseURL, webhookID string, httpClient *http.Client) *Client {
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: HTTP_CLIENT_TIMEOUT}
+		httpClient = &http.Client{Timeout: HttpClientTimeout}
 	}
 	return &Client{
 		BaseURL:    baseURL,
@@ -62,8 +69,16 @@ func (c *Client) Push(ctx context.Context, payload PushPayload) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code received from home assistant: %d", resp.StatusCode)
+	}
+
+	bodyBytes, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+	if string(bodyBytes) != OKResponse {
+		return fmt.Errorf("unexpected response from home assistant (do you have the right webhook_id?): %s", string(bodyBytes))
 	}
 
 	return nil

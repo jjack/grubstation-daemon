@@ -13,14 +13,13 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 		"validate",
 		"--config", "../../config.sample.yaml",
 		"--grub-config", "/custom/grub.cfg",
-		"--mac", "aa:bb:cc:dd:ee:ff",
-		"--name", "override-name",
-		"--address", "10.0.0.1",
-		"--broadcast-address", "192.168.1.255",
-		"--broadcast-port", "7",
-		"--init-system", "systemd",
-		"--hass-url", "http://override-ha.local",
-		"--hass-webhook", "override-webhook",
+		"--host-mac", "aa:bb:cc:dd:ee:ff",
+		"--host-name", "override-name",
+		"--host-address", "10.0.0.1",
+		"--wol-address", "192.168.1.255",
+		"--wol-port", "7",
+		"--homeassistant-url", "http://override-ha.local",
+		"--homeassistant-webhook-id", "override-webhook",
 	})
 
 	var b bytes.Buffer
@@ -44,14 +43,11 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 	if cli.Config.Host.Address != "10.0.0.1" {
 		t.Errorf("address not overridden")
 	}
-	if cli.Config.Host.BroadcastAddress != "192.168.1.255" {
+	if cli.Config.WakeOnLan.Address != "192.168.1.255" {
 		t.Errorf("broadcast address not overridden")
 	}
-	if cli.Config.Host.BroadcastPort != 7 {
+	if cli.Config.WakeOnLan.Port != 7 {
 		t.Errorf("wol port not overridden")
-	}
-	if cli.Config.InitSystem.Name != "systemd" {
-		t.Errorf("init system not overridden")
 	}
 	if cli.Config.HomeAssistant.URL != "http://override-ha.local" {
 		t.Errorf("url not overridden")
@@ -68,11 +64,11 @@ func TestCLI_PersistentPreRun_ConfigLoadFail(t *testing.T) {
 		"config",
 		"validate",
 		"--config", "does-not-exist.yaml",
-		"--mac", "00:11:22:33:44:55",
-		"--name", "test-name",
-		"--address", "test-host",
-		"--hass-url", "http://test-ha.local",
-		"--hass-webhook", "test-webhook",
+		"--host-mac", "00:11:22:33:44:55",
+		"--host-name", "test-name",
+		"--host-address", "test-host",
+		"--homeassistant-url", "http://test-ha.local",
+		"--homeassistant-webhook-id", "test-webhook",
 	})
 
 	var b bytes.Buffer

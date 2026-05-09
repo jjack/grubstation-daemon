@@ -3,13 +3,15 @@ package cli
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
+	"os"
 
 	"github.com/jjack/grub-os-reporter/internal/config"
 	"github.com/jjack/grub-os-reporter/internal/grub"
 	"github.com/jjack/grub-os-reporter/internal/homeassistant"
-	"github.com/jjack/grub-os-reporter/internal/initsystem"
-	"github.com/jjack/grub-os-reporter/internal/system"
+	"github.com/jjack/grub-os-reporter/internal/host"
+	"github.com/jjack/grub-os-reporter/internal/service"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +27,7 @@ type SystemResolver interface {
 	GetIPv4Info(inf net.Interface) ([]string, map[string]string)
 	GetFQDN(hostname string) string
 	SaveConfig(cfg *config.Config, path string) error
+	DiscoverGrubConfig(ctx context.Context) (string, error)
 }
 
 type DefaultSystemResolver struct{}
@@ -34,43 +37,53 @@ func (d *DefaultSystemResolver) DiscoverHomeAssistant(ctx context.Context) (stri
 }
 
 func (d *DefaultSystemResolver) DetectSystemHostname() (string, error) {
-	return system.DetectHostname()
+	return host.DetectHostname()
 }
 
 func (d *DefaultSystemResolver) GetWOLInterfaces() ([]net.Interface, error) {
-	return system.GetWOLInterfaces()
+	return host.GetWOLInterfaces()
 }
 
 func (d *DefaultSystemResolver) GetIPv4Info(inf net.Interface) ([]string, map[string]string) {
-	return system.GetIPv4Info(inf)
+	return host.GetIPv4Info(inf)
 }
-func (d *DefaultSystemResolver) GetFQDN(hostname string) string { return system.GetFQDN(hostname) }
+func (d *DefaultSystemResolver) GetFQDN(hostname string) string { return host.GetFQDN(hostname) }
 func (d *DefaultSystemResolver) SaveConfig(cfg *config.Config, path string) error {
 	return config.Save(cfg, path)
 }
 
-type CommandDeps struct {
-	Config         *config.Config
-	Grub           *grub.Grub
-	InitRegistry   *initsystem.Registry
-	SystemResolver SystemResolver
+func (d *DefaultSystemResolver) DiscoverGrubConfig(ctx context.Context) (string, error) {
+	g := &grub.Grub{}
+	return g.DiscoverConfigPath(ctx)
 }
 
-func (cd *CommandDeps) InitSystem(ctx context.Context) (initsystem.InitSystem, error) {
-	return ResolveInitSystem(ctx, cd.Config.InitSystem.Name, cd.InitRegistry)
+type CommandDeps struct {
+	Config          *config.Config
+	Grub            *grub.Grub
+	ServiceRegistry *service.Registry
+	SystemResolver  SystemResolver
+}
+
+func (cd *CommandDeps) ServiceManager(ctx context.Context) (service.ServiceManager, error) {
+	sys, err := cd.ServiceRegistry.Detect(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("service manager detection failed: %w", err)
+	}
+	return sys, nil
 }
 
 func NewCLI() *CLI {
 	cli := &CLI{}
 
 	deps := &CommandDeps{
-		Config:         &config.Config{},
-		Grub:           &grub.Grub{},
-		InitRegistry:   initsystem.NewRegistry(),
-		SystemResolver: &DefaultSystemResolver{},
+		Config:          &config.Config{},
+		Grub:            &grub.Grub{},
+		ServiceRegistry: service.NewRegistry(),
+		SystemResolver:  &DefaultSystemResolver{},
 	}
 
 	var cfgFile string
+	var debugMode bool
 
 	rootCmd := &cobra.Command{
 		Use:           "grub-os-reporter",
@@ -80,6 +93,12 @@ func NewCLI() *CLI {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if cmd.Name() == "help" {
 				return nil
+			}
+
+			if debugMode || os.Getenv("DEBUG") == "true" {
+				slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+					Level: slog.LevelDebug,
+				})))
 			}
 
 			cfg, err := config.Load(cfgFile, cmd.Flags())
@@ -101,23 +120,26 @@ func NewCLI() *CLI {
 		},
 	}
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "/etc/grub-os-reporter/config.yaml", "config file")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", config.DefaultConfigPath(), "config file")
 	rootCmd.PersistentFlags().String(config.FlagGrubConfig, "", "GRUB config path override")
 	rootCmd.PersistentFlags().String(config.FlagMac, "", "MAC Address override")
 	rootCmd.PersistentFlags().String(config.FlagName, "", "Name override")
 	rootCmd.PersistentFlags().String(config.FlagAddress, "", "Address override")
-	rootCmd.PersistentFlags().String(config.FlagBroadcastAddress, "", "Broadcast address override for WOL")
-	rootCmd.PersistentFlags().Int(config.FlagBroadcastPort, 9, "Broadcast port override for WOL")
-	rootCmd.PersistentFlags().String(config.FlagInitSystem, "", "Initsystem override (e.g., systemd)")
+	rootCmd.PersistentFlags().String(config.FlagWolAddress, "", "WOL target address override (defaults to 255.255.255.255)")
+	rootCmd.PersistentFlags().Int(config.FlagWolPort, 9, "WOL target port override (defaults to 9)")
+	rootCmd.PersistentFlags().String(config.FlagDaemonKey, "", "API key for the daemon")
 	rootCmd.PersistentFlags().String(config.FlagHassURL, "", "Home Assistant URL override")
 	rootCmd.PersistentFlags().String(config.FlagHassWebhook, "", "Home Assistant Webhook ID override")
+	rootCmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 
-	deps.InitRegistry.Register("systemd", initsystem.NewSystemd)
+	// Register platform-specific services automatically
+	service.RegisterDefaultServices(deps.ServiceRegistry)
 
 	rootCmd.AddCommand(NewOptionsCmd(deps))
 	rootCmd.AddCommand(NewConfigCmd(deps))
 	rootCmd.AddCommand(NewSetupCmd(deps))
 	rootCmd.AddCommand(NewApplyCmd(deps))
+	rootCmd.AddCommand(NewDaemonCmd(deps))
 
 	// get rid of the completion command because it doesn't make sense here
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
@@ -128,20 +150,4 @@ func NewCLI() *CLI {
 
 func (cli *CLI) Execute() error {
 	return cli.RootCmd.Execute()
-}
-
-func ResolveInitSystem(ctx context.Context, name string, registry *initsystem.Registry) (initsystem.InitSystem, error) {
-	if name != "" {
-		sys := registry.Get(name)
-		if sys == nil {
-			return nil, fmt.Errorf("specified init system %s not supported", name)
-		}
-		return sys, nil
-	}
-
-	sys, err := registry.Detect(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("init system detection failed: %w", err)
-	}
-	return sys, nil
 }

@@ -31,6 +31,15 @@ go build -o grub-os-reporter .
 sudo mv grub-os-reporter /usr/local/bin/
 ```
 
+### Build-time Versioning
+When building from source, the version defaults to `dev`. You can inject a specific version string during the build process using Go linker flags:
+
+```bash
+go build -ldflags="-X github.com/jjack/grub-os-reporter/internal/version.Version=1.0.0" -o grub-os-reporter .
+```
+
+This version will be reported in the Home Assistant webhook payload and visible in the daemon's logs.
+
 ## Next Steps
 
 Once installed, run the automated setup wizard to configure the agent and install the necessary system hooks:

@@ -91,7 +91,7 @@ func TestValidateWebhookID(t *testing.T) {
 	}
 }
 
-func TestValidateBroadcastAddress(t *testing.T) {
+func TestValidateWolAddress(t *testing.T) {
 	tests := []struct {
 		name    string
 		addr    string
@@ -103,14 +103,14 @@ func TestValidateBroadcastAddress(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateBroadcastAddress(tt.addr); (err != nil) != tt.wantErr {
-				t.Errorf("ValidateBroadcastAddress() error = %v, wantErr %v", err, tt.wantErr)
+			if err := ValidateWolAddress(tt.addr); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateWolAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestValidateBroadcastPort(t *testing.T) {
+func TestValidateWolPort(t *testing.T) {
 	tests := []struct {
 		name    string
 		port    string
@@ -124,8 +124,29 @@ func TestValidateBroadcastPort(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateBroadcastPort(tt.port); (err != nil) != tt.wantErr {
-				t.Errorf("ValidateBroadcastPort() error = %v, wantErr %v", err, tt.wantErr)
+			if err := ValidateWolPort(tt.port); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateWolPort() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateGrubWaitTime(t *testing.T) {
+	tests := []struct {
+		name    string
+		val     string
+		wantErr bool
+	}{
+		{"valid", "5", false},
+		{"too low", "0", true},
+		{"too high", "301", true},
+		{"empty", "", true},
+		{"not a number", "abc", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := ValidateGrubWaitTime(tt.val); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateGrubWaitTime() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -135,15 +156,24 @@ func TestConfigValidate(t *testing.T) {
 	validCfg := func() *Config {
 		return &Config{
 			Host: HostConfig{
-				MACAddress:       "00:11:22:33:44:55",
-				Name:             "test-name",
-				Address:          "test-host",
-				BroadcastAddress: "192.168.1.255",
-				BroadcastPort:    9,
+				MACAddress: "00:11:22:33:44:55",
+				Name:       "test-name",
+				Address:    "test-host",
+			},
+			WakeOnLan: WakeOnLanConfig{
+				Address: "192.168.1.255",
+				Port:    9,
 			},
 			HomeAssistant: HomeAssistantConfig{
 				URL:       "http://localhost:8123",
 				WebhookID: "test_webhook",
+			},
+			Daemon: DaemonConfig{
+				ReportBootOptions: true,
+			},
+			Grub: GrubConfig{
+				ConfigPath:      "/tmp/grub.cfg",
+				WaitTimeSeconds: 2,
 			},
 		}
 	}
@@ -159,8 +189,10 @@ func TestConfigValidate(t *testing.T) {
 		{"invalid Address", func(c *Config) { c.Host.Address = "invalid address format" }, true},
 		{"empty URL", func(c *Config) { c.HomeAssistant.URL = "" }, true},
 		{"empty WebhookID", func(c *Config) { c.HomeAssistant.WebhookID = "" }, true},
-		{"invalid BroadcastPort", func(c *Config) { c.Host.BroadcastPort = -1 }, true},
-		{"invalid BroadcastAddress", func(c *Config) { c.Host.BroadcastAddress = "invalid-ip" }, true},
+		{"invalid WolPort", func(c *Config) { c.WakeOnLan.Port = -1 }, true},
+		{"invalid WolAddress", func(c *Config) { c.WakeOnLan.Address = "invalid-ip" }, true},
+		{"missing Grub ConfigPath when enabled", func(c *Config) { c.Daemon.ReportBootOptions = true; c.Grub.ConfigPath = "" }, true},
+		{"valid with Grub ConfigPath when enabled", func(c *Config) { c.Daemon.ReportBootOptions = true; c.Grub.ConfigPath = "/tmp/grub.cfg" }, false},
 	}
 
 	for _, tt := range tests {

@@ -1,0 +1,13 @@
+[Unit]
+Description=Grub OS Reporter Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart={{ .ExecPath }} daemon --config {{ .ConfigPath }}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -106,9 +106,10 @@ func TestGrub_Setup_Success(t *testing.T) {
 
 	g := &Grub{}
 	err := g.Setup(context.Background(), SetupOptions{
-		TargetMAC: "aa:bb:cc:dd:ee:ff",
-		TargetURL: "http://hass.local:8123",
-		AuthToken: "test_webhook",
+		TargetMAC:       "aa:bb:cc:dd:ee:ff",
+		TargetURL:       "http://hass.local:8123",
+		AuthToken:       "test_webhook",
+		WaitTimeSeconds: 2,
 	})
 	if err != nil {
 		t.Fatalf("expected successful install, got %v", err)
@@ -128,9 +129,10 @@ func TestGrub_Setup_Success(t *testing.T) {
 	}
 
 	err = g.Setup(context.Background(), SetupOptions{
-		TargetMAC: "aa:bb:cc:dd:ee:ff",
-		TargetURL: "http://hass.local:8123",
-		AuthToken: "test_webhook",
+		TargetMAC:       "aa:bb:cc:dd:ee:ff",
+		TargetURL:       "http://hass.local:8123",
+		AuthToken:       "test_webhook",
+		WaitTimeSeconds: 2,
 	})
 	if err != nil {
 		t.Fatalf("expected successful install with grub2-mkconfig, got %v", err)
@@ -148,14 +150,14 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	}(HassGrubOSReporterPath, ExecLookPath, ExecCommand)
 
 	// 1. Invalid URL
-	err := g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "://bad-url", AuthToken: "test_webhook"})
+	err := g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "://bad-url", AuthToken: "test_webhook", WaitTimeSeconds: 2})
 	if !errors.Is(err, ErrInvalidHAURL) {
 		t.Fatalf("expected ErrInvalidHAURL, got %v", err)
 	}
 
 	// 2. File creation failure
 	HassGrubOSReporterPath = "/this/path/does/not/exist/99_script"
-	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook", WaitTimeSeconds: 2})
 	if err == nil || !strings.Contains(err.Error(), "failed to create grub script") {
 		t.Fatalf("expected file creation error, got %v", err)
 	}
@@ -168,7 +170,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 	ExecLookPath = func(file string) (string, error) {
 		return "", errors.New("not found")
 	}
-	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook", WaitTimeSeconds: 2})
 	if !errors.Is(err, ErrNoGrubTool) {
 		t.Fatalf("expected ErrNoGrubTool, got %v", err)
 	}
@@ -181,7 +183,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 		return "", errors.New("not found")
 	}
 	ExecCommand = fakeExecCommandFail
-	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook", WaitTimeSeconds: 2})
 	if err == nil || !strings.Contains(err.Error(), "update-grub failed") {
 		t.Fatalf("expected update-grub execution error, got %v", err)
 	}
@@ -193,7 +195,7 @@ func TestGrub_Setup_Errors(t *testing.T) {
 		}
 		return "", errors.New("not found")
 	}
-	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook", WaitTimeSeconds: 2})
 	if err == nil || !strings.Contains(err.Error(), "grub2-mkconfig failed") {
 		t.Fatalf("expected grub2-mkconfig execution error, got %v", err)
 	}
@@ -383,7 +385,7 @@ func TestGrub_Setup_TemplateErrors(t *testing.T) {
 
 	// 1. Template parse error
 	grubTemplate = "{{ unclosed"
-	err := g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err := g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook", WaitTimeSeconds: 2})
 	if err == nil || !strings.Contains(err.Error(), "failed to parse grub template") {
 		t.Fatalf("expected template parse error, got %v", err)
 	}
@@ -391,7 +393,7 @@ func TestGrub_Setup_TemplateErrors(t *testing.T) {
 	// 2. Template execute error
 	// Accessing a nonexistent field on a string will cause template execution to fail
 	grubTemplate = "{{ .Host.NonExistentField }}"
-	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook"})
+	err = g.Setup(ctx, SetupOptions{TargetMAC: "mac", TargetURL: "http://hass.local", AuthToken: "test_webhook", WaitTimeSeconds: 2})
 	if err == nil || !strings.Contains(err.Error(), "failed to execute grub template") {
 		t.Fatalf("expected template execute error, got %v", err)
 	}

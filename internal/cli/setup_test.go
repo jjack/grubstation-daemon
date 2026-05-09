@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,32 +12,37 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jjack/grub-os-reporter/internal/cli/survey"
 	"github.com/jjack/grub-os-reporter/internal/config"
 	"github.com/jjack/grub-os-reporter/internal/grub"
-	"github.com/jjack/grub-os-reporter/internal/initsystem"
+	"github.com/jjack/grub-os-reporter/internal/service"
 )
 
 type mockInstallInitSystem struct {
 	installErr error
+	startErr   error
 	configPath string
 }
 
 func (m *mockInstallInitSystem) Name() string                      { return "mock-init" }
 func (m *mockInstallInitSystem) IsActive(ctx context.Context) bool { return true }
-func (m *mockInstallInitSystem) Setup(ctx context.Context, configPath string) error {
+func (m *mockInstallInitSystem) Install(ctx context.Context, configPath string) error {
 	m.configPath = configPath
 	return m.installErr
 }
+func (m *mockInstallInitSystem) Uninstall(ctx context.Context) error { return nil }
+func (m *mockInstallInitSystem) Start(ctx context.Context) error     { return m.startErr }
+func (m *mockInstallInitSystem) Stop(ctx context.Context) error      { return nil }
 
 func TestApplyCmd_GrubError(t *testing.T) {
 	cfg := &config.Config{
-		InitSystem: config.InitSystemConfig{Name: "mock-init"},
+		Daemon: config.DaemonConfig{ReportBootOptions: true},
 	}
 
-	initReg := initsystem.NewRegistry()
-	initReg.Register("mock-init", func() initsystem.InitSystem { return &mockInstallInitSystem{} })
+	initReg := service.NewRegistry()
+	initReg.Register("mock-init", func() service.ServiceManager { return &mockInstallInitSystem{} })
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/invalid/path/grub.cfg"}, InitRegistry: initReg}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/invalid/path/grub.cfg"}, ServiceRegistry: initReg}
 	cmd := NewApplyCmd(deps)
 	cmd.Flags().String("config", "config.yaml", "")
 
@@ -46,40 +52,16 @@ func TestApplyCmd_GrubError(t *testing.T) {
 }
 
 func TestApplyCmd_MissingConfigFlag(t *testing.T) {
-	cfg := &config.Config{
-		InitSystem: config.InitSystemConfig{Name: "mock-init"},
-	}
+	cfg := &config.Config{}
 
-	initReg := initsystem.NewRegistry()
-	initReg.Register("mock-init", func() initsystem.InitSystem { return &mockInstallInitSystem{} })
+	initReg := service.NewRegistry()
+	initReg.Register("mock-init", func() service.ServiceManager { return &mockInstallInitSystem{} })
 
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{}, InitRegistry: initReg}
+	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{}, ServiceRegistry: initReg}
 	cmd := NewApplyCmd(deps) // Missing binding the "config" flag locally
 
 	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "flag accessed but not defined") {
 		t.Fatalf("expected flag missing error, got %v", err)
-	}
-}
-
-func TestApplyCmd_InitSystemResolveError(t *testing.T) {
-	cfg := &config.Config{
-		InitSystem: config.InitSystemConfig{Name: "invalid-init"},
-	}
-
-	initReg := initsystem.NewRegistry()
-
-	deps := &CommandDeps{
-		Config:       cfg,
-		Grub:         &grub.Grub{},
-		InitRegistry: initReg,
-	}
-
-	cmd := NewApplyCmd(deps)
-	cmd.Flags().String("config", "test-config.yaml", "")
-
-	err := cmd.Execute()
-	if err == nil || !strings.Contains(err.Error(), "specified init system invalid-init not supported") {
-		t.Fatalf("expected init system resolve error, got %v", err)
 	}
 }
 
@@ -100,17 +82,15 @@ func TestApplyCmd_AbsConfigError(t *testing.T) {
 		t.Fatalf("failed to remove temp dir: %v", err)
 	}
 
-	cfg := &config.Config{
-		InitSystem: config.InitSystemConfig{Name: "mock-init"},
-	}
+	cfg := &config.Config{}
 
-	initReg := initsystem.NewRegistry()
-	initReg.Register("mock-init", func() initsystem.InitSystem { return &mockInstallInitSystem{} })
+	initReg := service.NewRegistry()
+	initReg.Register("mock-init", func() service.ServiceManager { return &mockInstallInitSystem{} })
 
 	deps := &CommandDeps{
-		Config:       cfg,
-		Grub:         &grub.Grub{},
-		InitRegistry: initReg,
+		Config:          cfg,
+		Grub:            &grub.Grub{},
+		ServiceRegistry: initReg,
 	}
 
 	cmd := NewApplyCmd(deps)
@@ -122,27 +102,30 @@ func TestApplyCmd_AbsConfigError(t *testing.T) {
 }
 
 func TestSetupCmd_ConfigFlagFallback(t *testing.T) {
-	oldRunGenerateSurvey := runGenerateSurvey
+	oldRunGenerateSurvey := survey.RunGenerateSurvey
 	oldRunConfirm := runConfirm
 	defer func() {
-		runGenerateSurvey = oldRunGenerateSurvey
+		survey.RunGenerateSurvey = oldRunGenerateSurvey
 		runConfirm = oldRunConfirm
 	}()
 
 	oldOsMkdirAll := osMkdirAll
+	oldCheckWriteAccess := checkWriteAccess
 	osMkdirAll = func(path string, perm os.FileMode) error { return nil }
-	defer func() { osMkdirAll = oldOsMkdirAll }()
+	checkWriteAccess = func(path string) error { return nil }
+	defer func() {
+		osMkdirAll = oldOsMkdirAll
+		checkWriteAccess = oldCheckWriteAccess
+	}()
 
-	runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
-		return &config.Config{
-			InitSystem: config.InitSystemConfig{Name: "mock-init"},
-		}, nil
+	survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps) (*config.Config, error) {
+		return &config.Config{}, nil
 	}
 	runConfirm = func(installNow *bool) error { *installNow = false; return nil }
 
 	initMock := &mockInstallInitSystem{}
-	initReg := initsystem.NewRegistry()
-	initReg.Register("mock-init", func() initsystem.InitSystem { return initMock })
+	initReg := service.NewRegistry()
+	initReg.Register("mock-init", func() service.ServiceManager { return initMock })
 
 	var savedPath string
 	sysResolver := &mockSystemResolver{
@@ -153,16 +136,19 @@ func TestSetupCmd_ConfigFlagFallback(t *testing.T) {
 	}
 
 	deps := &CommandDeps{
-		Config:         &config.Config{},
-		Grub:           &grub.Grub{},
-		InitRegistry:   initReg,
-		SystemResolver: sysResolver,
+		Config:          &config.Config{},
+		Grub:            &grub.Grub{},
+		ServiceRegistry: initReg,
+		SystemResolver:  sysResolver,
 	}
 
 	cmd := NewSetupCmd(deps)
 	cmd.ResetFlags() // Strip the "config" flag to force GetString to error out
 
-	_ = cmd.Execute() // We ignore execution err if any to verify the fallback below
+	err := cmd.Execute()
+	if err != nil {
+		t.Fatalf("expected no error from setup fallback, got %v", err)
+	}
 
 	if savedPath != "/etc/grub-os-reporter/config.yaml" {
 		t.Errorf("expected default fallback path /etc/grub-os-reporter/config.yaml, got %s", savedPath)
@@ -170,10 +156,10 @@ func TestSetupCmd_ConfigFlagFallback(t *testing.T) {
 }
 
 func TestSetupCmd_Execute(t *testing.T) {
-	oldRunGenerateSurvey := runGenerateSurvey
+	oldRunGenerateSurvey := survey.RunGenerateSurvey
 	oldRunConfirm := runConfirm
 	defer func() {
-		runGenerateSurvey = oldRunGenerateSurvey
+		survey.RunGenerateSurvey = oldRunGenerateSurvey
 		runConfirm = oldRunConfirm
 	}()
 
@@ -194,10 +180,8 @@ func TestSetupCmd_Execute(t *testing.T) {
 				tempGrub := t.TempDir() + "/grub.cfg"
 				_ = os.WriteFile(tempGrub, []byte(""), 0o644)
 				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
-					return &config.Config{
-						InitSystem: config.InitSystemConfig{Name: "mock-init"},
-					}, nil
+				survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps) (*config.Config, error) {
+					return &config.Config{}, nil
 				}
 				runConfirm = func(installNow *bool) error { *installNow = false; return nil }
 			},
@@ -213,9 +197,9 @@ func TestSetupCmd_Execute(t *testing.T) {
 				tempGrub := t.TempDir() + "/grub.cfg"
 				_ = os.WriteFile(tempGrub, []byte(""), 0o644)
 				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
-				deps.InitRegistry = initsystem.NewRegistry() // Empty registry causes init system error
+				deps.ServiceRegistry = service.NewRegistry() // Empty registry causes init system error
 			},
-			wantErr:     "no supported init system detected",
+			wantErr:     "no supported service manager detected",
 			wantInstall: false,
 		},
 		{
@@ -224,7 +208,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 				tempGrub := t.TempDir() + "/grub.cfg"
 				_ = os.WriteFile(tempGrub, []byte(""), 0o644)
 				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+				survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps) (*config.Config, error) {
 					return nil, errors.New("survey failed")
 				}
 			},
@@ -237,7 +221,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 				tempGrub := t.TempDir() + "/grub.cfg"
 				_ = os.WriteFile(tempGrub, []byte(""), 0o644)
 				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+				survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps) (*config.Config, error) {
 					return &config.Config{}, nil
 				}
 				osMkdirAll = func(path string, perm os.FileMode) error { return errors.New("mkdirall failed") }
@@ -252,7 +236,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 				tempGrub := t.TempDir() + "/grub.cfg"
 				_ = os.WriteFile(tempGrub, []byte(""), 0o644)
 				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+				survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps) (*config.Config, error) {
 					return &config.Config{}, nil
 				}
 				resolver.saveConfigFunc = func(cfg *config.Config, path string) error {
@@ -268,7 +252,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 				tempGrub := t.TempDir() + "/grub.cfg"
 				_ = os.WriteFile(tempGrub, []byte(""), 0o644)
 				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+				survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps) (*config.Config, error) {
 					return &config.Config{}, nil
 				}
 				runConfirm = func(installNow *bool) error { return errors.New("confirm prompt failed") }
@@ -277,30 +261,14 @@ func TestSetupCmd_Execute(t *testing.T) {
 			wantInstall: false,
 		},
 		{
-			name: "Error - Perform Install InitSystem Resolve Fails",
-			setup: func(t *testing.T, deps *CommandDeps, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
-				tempGrub := t.TempDir() + "/grub.cfg"
-				_ = os.WriteFile(tempGrub, []byte(""), 0o644)
-				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
-					return &config.Config{
-						InitSystem: config.InitSystemConfig{Name: "invalid-init"},
-					}, nil
-				}
-				runConfirm = func(installNow *bool) error { *installNow = true; return nil }
-			},
-			wantErr:     "specified init system invalid-init not supported",
-			wantInstall: false,
-		},
-		{
 			name: "Error - Perform Install Fails",
 			setup: func(t *testing.T, deps *CommandDeps, initMock *mockInstallInitSystem, resolver *mockSystemResolver) {
 				tempGrub := t.TempDir() + "/grub.cfg"
 				_ = os.WriteFile(tempGrub, []byte(""), 0o644)
 				deps.Grub = &grub.Grub{ConfigPath: tempGrub} // will fail since not mocked correctly
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+				survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps) (*config.Config, error) {
 					return &config.Config{
-						InitSystem: config.InitSystemConfig{Name: "mock-init"},
+						Daemon: config.DaemonConfig{ReportBootOptions: true},
 					}, nil
 				}
 				runConfirm = func(installNow *bool) error { *installNow = true; return nil }
@@ -329,6 +297,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 				// Mock successful GetBootOptions and a working HA endpoint
 				ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte("OK"))
 				}))
 				t.Cleanup(ts.Close)
 
@@ -336,9 +305,8 @@ func TestSetupCmd_Execute(t *testing.T) {
 				_ = os.WriteFile(tempGrub, []byte("menuentry 'OS' {}"), 0o644)
 				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
 
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+				survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps) (*config.Config, error) {
 					return &config.Config{
-						InitSystem:    config.InitSystemConfig{Name: "mock-init"},
 						HomeAssistant: config.HomeAssistantConfig{URL: ts.URL, WebhookID: "fake"},
 					}, nil
 				}
@@ -372,9 +340,8 @@ func TestSetupCmd_Execute(t *testing.T) {
 				// Make GetBootOptions fail to trigger error in PushBootOptions
 				deps.Grub = &grub.Grub{ConfigPath: "/non/existent/path"}
 
-				runGenerateSurvey = func(ctx context.Context, deps *CommandDeps) (*config.Config, error) {
+				survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps) (*config.Config, error) {
 					return &config.Config{
-						InitSystem:    config.InitSystemConfig{Name: "mock-init"},
 						HomeAssistant: config.HomeAssistantConfig{URL: "http://fake", WebhookID: "fake"},
 					}, nil
 				}
@@ -392,26 +359,26 @@ func TestSetupCmd_Execute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Prevent mock bleed across test iterations
-			origRunGenerateSurvey := runGenerateSurvey
+			origRunGenerateSurvey := survey.RunGenerateSurvey
 			origRunConfirm := runConfirm
 			defer func() {
-				runGenerateSurvey = origRunGenerateSurvey
+				survey.RunGenerateSurvey = origRunGenerateSurvey
 				runConfirm = origRunConfirm
 			}()
 
 			initMock := &mockInstallInitSystem{}
-			initReg := initsystem.NewRegistry()
-			initReg.Register("mock-init", func() initsystem.InitSystem { return initMock })
+			initReg := service.NewRegistry()
+			initReg.Register("mock-init", func() service.ServiceManager { return initMock })
 
 			sysResolver := &mockSystemResolver{
 				saveConfigFunc: func(cfg *config.Config, path string) error { return nil },
 			}
 
 			deps := &CommandDeps{
-				Config:         &config.Config{},
-				Grub:           &grub.Grub{},
-				InitRegistry:   initReg,
-				SystemResolver: sysResolver,
+				Config:          &config.Config{},
+				Grub:            &grub.Grub{},
+				ServiceRegistry: initReg,
+				SystemResolver:  sysResolver,
 			}
 
 			tt.setup(t, deps, initMock, sysResolver)
@@ -458,15 +425,15 @@ func TestSetupCmd_Execute(t *testing.T) {
 
 func TestEnsureSupport(t *testing.T) {
 	t.Run("InitSystem Not Supported", func(t *testing.T) {
-		deps := setupSurveyDeps(t)
-		initReg := initsystem.NewRegistry()
-		deps.InitRegistry = initReg
+		deps := &CommandDeps{}
+		initReg := service.NewRegistry()
+		deps.ServiceRegistry = initReg
 
 		err := ensureSupport(context.Background(), deps)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
-		if !strings.Contains(err.Error(), "no supported init system detected") {
+		if !strings.Contains(err.Error(), "no supported service manager detected") {
 			t.Errorf("expected init system not supported error, got %v", err)
 		}
 	})
@@ -474,7 +441,7 @@ func TestEnsureSupport(t *testing.T) {
 
 func TestEnsureSupport_GenericErrors(t *testing.T) {
 	t.Run("Grub Generic Error", func(t *testing.T) {
-		deps := setupSurveyDeps(t)
+		deps := &CommandDeps{}
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
 
@@ -491,12 +458,12 @@ func TestEnsureSupport_GenericErrors(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		initReg := initsystem.NewRegistry()
-		initReg.Register("systemd", func() initsystem.InitSystem { return &mockSurveyInitSystem{} })
+		initReg := service.NewRegistry()
+		initReg.Register("systemd", func() service.ServiceManager { return &mockSurveyService{} })
 
 		deps := &CommandDeps{
-			Grub:         &grub.Grub{ConfigPath: setupSurveyDeps(t).Grub.ConfigPath},
-			InitRegistry: initReg,
+			Grub:            &grub.Grub{ConfigPath: t.TempDir() + "/grub.cfg"},
+			ServiceRegistry: initReg,
 		}
 		cancel()
 
@@ -508,4 +475,126 @@ func TestEnsureSupport_GenericErrors(t *testing.T) {
 			t.Errorf("expected context.Canceled, got %v", err)
 		}
 	})
+}
+
+func TestSurveyDepsAdapter(t *testing.T) {
+	initReg := service.NewRegistry()
+	initReg.Register("systemd", func() service.ServiceManager { return &mockInstallInitSystem{} })
+	deps := &CommandDeps{
+		ServiceRegistry: initReg,
+		SystemResolver:  &mockSystemResolver{},
+	}
+
+	adapter := surveyDepsAdapter{deps: deps}
+	if got := adapter.GetSystemResolver(); got != deps.SystemResolver {
+		t.Fatalf("expected system resolver to be returned")
+	}
+
+}
+
+func TestApplyCmd_StartServiceWarning(t *testing.T) {
+	cfg := &config.Config{}
+
+	initReg := service.NewRegistry()
+	initReg.Register("mock-init", func() service.ServiceManager { return &mockInstallInitSystem{startErr: errors.New("start failed")} })
+
+	deps := &CommandDeps{
+		Config:          cfg,
+		Grub:            &grub.Grub{},
+		ServiceRegistry: initReg,
+	}
+
+	cmd := NewApplyCmd(deps)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.Flags().String("config", "config.yaml", "")
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out.String(), "Warning: failed to start service") {
+		t.Fatalf("expected warning about service start failure, got %s", out.String())
+	}
+}
+
+type mockSystemResolver struct {
+	discoverHomeAssistantFunc func(ctx context.Context) (string, error)
+	detectSystemHostnameFunc  func() (string, error)
+	getWOLInterfacesFunc      func() ([]net.Interface, error)
+	getIPv4InfoFunc           func(inf net.Interface) ([]string, map[string]string)
+	getFQDNOptsFunc           func(hostname string) string
+	saveConfigFunc            func(cfg *config.Config, path string) error
+	discoverGrubConfigFunc    func(ctx context.Context) (string, error)
+}
+
+func (m *mockSystemResolver) DiscoverHomeAssistant(ctx context.Context) (string, error) {
+	if m.discoverHomeAssistantFunc != nil {
+		return m.discoverHomeAssistantFunc(ctx)
+	}
+	return "http://homeassistant.local:8123", nil
+}
+
+func (m *mockSystemResolver) DiscoverGrubConfig(ctx context.Context) (string, error) {
+	if m.discoverGrubConfigFunc != nil {
+		return m.discoverGrubConfigFunc(ctx)
+	}
+	return "/boot/grub/grub.cfg", nil
+}
+
+func (m *mockSystemResolver) DetectSystemHostname() (string, error) {
+	if m.detectSystemHostnameFunc != nil {
+		return m.detectSystemHostnameFunc()
+	}
+	return "test-host", nil
+}
+
+func (m *mockSystemResolver) GetWOLInterfaces() ([]net.Interface, error) {
+	if m.getWOLInterfacesFunc != nil {
+		return m.getWOLInterfacesFunc()
+	}
+	return []net.Interface{{Name: "eth0", HardwareAddr: net.HardwareAddr{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}}}, nil
+}
+
+func (m *mockSystemResolver) GetIPv4Info(inf net.Interface) ([]string, map[string]string) {
+	if m.getIPv4InfoFunc != nil {
+		return m.getIPv4InfoFunc(inf)
+	}
+	return []string{"192.168.1.100"}, map[string]string{"192.168.1.100": "192.168.1.255"}
+}
+
+func (m *mockSystemResolver) GetFQDN(hostname string) string {
+	if m.getFQDNOptsFunc != nil {
+		return m.getFQDNOptsFunc(hostname)
+	}
+	return hostname + ".local"
+}
+
+func (m *mockSystemResolver) SaveConfig(cfg *config.Config, path string) error {
+	if m.saveConfigFunc != nil {
+		return m.saveConfigFunc(cfg, path)
+	}
+	return nil
+}
+
+type mockSurveyService struct{}
+
+func (m *mockSurveyService) Name() string                                         { return "systemd" }
+func (m *mockSurveyService) IsActive(ctx context.Context) bool                    { return true }
+func (m *mockSurveyService) Install(ctx context.Context, configPath string) error { return nil }
+func (m *mockSurveyService) Uninstall(ctx context.Context) error                  { return nil }
+func (m *mockSurveyService) Start(ctx context.Context) error                      { return nil }
+func (m *mockSurveyService) Stop(ctx context.Context) error                       { return nil }
+
+type mockSurveyDeps struct {
+	resolver *mockSystemResolver
+}
+
+func (m *mockSurveyDeps) GetSystemResolver() survey.SystemResolver          { return m.resolver }
+
+func setupSurveyDeps(t *testing.T) *mockSurveyDeps {
+	return &mockSurveyDeps{
+		resolver: &mockSystemResolver{},
+	}
 }

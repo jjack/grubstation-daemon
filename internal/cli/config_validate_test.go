@@ -11,18 +11,17 @@ import (
 func TestConfigValidateCmd_Valid(t *testing.T) {
 	cfg := &config.Config{
 		Host: config.HostConfig{
-			MACAddress:       "00:11:22:33:44:55",
-			Name:             "test-name",
-			Address:          "test-host",
-			BroadcastAddress: "192.168.1.255",
-			BroadcastPort:    9,
-		},
-		InitSystem: config.InitSystemConfig{
-			Name: "systemd",
+			MACAddress: "00:11:22:33:44:55",
+			Name:       "test-name",
+			Address:    "test-host",
 		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       "http://ha.local",
 			WebhookID: "test-webhook",
+		},
+		WakeOnLan: config.WakeOnLanConfig{
+			Address: "192.168.1.255",
+			Port:    9,
 		},
 	}
 

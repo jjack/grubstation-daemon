@@ -26,9 +26,10 @@ type Grub struct {
 }
 
 type SetupOptions struct {
-	TargetMAC string
-	TargetURL string
-	AuthToken string
+	TargetMAC       string
+	TargetURL       string
+	AuthToken       string
+	WaitTimeSeconds int
 }
 
 var (
@@ -42,6 +43,17 @@ var (
 	ExecLookPath           = exec.LookPath
 	ExecCommand            = exec.CommandContext
 )
+
+func generateWaitList(seconds int) string {
+	if seconds <= 0 {
+		return "1"
+	}
+	var parts []string
+	for i := 1; i <= seconds; i++ {
+		parts = append(parts, fmt.Sprintf("%d", i))
+	}
+	return strings.Join(parts, " ")
+}
 
 var configPaths = []string{
 	"/boot/grub/grub.cfg",
@@ -207,13 +219,17 @@ func (g *Grub) Setup(ctx context.Context, opts SetupOptions) error {
 	}
 
 	data := struct {
-		Host       string
-		MACAddress string
-		WebhookID  string
+		Host            string
+		MACAddress      string
+		WebhookID       string
+		WaitTimeSeconds int
+		WaitList        string
 	}{
-		Host:       u.Host,
-		MACAddress: opts.TargetMAC,
-		WebhookID:  opts.AuthToken,
+		Host:            u.Host,
+		MACAddress:      opts.TargetMAC,
+		WebhookID:       opts.AuthToken,
+		WaitTimeSeconds: opts.WaitTimeSeconds,
+		WaitList:        generateWaitList(opts.WaitTimeSeconds),
 	}
 
 	var content strings.Builder
