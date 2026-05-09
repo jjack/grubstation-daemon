@@ -1,10 +1,10 @@
-# GrubStation CLI
+# GrubStation Daemon
 
-![GitHub](https://img.shields.io/github/license/jjack/grubstation-cli)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/jjack/grubstation-cli)
-[![GO Tests and Coverage](https://github.com/jjack/grubstation-cli/actions/workflows/test.yml/badge.svg)](https://github.com/jjack/grubstation-cli/actions/workflows/test.yml)
-[![CodeQL](https://github.com/jjack/grubstation-cli/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/jjack/grubstation-cli/actions/workflows/github-code-scanning/codeql)
-[![Codecov branch](https://img.shields.io/codecov/c/github/jjack/grubstation-cli)](https://app.codecov.io/gh/jjack/grubstation-cli)
+![GitHub](https://img.shields.io/github/license/jjack/grubstation-daemon)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/jjack/grubstation-daemon)
+[![GO Tests and Coverage](https://github.com/jjack/grubstation-daemon/actions/workflows/test.yml/badge.svg)](https://github.com/jjack/grubstation-daemon/actions/workflows/test.yml)
+[![CodeQL](https://github.com/jjack/grubstation-daemon/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/jjack/grubstation-daemon/actions/workflows/github-code-scanning/codeql)
+[![Codecov branch](https://img.shields.io/codecov/c/github/jjack/grubstation-daemon)](https://app.codecov.io/gh/jjack/grubstation-daemon)
 
 `grubstation` is a Go-based agent designed to manage bare-metal OS booting and selection via [Home Assistant](https://www.home-assistant.io/) and Wake-on-LAN (WOL). It helps enable a user to remotely select an operating system for a specific host, send a wake on lan packet, and have the machine dynamically boot into the chosen OS.
 

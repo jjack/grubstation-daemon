@@ -1,4 +1,4 @@
-module github.com/jjack/grubstation-cli
+module github.com/jjack/grubstation-daemon
 
 go 1.26.2
 

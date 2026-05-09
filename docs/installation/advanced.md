@@ -25,7 +25,7 @@ sudo mv grubstation /usr/local/bin/
 Ensure you have Go installed on your system.
 
 ```bash
-git clone https://github.com/jjack/grubstation-cli.git
+git clone https://github.com/jjack/grubstation-daemon.git
 cd grubstation
 go build -o grubstation .
 sudo mv grubstation /usr/local/bin/
@@ -35,7 +35,7 @@ sudo mv grubstation /usr/local/bin/
 When building from source, the version defaults to `dev`. You can inject a specific version string during the build process using Go linker flags:
 
 ```bash
-go build -ldflags="-X github.com/jjack/grubstation-cli/internal/version.Version=1.0.0" -o grubstation .
+go build -ldflags="-X github.com/jjack/grubstation-daemon/internal/version.Version=1.0.0" -o grubstation .
 ```
 
 This version will be reported in the Home Assistant webhook payload and visible in the daemon's logs.
