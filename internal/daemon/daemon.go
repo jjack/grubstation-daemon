@@ -107,7 +107,7 @@ func (d *Daemon) run(ctx context.Context) error {
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodGet && r.URL.Path == "/healthcheck" {
 				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(map[string]string{
+				_ = json.NewEncoder(w).Encode(map[string]string{
 					"status": "ok",
 				})
 				return
@@ -128,7 +128,7 @@ func (d *Daemon) run(ctx context.Context) error {
 			if r.URL.Path == "/shutdown" {
 				slog.Info("Shutdown requested via HTTP")
 				w.WriteHeader(http.StatusOK)
-				fmt.Fprintln(w, "Shutting down...")
+				_, _ = fmt.Fprintln(w, "Shutting down...")
 
 				// Execute final push and shutdown in a goroutine
 				go func() {

@@ -475,7 +475,7 @@ func TestValidatePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen on random port: %v", err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 	_, portStr, _ := net.SplitHostPort(l.Addr().String())
 
 	err = validatePort(portStr)
@@ -529,14 +529,15 @@ func TestGenerateConfigSurvey_NoBootOptions(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if runtime.GOOS == "linux" {
+	switch runtime.GOOS {
+	case "linux":
 		if wolFormCalled {
 			t.Error("expected WOL form to be skipped on linux when boot options disabled")
 		}
 		if cfg.WakeOnLan.Address != config.DefaultWolAddress {
 			t.Errorf("expected default WOL address, got %s", cfg.WakeOnLan.Address)
 		}
-	} else if runtime.GOOS == "windows" {
+	case "windows":
 		if !wolFormCalled {
 			t.Error("expected WOL form to be called on windows")
 		}

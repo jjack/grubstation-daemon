@@ -111,7 +111,7 @@ func defaultCheckWriteAccess(path string) error {
 		if err != nil {
 			return fmt.Errorf("config file %s is not writable (try running with sudo?): %w", path, err)
 		}
-		f.Close()
+		_ = f.Close()
 		return nil
 	}
 
@@ -122,8 +122,8 @@ func defaultCheckWriteAccess(path string) error {
 	if err != nil {
 		return fmt.Errorf("no write access to directory %s (try running with sudo?): %w", dir, err)
 	}
-	f.Close()
-	os.Remove(testFile)
+	_ = f.Close()
+	_ = os.Remove(testFile)
 	return nil
 }
 

@@ -585,15 +585,3 @@ func (m *mockSurveyService) Install(ctx context.Context, configPath string) erro
 func (m *mockSurveyService) Uninstall(ctx context.Context) error                  { return nil }
 func (m *mockSurveyService) Start(ctx context.Context) error                      { return nil }
 func (m *mockSurveyService) Stop(ctx context.Context) error                       { return nil }
-
-type mockSurveyDeps struct {
-	resolver *mockSystemResolver
-}
-
-func (m *mockSurveyDeps) GetSystemResolver() survey.SystemResolver { return m.resolver }
-
-func setupSurveyDeps(t *testing.T) *mockSurveyDeps {
-	return &mockSurveyDeps{
-		resolver: &mockSystemResolver{},
-	}
-}

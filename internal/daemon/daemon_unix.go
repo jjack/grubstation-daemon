@@ -40,8 +40,8 @@ func (d *Daemon) listenUnixSocket(ctx context.Context, token string) {
 		slog.Debug("Failed to create unix socket", "error", err)
 		return
 	}
-	defer l.Close()
-	defer os.Remove(path)
+	defer func() { _ = l.Close() }()
+	defer func() { _ = os.Remove(path) }()
 
 	go func() {
 		<-ctx.Done()
@@ -64,7 +64,7 @@ func (d *Daemon) listenUnixSocket(ctx context.Context, token string) {
 }
 
 func (d *Daemon) handleUnixConnection(ctx context.Context, conn net.Conn, token string) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	scanner := bufio.NewScanner(conn)
 	if scanner.Scan() {
 		if cmd := scanner.Text(); cmd == "push" {
@@ -72,9 +72,9 @@ func (d *Daemon) handleUnixConnection(ctx context.Context, conn net.Conn, token 
 				slog.Info("Push requested via local Unix socket")
 				if err := d.PushHandler(ctx, token); err != nil {
 					slog.Error("Socket requested push failed", "error", err)
-					_, _ = conn.Write([]byte(fmt.Sprintf("ERROR: %v\n", err)))
+					_, _ = fmt.Fprintf(conn, "ERROR: %v\n", err)
 				} else {
-					_, _ = conn.Write([]byte("OK\n"))
+					_, _ = fmt.Fprintf(conn, "OK\n")
 				}
 			} else {
 				_, _ = conn.Write([]byte("ERROR: PushHandler not configured\n"))
@@ -89,7 +89,7 @@ func RequestPushViaSocket(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if _, err = conn.Write([]byte("push\n")); err != nil {
 		return err
