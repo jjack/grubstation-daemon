@@ -21,17 +21,21 @@ func NewDaemonCmd(deps *CommandDeps) *cobra.Command {
 		Use:   "daemon",
 		Short: "Run the persistent agent daemon",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			mgr, _ := deps.Manager(cmd.Context())
-			mgrName := ""
-			if mgr != nil {
-				mgrName = mgr.Name()
+			var pushHandler func(ctx context.Context, token string) error
+			if deps.Config.Daemon.ReportBootOptions {
+				mgr, _ := deps.Manager(cmd.Context())
+				mgrName := ""
+				if mgr != nil {
+					mgrName = mgr.Name()
+				}
+				rep := reporter.New(deps.Config, deps.Grub, mgrName)
+				pushHandler = rep.PushBootOptions
 			}
-			rep := reporter.New(deps.Config, deps.Grub, mgrName)
 			d := newDaemon(daemon.Config{
 				ListenPort:        deps.Config.Daemon.ListenPort,
 				ReportBootOptions: deps.Config.Daemon.ReportBootOptions,
 				APIKey:            deps.Config.Daemon.APIKey,
-			}, rep.PushBootOptions)
+			}, pushHandler)
 			return d.Run(cmd.Context())
 		},
 	}

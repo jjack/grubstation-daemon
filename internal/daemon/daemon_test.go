@@ -1,10 +1,11 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os/exec"
@@ -48,7 +49,7 @@ func TestDaemonHealthcheckEndpoint(t *testing.T) {
 	defer cancel()
 
 	port := getFreePort(t)
-	d := New(Config{ListenPort: port}, nil)
+	d := New(Config{ListenPort: port, APIKey: "test-key"}, nil)
 
 	done := make(chan error, 1)
 	go func() {
@@ -70,40 +71,17 @@ func TestDaemonHealthcheckEndpoint(t *testing.T) {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 
-	var status map[string]string
-	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response: %v", err)
 	}
 
-	if status["status"] != "ok" {
-		t.Errorf("expected status ok, got %s", status["status"])
-	}
-	if _, ok := status["version"]; ok {
-		t.Errorf("expected version to be removed from status endpoint")
-	}
-	if _, ok := status["os"]; ok {
-		t.Errorf("expected os to be removed from status endpoint")
+	if !bytes.Equal(body, []byte("ok\n")) {
+		t.Errorf("expected body 'ok\\n', got %q", string(body))
 	}
 
 	cancel()
 	<-done
-}
-
-func TestGenerateToken(t *testing.T) {
-	t1, err := generateToken()
-	if err != nil {
-		t.Fatalf("failed to generate token: %v", err)
-	}
-	t2, err := generateToken()
-	if err != nil {
-		t.Fatalf("failed to generate token: %v", err)
-	}
-	if t1 == t2 {
-		t.Errorf("expected unique tokens, got same: %s", t1)
-	}
-	if len(t1) != 32 { // 16 bytes hex encoded
-		t.Errorf("expected 32 chars, got %d", len(t1))
-	}
 }
 
 func TestDaemon_Shutdown_Unauthorized(t *testing.T) {
@@ -146,10 +124,11 @@ func TestDaemon_InvalidMethod(t *testing.T) {
 	defer cancel()
 
 	port := getFreePort(t)
-	d := New(Config{ListenPort: port}, nil)
+	d := New(Config{ListenPort: port, APIKey: "test-key"}, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
+	time.Sleep(10 * time.Millisecond)
 
 	if err := waitForServer(port); err != nil {
 		cancel()
@@ -249,7 +228,8 @@ func TestDaemon_Run_DynamicToken(t *testing.T) {
 	handshakeDone := make(chan bool, 1)
 
 	// No APIKey provided, should generate one
-	d := New(Config{ListenPort: port}, func(ctx context.Context, tok string) error {
+	token := "test-api-key"
+	d := New(Config{ListenPort: port, APIKey: token}, func(ctx context.Context, tok string) error {
 		capturedToken = tok
 		handshakeDone <- true
 		return nil
@@ -265,8 +245,8 @@ func TestDaemon_Run_DynamicToken(t *testing.T) {
 
 	select {
 	case <-handshakeDone:
-		if len(capturedToken) != 32 {
-			t.Errorf("expected 32-char hex token, got %s", capturedToken)
+		if capturedToken != token {
+			t.Errorf("expected token %s, got %s", token, capturedToken)
 		}
 	case <-time.After(2 * time.Second):
 		t.Error("handshake not called")
@@ -349,6 +329,7 @@ func TestDaemon_Run_HandshakeRetry(t *testing.T) {
 
 	d := New(Config{
 		ListenPort:    port,
+		APIKey:        "test-key",
 		RetryInterval: 10 * time.Millisecond,
 	}, func(ctx context.Context, tok string) error {
 		callCount++
@@ -444,7 +425,7 @@ func TestDaemon_PerformOSShutdown_Error(t *testing.T) {
 		}
 	}
 
-	d := New(Config{ShutdownDelay: time.Millisecond}, nil)
+	d := New(Config{APIKey: "test-key", ShutdownDelay: time.Millisecond}, nil)
 	d.performOSShutdown()
 
 	select {

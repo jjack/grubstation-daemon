@@ -2,9 +2,6 @@ package daemon
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -41,27 +38,13 @@ func New(cfg Config, pushHandler func(ctx context.Context, token string) error) 
 	}
 }
 
-func generateToken() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
-}
-
 // run contains the core daemon logic.
 func (d *Daemon) run(ctx context.Context) error {
 	token := d.Config.APIKey
 	if token == "" {
-		generated, err := generateToken()
-		if err != nil {
-			return fmt.Errorf("failed to generate TOFU token: %w", err)
-		}
-		token = generated
-		slog.Info("Generated dynamic TOFU token", "token", token)
-	} else {
-		slog.Info("Using configured API key")
+		return fmt.Errorf("API key must be configured")
 	}
+	slog.Info("Using configured API key")
 
 	go d.listenUnixSocket(ctx, token)
 
@@ -106,10 +89,8 @@ func (d *Daemon) run(ctx context.Context) error {
 		IdleTimeout:  120 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodGet && r.URL.Path == "/healthcheck" {
-				w.Header().Set("Content-Type", "application/json")
-				_ = json.NewEncoder(w).Encode(map[string]string{
-					"status": "ok",
-				})
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("ok\n"))
 				return
 			}
 
@@ -128,7 +109,7 @@ func (d *Daemon) run(ctx context.Context) error {
 			if r.URL.Path == "/shutdown" {
 				slog.Info("Shutdown requested via HTTP")
 				w.WriteHeader(http.StatusOK)
-				_, _ = fmt.Fprintln(w, "Shutting down...")
+				w.Write([]byte("Shutting down...\n"))
 
 				// Execute final push and shutdown in a goroutine
 				go func() {
