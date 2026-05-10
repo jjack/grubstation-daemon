@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*" Name="GrubStation" Language="1033" Version="$(var.Version)" Manufacturer="Jeremy Jack" UpgradeCode="2e8b9308-466d-4952-9d33-4f9342718712">
+        <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+        <MediaTemplate EmbedCab="yes" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <Directory Id="INSTALLDIR" Name="GrubStation" />
+            </Directory>
+        </Directory>
+
+        <ComponentGroup Id="ProductComponents" Directory="INSTALLDIR">
+            <Component Id="Executable" Guid="*">
+                <!-- GoReleaser replaces this with the actual binary path -->
+                <File Id="GrubStationEXE" Source="grubstation.exe" KeyPath="yes" />
+            </Component>
+        </ComponentGroup>
+
+        <!-- CUSTOM ACTION: Launch the TUI -->
+        <!-- We run cmd.exe /c start to ensure it pops up a visible console window -->
+        <CustomAction Id="LaunchConfig" 
+                      Directory="INSTALLDIR" 
+                      ExeCommand="cmd.exe /c start &quot;GrubStation Setup&quot; grubstation.exe install" 
+                      Return="asyncNoWait" />
+
+        <InstallExecuteSequence>
+            <!-- Only run the config wizard on the first install, not on uninstalls -->
+            <Custom Action="LaunchConfig" After="InstallFinalize">NOT Installed</Custom>
+        </InstallExecuteSequence>
+
+        <Feature Id="ProductFeature" Title="GrubStation" Level="1">
+            <ComponentGroupRef Id="ProductComponents" />
+        </Feature>
+    </Product>
+</Wix>

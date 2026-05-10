@@ -1,8 +1,3 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
-# The lines below are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/need to use them.
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
 
@@ -54,11 +49,22 @@ nfpms:
       - apk
 
 msis:
-  - upgrade_code: 2e8b9308-466d-4952-9d33-4f9342718712
-    maintainer: "jjack"
-    homepage: "https://github.com/jjack/grubstation-daemon"
+  - id: grubstation
+    upgrade_code: 2e8b9308-466d-4952-9d33-4f9342718712
+    maintainer: "Jeremy Jack"
+    homepage: "https://github.com/jjack/grubstation-cli" # Updated per repo naming
     description: "Agent to manage bare-metal OS booting via Home Assistant and WOL"
-    license: "MIT"
+    license: "Apache-2.0"
+    
+    template: ./.build/windows/template.wxs
+    
+    # Ensures wixl can map the binary name correctly
+    replacements:
+      BINARY: grubstation
+    
+    # Pass the version to the WiX template variables
+    wxs_variables:
+      Version: "{{ .Version }}"
 
 changelog:
   sort: asc
