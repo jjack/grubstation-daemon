@@ -1,6 +1,6 @@
 # Bootloader Configuration
 
-> **Note:** The `sudo grubstation setup` and `sudo grubstation apply` commands handle this automatically. You only need to follow these steps if you are manually configuring the system.
+> **Note:** The `sudo grubstation setup` and `sudo grubstation service install` commands handle this automatically. You only need to follow these steps if you are manually configuring the system.
 
 ## Configure GRUB
 

@@ -265,3 +265,26 @@ func (g *Grub) SetupWarning() string {
 		"hardware vendors. If your system struggles to connect to the network from within GRUB,\n" +
 		"you may need to manually troubleshoot your GRUB network settings."
 }
+
+// Uninstall removes the GRUB remote boot agent script and updates the GRUB config.
+func (g *Grub) Uninstall(ctx context.Context) error {
+	if err := os.Remove(HassGrubStationPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove grub script: %w", err)
+	}
+
+	if path, err := ExecLookPath("update-grub"); err == nil {
+		out, err := ExecCommand(ctx, path).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("update-grub failed: %s", string(out))
+		}
+		return nil
+	}
+	if path, err := ExecLookPath("grub2-mkconfig"); err == nil {
+		out, err := ExecCommand(ctx, path, "-o", "/boot/grub2/grub.cfg").CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("grub2-mkconfig failed: %s", string(out))
+		}
+		return nil
+	}
+	return nil
+}

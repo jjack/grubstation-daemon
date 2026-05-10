@@ -458,7 +458,6 @@ func TestValidatePort(t *testing.T) {
 		{"not a number", "abc", true},
 		{"too low", "0", true},
 		{"too high", "65536", true},
-		{"valid", "8081", false},
 	}
 
 	for _, tt := range tests {
@@ -468,6 +467,18 @@ func TestValidatePort(t *testing.T) {
 				t.Errorf("validatePort() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+
+	// Test valid port
+	l_valid, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen on random port: %v", err)
+	}
+	_, portStr_valid, _ := net.SplitHostPort(l_valid.Addr().String())
+	_ = l_valid.Close()
+
+	if err := validatePort(portStr_valid); err != nil {
+		t.Errorf("expected no error for valid available port, got %v", err)
 	}
 
 	// Test port in use

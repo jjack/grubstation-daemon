@@ -20,10 +20,10 @@ This command launches an interactive wizard that autodetects your system setting
 
 ## 2. Applying Configuration Later
 
-If you answered "no" to the installation prompt during `setup`, or if you created the `config.yaml` manually (e.g., via Ansible), you can apply the hooks directly using the `apply` command:
+If you answered "no" to the installation prompt during `setup`, or if you created the `config.yaml` manually (e.g., via Ansible), you can apply the hooks directly using the `service install` command:
 
 ```bash
-sudo grubstation apply --config /etc/grubstation/config.yaml
+sudo grubstation service install --config /etc/grubstation/config.yaml
 ```
 
 ## 3. Running as a Daemon

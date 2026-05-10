@@ -187,8 +187,8 @@ func TestSetupCmd_Execute(t *testing.T) {
 			},
 			wantInstall: false,
 			wantOut: []string{
-				"Setup complete. You can apply the system hooks later",
-				"To populate Home Assistant immediately without rebooting, run: grubstation options push",
+				"Setup complete. You can install the system service later",
+				"To populate Home Assistant immediately without rebooting, run: grubstation boot push",
 			},
 		},
 		{

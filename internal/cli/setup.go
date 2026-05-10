@@ -196,15 +196,15 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 				rep := reporter.New(deps.Config, deps.Grub, mgrName)
 				if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
 					cmd.Printf("Warning: failed to push initial state to Home Assistant: %v\n", err)
-					cmd.Println("You can try pushing manually later with 'grubstation options push'")
+					cmd.Println("You can try pushing manually later with 'grubstation boot push'")
 				} else {
 					cmd.Println("Successfully pushed initial state to Home Assistant.")
 				}
 				return nil
 			}
 
-			cmd.Println("\nSetup complete. You can apply the system hooks later by running 'grubstation apply'")
-			cmd.Println("To populate Home Assistant immediately without rebooting, run: grubstation options push")
+			cmd.Println("\nSetup complete. You can install the system service later by running 'grubstation service install'")
+			cmd.Println("To populate Home Assistant immediately without rebooting, run: grubstation boot push")
 			return nil
 		},
 	}

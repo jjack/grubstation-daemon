@@ -1,6 +1,6 @@
 # Init System Configuration
 
-> **Note:** The `sudo grubstation setup` and `sudo grubstation apply` commands handle this automatically. You only need to follow these steps if you are manually configuring the system.
+> **Note:** The `sudo grubstation setup` and `sudo grubstation service install` commands handle this automatically. You only need to follow these steps if you are manually configuring the system.
 
 ## Configure the Init Manager Shutdown Hook
 
@@ -15,7 +15,7 @@ Requires=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/grubstation options push --config /etc/grubstation/config.yaml
+ExecStart=/usr/local/bin/grubstation boot push --config /etc/grubstation/config.yaml
 TimeoutSec=10
 
 [Install]

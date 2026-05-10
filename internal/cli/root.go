@@ -135,10 +135,10 @@ func NewCLI() *CLI {
 	// Register platform-specific services automatically
 	service_manager.RegisterDefaultServices(deps.Registry)
 
-	rootCmd.AddCommand(NewOptionsCmd(deps))
+	rootCmd.AddCommand(NewBootCmd(deps))
 	rootCmd.AddCommand(NewConfigCmd(deps))
 	rootCmd.AddCommand(NewSetupCmd(deps))
-	rootCmd.AddCommand(NewApplyCmd(deps))
+	rootCmd.AddCommand(NewServiceCmd(deps))
 	rootCmd.AddCommand(NewDaemonCmd(deps))
 
 	// get rid of the completion command because it doesn't make sense here
