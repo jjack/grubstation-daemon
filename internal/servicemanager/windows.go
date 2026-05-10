@@ -1,6 +1,6 @@
 //go:build windows
 
-package service_manager
+package servicemanager
 
 import (
 	"context"

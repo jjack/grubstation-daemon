@@ -1,6 +1,6 @@
 //go:build !linux && !windows
 
-package service_manager
+package servicemanager
 
 // RegisterDefaultServices is a no-op fallback for unsupported platforms.
 func RegisterDefaultServices(r *Registry) {

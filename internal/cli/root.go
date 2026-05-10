@@ -11,7 +11,7 @@ import (
 	"github.com/jjack/grubstation-daemon/internal/grub"
 	"github.com/jjack/grubstation-daemon/internal/homeassistant"
 	"github.com/jjack/grubstation-daemon/internal/host"
-	"github.com/jjack/grubstation-daemon/internal/service_manager"
+	"github.com/jjack/grubstation-daemon/internal/servicemanager"
 	"github.com/spf13/cobra"
 )
 
@@ -60,11 +60,11 @@ func (d *DefaultSystemResolver) DiscoverGrubConfig(ctx context.Context) (string,
 type CommandDeps struct {
 	Config         *config.Config
 	Grub           *grub.Grub
-	Registry       *service_manager.Registry
+	Registry       *servicemanager.Registry
 	SystemResolver SystemResolver
 }
 
-func (cd *CommandDeps) Manager(ctx context.Context) (service_manager.Manager, error) {
+func (cd *CommandDeps) Manager(ctx context.Context) (servicemanager.Manager, error) {
 	mgr, err := cd.Registry.Detect(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("manager detection failed: %w", err)
@@ -78,7 +78,7 @@ func NewCLI() *CLI {
 	deps := &CommandDeps{
 		Config:         &config.Config{},
 		Grub:           &grub.Grub{},
-		Registry:       service_manager.NewRegistry(),
+		Registry:       servicemanager.NewRegistry(),
 		SystemResolver: &DefaultSystemResolver{},
 	}
 
@@ -133,7 +133,7 @@ func NewCLI() *CLI {
 	rootCmd.PersistentFlags().BoolVar(&debugMode, "debug", false, "Enable debug logging")
 
 	// Register platform-specific services automatically
-	service_manager.RegisterDefaultServices(deps.Registry)
+	servicemanager.RegisterDefaultServices(deps.Registry)
 
 	rootCmd.AddCommand(NewBootCmd(deps))
 	rootCmd.AddCommand(NewConfigCmd(deps))

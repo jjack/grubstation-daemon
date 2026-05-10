@@ -13,7 +13,7 @@ import (
 	"github.com/jjack/grubstation-daemon/internal/config"
 	"github.com/jjack/grubstation-daemon/internal/grub"
 	"github.com/jjack/grubstation-daemon/internal/reporter"
-	"github.com/jjack/grubstation-daemon/internal/service_manager"
+	"github.com/jjack/grubstation-daemon/internal/servicemanager"
 	"github.com/spf13/cobra"
 )
 
@@ -95,7 +95,7 @@ func ensureSupport(ctx context.Context, deps *CommandDeps) error {
 	}
 	_, err := deps.Registry.Detect(ctx)
 	if err != nil {
-		if errors.Is(err, service_manager.ErrNotSupported) {
+		if errors.Is(err, servicemanager.ErrNotSupported) {
 			supported := strings.Join(deps.Registry.SupportedServices(), ", ")
 			return fmt.Errorf("no supported service manager detected. Please ensure you have one of the following installed: %s", supported)
 		}

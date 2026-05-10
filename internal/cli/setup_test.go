@@ -15,7 +15,7 @@ import (
 	"github.com/jjack/grubstation-daemon/internal/cli/survey"
 	"github.com/jjack/grubstation-daemon/internal/config"
 	"github.com/jjack/grubstation-daemon/internal/grub"
-	"github.com/jjack/grubstation-daemon/internal/service_manager"
+	"github.com/jjack/grubstation-daemon/internal/servicemanager"
 )
 
 type mockInstallInitSystem struct {
@@ -39,8 +39,8 @@ func TestApplyCmd_GrubError(t *testing.T) {
 		Daemon: config.DaemonConfig{ReportBootOptions: true},
 	}
 
-	initReg := service_manager.NewRegistry()
-	initReg.Register("mock-init", func() service_manager.Manager { return &mockInstallInitSystem{} })
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { return &mockInstallInitSystem{} })
 
 	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/invalid/path/grub.cfg"}, Registry: initReg}
 	cmd := NewApplyCmd(deps)
@@ -54,8 +54,8 @@ func TestApplyCmd_GrubError(t *testing.T) {
 func TestApplyCmd_MissingConfigFlag(t *testing.T) {
 	cfg := &config.Config{}
 
-	initReg := service_manager.NewRegistry()
-	initReg.Register("mock-init", func() service_manager.Manager { return &mockInstallInitSystem{} })
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { return &mockInstallInitSystem{} })
 
 	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{}, Registry: initReg}
 	cmd := NewApplyCmd(deps) // Missing binding the "config" flag locally
@@ -84,8 +84,8 @@ func TestApplyCmd_AbsConfigError(t *testing.T) {
 
 	cfg := &config.Config{}
 
-	initReg := service_manager.NewRegistry()
-	initReg.Register("mock-init", func() service_manager.Manager { return &mockInstallInitSystem{} })
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { return &mockInstallInitSystem{} })
 
 	deps := &CommandDeps{
 		Config:   cfg,
@@ -124,8 +124,8 @@ func TestSetupCmd_ConfigFlagFallback(t *testing.T) {
 	runConfirm = func(installNow *bool) error { *installNow = false; return nil }
 
 	initMock := &mockInstallInitSystem{}
-	initReg := service_manager.NewRegistry()
-	initReg.Register("mock-init", func() service_manager.Manager { return initMock })
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { return initMock })
 
 	var savedPath string
 	sysResolver := &mockSystemResolver{
@@ -197,7 +197,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 				tempGrub := t.TempDir() + "/grub.cfg"
 				_ = os.WriteFile(tempGrub, []byte(""), 0o644)
 				deps.Grub = &grub.Grub{ConfigPath: tempGrub}
-				deps.Registry = service_manager.NewRegistry() // Empty registry causes init system error
+				deps.Registry = servicemanager.NewRegistry() // Empty registry causes init system error
 			},
 			wantErr:     "no supported service manager detected",
 			wantInstall: false,
@@ -367,8 +367,8 @@ func TestSetupCmd_Execute(t *testing.T) {
 			}()
 
 			initMock := &mockInstallInitSystem{}
-			initReg := service_manager.NewRegistry()
-			initReg.Register("mock-init", func() service_manager.Manager { return initMock })
+			initReg := servicemanager.NewRegistry()
+			initReg.Register("mock-init", func() servicemanager.Manager { return initMock })
 
 			sysResolver := &mockSystemResolver{
 				saveConfigFunc: func(cfg *config.Config, path string) error { return nil },
@@ -426,7 +426,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 func TestEnsureSupport(t *testing.T) {
 	t.Run("InitSystem Not Supported", func(t *testing.T) {
 		deps := &CommandDeps{}
-		initReg := service_manager.NewRegistry()
+		initReg := servicemanager.NewRegistry()
 		deps.Registry = initReg
 
 		err := ensureSupport(context.Background(), deps)
@@ -458,8 +458,8 @@ func TestEnsureSupport_GenericErrors(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		initReg := service_manager.NewRegistry()
-		initReg.Register("systemd", func() service_manager.Manager { return &mockSurveyService{} })
+		initReg := servicemanager.NewRegistry()
+		initReg.Register("systemd", func() servicemanager.Manager { return &mockSurveyService{} })
 
 		deps := &CommandDeps{
 			Grub:     &grub.Grub{ConfigPath: t.TempDir() + "/grub.cfg"},
@@ -478,8 +478,8 @@ func TestEnsureSupport_GenericErrors(t *testing.T) {
 }
 
 func TestSurveyDepsAdapter(t *testing.T) {
-	initReg := service_manager.NewRegistry()
-	initReg.Register("systemd", func() service_manager.Manager { return &mockInstallInitSystem{} })
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("systemd", func() servicemanager.Manager { return &mockInstallInitSystem{} })
 	deps := &CommandDeps{
 		Registry:       initReg,
 		SystemResolver: &mockSystemResolver{},
@@ -494,8 +494,8 @@ func TestSurveyDepsAdapter(t *testing.T) {
 func TestApplyCmd_StartServiceWarning(t *testing.T) {
 	cfg := &config.Config{}
 
-	initReg := service_manager.NewRegistry()
-	initReg.Register("mock-init", func() service_manager.Manager { return &mockInstallInitSystem{startErr: errors.New("start failed")} })
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { return &mockInstallInitSystem{startErr: errors.New("start failed")} })
 
 	deps := &CommandDeps{
 		Config:   cfg,
