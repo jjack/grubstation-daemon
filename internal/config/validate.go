@@ -22,7 +22,6 @@ var (
 	ErrInvalidURL            = errors.New("invalid URL format")
 	ErrMACAddressEmpty       = errors.New("mac address cannot be empty")
 	ErrHTTPSUnsupported      = errors.New("https is not supported by grub; please use an http:// url")
-	ErrNameEmpty             = errors.New("name cannot be empty")
 	ErrURLEmpty              = errors.New("url cannot be empty")
 	ErrWebhookIDEmpty        = errors.New("webhook id cannot be empty")
 	ErrWebhookIDInvalidChar  = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
@@ -88,7 +87,7 @@ func ValidateWolAddress(v string) error {
 	return nil
 }
 
-func ValidateWolPort(v string) error {
+func ValidatePort(v string) error {
 	// empty means use the default port - 9
 	if v == "" {
 		return nil
@@ -103,9 +102,6 @@ func ValidateWolPort(v string) error {
 
 func (c *Config) Validate() error {
 	if err := ValidateMACAddress(c.Host.MACAddress); err != nil {
-		return err
-	}
-	if err := ValidateName(c.Host.Name); err != nil {
 		return err
 	}
 	if err := ValidateHost(c.Host.Address); err != nil {
@@ -124,18 +120,11 @@ func (c *Config) Validate() error {
 	if c.WakeOnLan.Port != 0 {
 		portStr = strconv.Itoa(c.WakeOnLan.Port)
 	}
-	if err := ValidateWolPort(portStr); err != nil {
+	if err := ValidatePort(portStr); err != nil {
 		return err
 	}
 	if err := ValidateWolAddress(c.WakeOnLan.Address); err != nil {
 		return err
-	}
-	return nil
-}
-
-func ValidateName(v string) error {
-	if v == "" {
-		return ErrNameEmpty
 	}
 	return nil
 }

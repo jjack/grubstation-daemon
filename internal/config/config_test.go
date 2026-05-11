@@ -16,7 +16,6 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 	cfg := &Config{
 		Host: HostConfig{
 			MACAddress: "00:11:22:33:44:55",
-			Name:       "test-name",
 			Address:    "10.0.0.1",
 		},
 		WakeOnLan: WakeOnLanConfig{
@@ -72,7 +71,6 @@ func TestConfig_SaveAndLoad_Defaults(t *testing.T) {
 	cfg := &Config{
 		Host: HostConfig{
 			MACAddress: "00:11:22:33:44:55",
-			Name:       "test-name",
 			Address:    "10.0.0.1",
 		},
 		WakeOnLan: WakeOnLanConfig{
@@ -141,7 +139,6 @@ func TestConfig_LoadDefaults(t *testing.T) {
 func TestLoad_WithFlags(t *testing.T) {
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	fs.String(FlagMac, "", "")
-	fs.String(FlagName, "", "")
 	fs.String(FlagAddress, "", "")
 	fs.String(FlagWolAddress, "", "")
 	fs.Int(FlagWolPort, 0, "")
@@ -150,7 +147,6 @@ func TestLoad_WithFlags(t *testing.T) {
 	fs.String(FlagGrubConfig, "", "")
 
 	_ = fs.Set(FlagMac, "aa:bb:cc:dd:ee:ff")
-	_ = fs.Set(FlagName, "flag-name")
 	_ = fs.Set(FlagAddress, "flag-address")
 	_ = fs.Set(FlagWolAddress, "1.1.1.1")
 	_ = fs.Set(FlagWolPort, "7")
@@ -171,9 +167,6 @@ func TestLoad_WithFlags(t *testing.T) {
 
 	if cfg.Host.MACAddress != "aa:bb:cc:dd:ee:ff" {
 		t.Errorf("expected mac aa:bb:cc:dd:ee:ff, got %v", cfg.Host.MACAddress)
-	}
-	if cfg.Host.Name != "flag-name" {
-		t.Errorf("expected name flag-name, got %v", cfg.Host.Name)
 	}
 	if cfg.Host.Address != "flag-address" {
 		t.Errorf("expected address flag-address, got %v", cfg.Host.Address)

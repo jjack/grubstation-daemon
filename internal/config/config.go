@@ -5,9 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -25,7 +28,6 @@ func DefaultConfigPath() string {
 const (
 	FlagGrubConfig  = "grub-config"
 	FlagMac         = "host-mac"
-	FlagName        = "host-name"
 	FlagAddress     = "host-address"
 	FlagWolAddress  = "wol-address"
 	FlagWolPort     = "wol-port"
@@ -38,38 +40,74 @@ const (
 var viperBindPFlag = func(v *viper.Viper, key string, flag *pflag.Flag) error { return v.BindPFlag(key, flag) }
 
 type Config struct {
-	Host          HostConfig          `mapstructure:"host"`
-	WakeOnLan     WakeOnLanConfig     `mapstructure:"wake_on_lan"`
-	HomeAssistant HomeAssistantConfig `mapstructure:"homeassistant"`
-	Grub          GrubConfig          `mapstructure:"grub"`
-	Daemon        DaemonConfig        `mapstructure:"daemon"`
+	Host          HostConfig          `yaml:"host"`
+	WakeOnLan     WakeOnLanConfig     `yaml:"wake_on_lan"`
+	HomeAssistant HomeAssistantConfig `yaml:"homeassistant"`
+	Grub          GrubConfig          `yaml:"grub"`
+	Daemon        DaemonConfig        `yaml:"daemon"`
 }
 
 type DaemonConfig struct {
-	ListenPort        int    `mapstructure:"listen_port"`
-	APIKey            string `mapstructure:"api_key"`
-	ReportBootOptions bool   `mapstructure:"report_boot_options"`
+	ListenPort        int    `yaml:"listen_port"`
+	APIKey            string `yaml:"api_key,omitempty"`
+	ReportBootOptions bool   `yaml:"report_boot_options"`
 }
 
 type GrubConfig struct {
-	ConfigPath      string `mapstructure:"config_path"`
-	WaitTimeSeconds int    `mapstructure:"wait_time_seconds"`
+	ConfigPath      string `yaml:"config_path,omitempty"`
+	WaitTimeSeconds int    `yaml:"wait_time_seconds,omitempty"`
 }
 
 type WakeOnLanConfig struct {
-	Address string `mapstructure:"address"`
-	Port    int    `mapstructure:"port"`
+	Address string `yaml:"address,omitempty"`
+	Port    int    `yaml:"port,omitempty"`
 }
 
 type HostConfig struct {
-	Name       string `mapstructure:"name"`
-	Address    string `mapstructure:"address"`
-	MACAddress string `mapstructure:"mac"`
+	Address    string `yaml:"address"`
+	MACAddress string `yaml:"mac"`
 }
 
 type HomeAssistantConfig struct {
-	URL       string `mapstructure:"url"`
-	WebhookID string `mapstructure:"webhook_id"`
+	URL       string `yaml:"url"`
+	WebhookID string `yaml:"webhook_id"`
+}
+
+func (c *Config) ToYAML(maskWebhook bool) (string, error) {
+	displayCfg := *c
+
+	// Apply suppression for default values to match existing logic
+	if displayCfg.WakeOnLan.Address == DefaultWolAddress {
+		displayCfg.WakeOnLan.Address = ""
+	}
+	if displayCfg.WakeOnLan.Port == DefaultWolPort {
+		displayCfg.WakeOnLan.Port = 0
+	}
+	if displayCfg.Grub.WaitTimeSeconds == 2 {
+		displayCfg.Grub.WaitTimeSeconds = 0
+	}
+
+	if maskWebhook && len(displayCfg.HomeAssistant.WebhookID) > 4 {
+		displayCfg.HomeAssistant.WebhookID = displayCfg.HomeAssistant.WebhookID[:4] + "..."
+	}
+
+	out, err := yaml.Marshal(displayCfg)
+	if err != nil {
+		return "", err
+	}
+	
+	// Final cleanup: if wake_on_lan or grub are empty, remove them from output
+	// This is a bit of a hack but avoids pointers which complicate the rest of the app.
+	lines := strings.Split(string(out), "\n")
+	var finalLines []string
+	skipNextIfEmpty := map[string]bool{"wake_on_lan: {}": true, "grub: {}": true}
+	for _, line := range lines {
+		if !skipNextIfEmpty[line] {
+			finalLines = append(finalLines, line)
+		}
+	}
+
+	return strings.Join(finalLines, "\n"), nil
 }
 
 func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
@@ -86,7 +124,6 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 		flagMap := map[string]string{
 			"grub.config_path":         FlagGrubConfig,
 			"host.mac":                 FlagMac,
-			"host.name":                FlagName,
 			"host.address":             FlagAddress,
 			"wake_on_lan.address":      FlagWolAddress,
 			"wake_on_lan.port":         FlagWolPort,
@@ -111,7 +148,10 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 	}
 
 	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
+	// Use "yaml" tags for unmarshaling to avoid redundancy
+	if err := v.Unmarshal(&cfg, func(dc *mapstructure.DecoderConfig) {
+		dc.TagName = "yaml"
+	}); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal configuration: %w", err)
 	}
 
@@ -126,39 +166,13 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 }
 
 func Save(cfg *Config, path string) error {
-	v := viper.New()
-	v.Set("host.mac", cfg.Host.MACAddress)
-	v.Set("host.name", cfg.Host.Name)
-	v.Set("host.address", cfg.Host.Address)
-
-	if cfg.WakeOnLan.Address != "" && cfg.WakeOnLan.Address != DefaultWolAddress {
-		v.Set("wake_on_lan.address", cfg.WakeOnLan.Address)
-	}
-	if cfg.WakeOnLan.Port != 0 && cfg.WakeOnLan.Port != DefaultWolPort {
-		v.Set("wake_on_lan.port", cfg.WakeOnLan.Port)
+	out, err := cfg.ToYAML(false)
+	if err != nil {
+		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	v.Set("homeassistant.url", cfg.HomeAssistant.URL)
-	v.Set("homeassistant.webhook_id", cfg.HomeAssistant.WebhookID)
-	v.Set("daemon.listen_port", cfg.Daemon.ListenPort)
-	if cfg.Daemon.APIKey != "" {
-		v.Set("daemon.api_key", cfg.Daemon.APIKey)
-	}
-	v.Set("daemon.report_boot_options", cfg.Daemon.ReportBootOptions)
-	if cfg.Grub.ConfigPath != "" {
-		v.Set("grub.config_path", cfg.Grub.ConfigPath)
-	}
-	if cfg.Grub.WaitTimeSeconds != 0 && cfg.Grub.WaitTimeSeconds != 2 {
-		v.Set("grub.wait_time_seconds", cfg.Grub.WaitTimeSeconds)
-	}
-
-	if err := v.WriteConfigAs(path); err != nil {
+	if err := os.WriteFile(path, []byte(out), 0o600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
-	}
-
-	// Secure the config file to prevent unprivileged users from reading the Home Assistant webhook secret.
-	if err := os.Chmod(path, 0o600); err != nil {
-		return fmt.Errorf("failed to secure config file permissions: %w", err)
 	}
 	return nil
 }

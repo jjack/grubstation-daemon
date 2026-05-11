@@ -110,7 +110,7 @@ func TestValidateWolAddress(t *testing.T) {
 	}
 }
 
-func TestValidateWolPort(t *testing.T) {
+func TestValidatePort(t *testing.T) {
 	tests := []struct {
 		name    string
 		port    string
@@ -124,8 +124,8 @@ func TestValidateWolPort(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateWolPort(tt.port); (err != nil) != tt.wantErr {
-				t.Errorf("ValidateWolPort() error = %v, wantErr %v", err, tt.wantErr)
+			if err := ValidatePort(tt.port); (err != nil) != tt.wantErr {
+				t.Errorf("ValidatePort() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -157,7 +157,6 @@ func TestConfigValidate(t *testing.T) {
 		return &Config{
 			Host: HostConfig{
 				MACAddress: "00:11:22:33:44:55",
-				Name:       "test-name",
 				Address:    "test-host",
 			},
 			WakeOnLan: WakeOnLanConfig{
@@ -185,7 +184,6 @@ func TestConfigValidate(t *testing.T) {
 	}{
 		{"valid config", func(c *Config) {}, false},
 		{"invalid MAC", func(c *Config) { c.Host.MACAddress = "invalid" }, true},
-		{"empty Name", func(c *Config) { c.Host.Name = "" }, true},
 		{"invalid Address", func(c *Config) { c.Host.Address = "invalid address format" }, true},
 		{"empty URL", func(c *Config) { c.HomeAssistant.URL = "" }, true},
 		{"empty WebhookID", func(c *Config) { c.HomeAssistant.WebhookID = "" }, true},
