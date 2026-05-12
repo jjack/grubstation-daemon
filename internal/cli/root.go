@@ -21,7 +21,7 @@ type CLI struct {
 }
 
 type SystemResolver interface {
-	DiscoverHomeAssistant(ctx context.Context) (string, error)
+	DiscoverHomeAssistant(ctx context.Context) ([]string, error)
 	DetectSystemHostname() (string, error)
 	GetWOLInterfaces() ([]net.Interface, error)
 	GetIPInfo(inf net.Interface) ([]string, map[string]string)
@@ -32,7 +32,7 @@ type SystemResolver interface {
 
 type DefaultSystemResolver struct{}
 
-func (d *DefaultSystemResolver) DiscoverHomeAssistant(ctx context.Context) (string, error) {
+func (d *DefaultSystemResolver) DiscoverHomeAssistant(ctx context.Context) ([]string, error) {
 	return homeassistant.Discover(ctx)
 }
 

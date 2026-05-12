@@ -15,7 +15,7 @@ import (
 )
 
 type SystemResolver interface {
-	DiscoverHomeAssistant(ctx context.Context) (string, error)
+	DiscoverHomeAssistant(ctx context.Context) ([]string, error)
 	DetectSystemHostname() (string, error)
 	GetWOLInterfaces() ([]net.Interface, error)
 	GetIPInfo(inf net.Interface) ([]string, map[string]string)
@@ -73,13 +73,13 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 
 	// Background HA Discovery
 	type haResult struct {
-		url string
-		err error
+		urls []string
+		err  error
 	}
 	haChan := make(chan haResult, 1)
 	go func() {
-		url, err := resolver.DiscoverHomeAssistant(ctx)
-		haChan <- haResult{url, err}
+		urls, err := resolver.DiscoverHomeAssistant(ctx)
+		haChan <- haResult{urls, err}
 	}()
 
 	// 2. Installation Mode
@@ -195,32 +195,57 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 	}
 
 	// 8. Home Assistant URL
-	var discoveredHA string
+	var discoveredURLs []string
 	select {
 	case res := <-haChan:
-		discoveredHA = res.url
+		discoveredURLs = res.urls
 	default:
 		s := tap.NewSpinner(tap.SpinnerOptions{})
 		s.Start("Discovering Home Assistant...")
 		res := <-haChan
 		s.Stop("Home Assistant discovery complete", 0)
-		discoveredHA = res.url
+		discoveredURLs = res.urls
 	}
 
-	haURLMessage := "Home Assistant URL"
-	if discoveredHA != "" {
-		haURLMessage = fmt.Sprintf("%s (auto-discovered)", haURLMessage)
+	var haURL string
+	if len(discoveredURLs) > 1 {
+		var opts []tap.SelectOption[string]
+		for _, u := range discoveredURLs {
+			opts = append(opts, tap.SelectOption[string]{Value: u, Label: fmt.Sprintf("%s (Autodiscovered)", u)})
+		}
+		opts = append(opts, tap.SelectOption[string]{Value: "other", Label: "Other (Enter manually)"})
+
+		choice := tap.Select(ctx, tap.SelectOptions[string]{
+			Message: "Multiple Home Assistant instances discovered. Please select one:",
+			Options: opts,
+		})
+		if ctx.Err() != nil {
+			return nil, false, ctx.Err()
+		}
+		if choice != "other" {
+			haURL = choice
+		}
 	}
-	haURL := tap.Text(ctx, tap.TextOptions{
-		Message:      haURLMessage,
-		DefaultValue: discoveredHA,
-		InitialValue: discoveredHA,
-		Validate: func(s string) error {
-			return config.ValidateURL(s)
-		},
-	})
-	if ctx.Err() != nil {
-		return nil, false, ctx.Err()
+
+	if haURL == "" {
+		var defaultURL string
+		haURLMessage := "Home Assistant URL"
+		if len(discoveredURLs) == 1 {
+			defaultURL = discoveredURLs[0]
+			haURLMessage = fmt.Sprintf("%s (auto-discovered)", haURLMessage)
+		}
+
+		haURL = tap.Text(ctx, tap.TextOptions{
+			Message:      haURLMessage,
+			DefaultValue: defaultURL,
+			InitialValue: defaultURL,
+			Validate: func(s string) error {
+				return config.ValidateURL(s)
+			},
+		})
+		if ctx.Err() != nil {
+			return nil, false, ctx.Err()
+		}
 	}
 
 	// 9. HA Webhook ID

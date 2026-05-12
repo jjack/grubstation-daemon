@@ -21,48 +21,46 @@ var newResolver = func() (mdnsResolver, error) {
 	return zeroconf.NewResolver(nil)
 }
 
-func Discover(ctx context.Context) (string, error) {
+func Discover(ctx context.Context) ([]string, error) {
 	resolver, err := newResolver()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	entries := make(chan *zeroconf.ServiceEntry)
-	found := make(chan string, 1) // Channel to receive the discovered URL
 
 	ctx, cancel := context.WithTimeout(ctx, discoveryTimeout)
 	defer cancel()
 
-	go func(results <-chan *zeroconf.ServiceEntry) {
-		// Multiplex the context cancellation and results channel to prevent goroutine leaks if discovery times out.
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case entry, ok := <-results:
-				if !ok {
-					return
-				}
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- resolver.Browse(ctx, homeAssistantService, "local.", entries)
+	}()
 
-				url := extractURL(entry)
-				if url != "" {
-					found <- url
-					return
+	var urls []string
+	seen := make(map[string]bool)
+
+	for {
+		select {
+		case err := <-errChan:
+			if err != nil {
+				return nil, err
+			}
+			return urls, nil
+		case <-ctx.Done():
+			return urls, nil
+		case entry, ok := <-entries:
+			if !ok {
+				continue
+			}
+
+			for _, url := range extractURLs(entry) {
+				if url != "" && !seen[url] {
+					seen[url] = true
+					urls = append(urls, url)
 				}
 			}
 		}
-	}(entries)
-
-	err = resolver.Browse(ctx, homeAssistantService, "local.", entries)
-	if err != nil {
-		return "", err
-	}
-
-	select {
-	case url := <-found:
-		return url, nil
-	case <-ctx.Done():
-		return "", nil
 	}
 }
 
@@ -70,26 +68,27 @@ func isSupportedURL(url string) bool {
 	return url != "" && !strings.HasPrefix(strings.ToLower(url), "https://")
 }
 
-func extractURL(entry *zeroconf.ServiceEntry) string {
-	// Check TXT records for configured URLs first
+func extractURLs(entry *zeroconf.ServiceEntry) []string {
+	var urls []string
+
+	if len(entry.AddrIPv4) > 0 {
+		ip := entry.AddrIPv4[0].String()
+		port := entry.Port
+		urls = append(urls, fmt.Sprintf("http://%s:%d", ip, port))
+	}
+
 	for _, txt := range entry.Text {
 		if strings.HasPrefix(txt, "internal_url=") {
 			if url := strings.TrimPrefix(txt, "internal_url="); isSupportedURL(url) {
-				return url
+				urls = append(urls, url)
 			}
 		}
 		if strings.HasPrefix(txt, "base_url=") {
 			if url := strings.TrimPrefix(txt, "base_url="); isSupportedURL(url) {
-				return url
+				urls = append(urls, url)
 			}
 		}
 	}
 
-	// Fall back to constructing URL from IP and port if no suitable TXT record is found
-	if len(entry.AddrIPv4) > 0 {
-		ip := entry.AddrIPv4[0].String()
-		port := entry.Port
-		return fmt.Sprintf("http://%s:%d", ip, port)
-	}
-	return ""
+	return urls
 }

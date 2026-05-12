@@ -515,7 +515,7 @@ func TestApplyCmd_StartServiceWarning(t *testing.T) {
 }
 
 type mockSystemResolver struct {
-	discoverHomeAssistantFunc func(ctx context.Context) (string, error)
+	discoverHomeAssistantFunc func(ctx context.Context) ([]string, error)
 	detectSystemHostnameFunc  func() (string, error)
 	getWOLInterfacesFunc      func() ([]net.Interface, error)
 	getIPInfoFunc             func(inf net.Interface) ([]string, map[string]string)
@@ -524,11 +524,11 @@ type mockSystemResolver struct {
 	discoverGrubConfigFunc    func(ctx context.Context) (string, error)
 }
 
-func (m *mockSystemResolver) DiscoverHomeAssistant(ctx context.Context) (string, error) {
+func (m *mockSystemResolver) DiscoverHomeAssistant(ctx context.Context) ([]string, error) {
 	if m.discoverHomeAssistantFunc != nil {
 		return m.discoverHomeAssistantFunc(ctx)
 	}
-	return "http://homeassistant.local:8123", nil
+	return []string{"http://homeassistant.local:8123"}, nil
 }
 
 func (m *mockSystemResolver) DiscoverGrubConfig(ctx context.Context) (string, error) {
