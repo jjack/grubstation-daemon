@@ -30,32 +30,25 @@ func New(cfg *config.Config, g *grub.Grub, managerName string) *Reporter {
 	}
 }
 
-// PushBootOptions pushes the current GRUB boot options to Home Assistant.
-func (r *Reporter) PushBootOptions(ctx context.Context, token string) error {
-	var bootOptions []string
-	var err error
-	if r.Config.Daemon.ReportBootOptions {
-		bootOptions, err = r.Grub.GetBootOptions(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get boot options: %w", err)
-		}
-	}
-
+// RegisterDaemon performs the initial registration handshake with Home Assistant.
+func (r *Reporter) RegisterDaemon(ctx context.Context, token string) error {
 	hostCfg := r.Config.Host
 	wolCfg := r.Config.WakeOnLan
 	haCfg := r.Config.HomeAssistant
 	daemonCfg := r.Config.Daemon
 
-	payload := ha.PushPayload{
-		MACAddress:     hostCfg.MACAddress,
+	payload := ha.RegistrationPayload{
+		CommonPayload: ha.CommonPayload{
+			Action:     ha.ActionRegisterAction,
+			MACAddress: hostCfg.MACAddress,
+			Address:    hostCfg.Address,
+			Version:    version.Version,
+			OS:         runtime.GOOS,
+		},
 		WolAddress:     wolCfg.Address,
 		WolPort:        wolCfg.Port,
-		Address:        hostCfg.Address,
-		BootOptions:    bootOptions,
 		APIToken:       token,
-		Version:        version.Version,
 		Port:           daemonCfg.Port,
-		OS:             runtime.GOOS,
 		ServiceManager: r.ManagerName,
 	}
 
@@ -69,9 +62,51 @@ func (r *Reporter) PushBootOptions(ctx context.Context, token string) error {
 		nil,
 	)
 
-	slog.Debug("Pushing boot options to Home Assistant", "webhook_id", haCfg.WebhookID)
-	slog.Debug("Payload", "payload", payload)
+	slog.Debug("Registering daemon with Home Assistant", "webhook_id", haCfg.WebhookID)
+	if err := haClient.Push(ctx, payload); err != nil {
+		return err
+	}
 
+	slog.Debug("Successfully registered daemon with Home Assistant")
+	return nil
+}
+
+// PushBootOptions pushes the current GRUB boot options to Home Assistant.
+func (r *Reporter) PushBootOptions(ctx context.Context) error {
+	var bootOptions []string
+	if r.Config.Daemon.ReportBootOptions {
+		var err error
+		bootOptions, err = r.Grub.GetBootOptions(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get boot options: %w", err)
+		}
+	}
+
+	hostCfg := r.Config.Host
+	haCfg := r.Config.HomeAssistant
+
+	payload := ha.UpdatePayload{
+		CommonPayload: ha.CommonPayload{
+			Action:     ha.ActionUpdateAction,
+			MACAddress: hostCfg.MACAddress,
+			Address:    hostCfg.Address,
+			Version:    version.Version,
+			OS:         runtime.GOOS,
+		},
+		BootOptions: bootOptions,
+	}
+
+	if haCfg.URL == "" || haCfg.WebhookID == "" {
+		return ErrMissingHAConfig
+	}
+
+	haClient := ha.NewClient(
+		haCfg.URL,
+		haCfg.WebhookID,
+		nil,
+	)
+
+	slog.Debug("Pushing boot options to Home Assistant", "webhook_id", haCfg.WebhookID)
 	if err := haClient.Push(ctx, payload); err != nil {
 		return err
 	}

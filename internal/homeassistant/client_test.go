@@ -11,7 +11,7 @@ import (
 )
 
 func TestClient_Push(t *testing.T) {
-	var receivedPayload PushPayload
+	var receivedPayload RegistrationPayload
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(r.URL.Path, "api/webhook/test-webhook") {
 			t.Errorf("unexpected path: %s", r.URL.Path)
@@ -35,13 +35,15 @@ func TestClient_Push(t *testing.T) {
 	defer ts.Close()
 
 	client := NewClient(ts.URL, "test-webhook", nil)
-	payload := PushPayload{
-		MACAddress:     "aa:bb:cc:dd",
-		Address:        "10.0.0.1",
-		BootOptions:    []string{"Ubuntu", "Windows"},
+	payload := RegistrationPayload{
+		CommonPayload: CommonPayload{
+			Action:     ActionRegisterAction,
+			MACAddress: "aa:bb:cc:dd",
+			Address:    "10.0.0.1",
+			Version:    "v1.0.0",
+		},
 		WolAddress:     "192.168.1.255",
 		WolPort:        9,
-		Version:        "v1.0.0",
 		ServiceManager: "systemd",
 	}
 
@@ -50,6 +52,9 @@ func TestClient_Push(t *testing.T) {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 
+	if receivedPayload.Action != ActionRegisterAction {
+		t.Errorf("expected action %s, got %s", ActionRegisterAction, receivedPayload.Action)
+	}
 	if receivedPayload.MACAddress != "aa:bb:cc:dd" {
 		t.Errorf("expected MAC aa:bb:cc:dd, got %s", receivedPayload.MACAddress)
 	}
@@ -59,14 +64,11 @@ func TestClient_Push(t *testing.T) {
 	if receivedPayload.ServiceManager != "systemd" {
 		t.Errorf("expected service manager systemd, got %s", receivedPayload.ServiceManager)
 	}
-	if len(receivedPayload.BootOptions) != 2 {
-		t.Errorf("expected 2 OSs, got %d", len(receivedPayload.BootOptions))
-	}
 }
 
 func TestClient_Push_InvalidURL(t *testing.T) {
 	client := NewClient(":\x00invalid%url", "test", nil)
-	err := client.Push(context.Background(), PushPayload{})
+	err := client.Push(context.Background(), RegistrationPayload{})
 	if err == nil {
 		t.Fatal("expected error on invalid URL, got nil")
 	}
@@ -79,7 +81,7 @@ func TestClient_Push_HostError(t *testing.T) {
 	defer ts.Close()
 
 	client := NewClient(ts.URL, "test-webhook", nil)
-	err := client.Push(context.Background(), PushPayload{})
+	err := client.Push(context.Background(), RegistrationPayload{})
 	if err == nil {
 		t.Fatal("expected error on server 500, got nil")
 	}
@@ -92,7 +94,7 @@ func TestClient_Push_HostError(t *testing.T) {
 func TestClient_Push_HttpClientError(t *testing.T) {
 	// Create client with invalid base url matching protocol scheme error
 	client := NewClient("http://127.0.0.1:0", "test", nil)
-	err := client.Push(context.Background(), PushPayload{})
+	err := client.Push(context.Background(), RegistrationPayload{})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -102,7 +104,7 @@ func TestClient_Push_CreateRequestError(t *testing.T) {
 	client := NewClient("http://homeassistant.local:8123", "test", nil)
 	// Passing a nil context causes http.NewRequestWithContext to reliably return an error
 	//nolint:staticcheck // SA1012: we intentionally pass nil for testing
-	err := client.Push(nil, PushPayload{})
+	err := client.Push(nil, RegistrationPayload{})
 	if err == nil {
 		t.Fatal("expected error on nil context, got nil")
 	}

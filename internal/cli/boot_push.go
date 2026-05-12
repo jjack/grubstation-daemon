@@ -26,7 +26,7 @@ func NewBootPushCmd(deps *CommandDeps) *cobra.Command {
 				mgrName = mgr.Name()
 			}
 			rep := reporter.New(deps.Config, deps.Grub, mgrName)
-			if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
+			if err := rep.PushBootOptions(cmd.Context()); err != nil {
 				return err
 			}
 			cmd.Println("Successfully pushed boot options to Home Assistant")

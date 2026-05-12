@@ -12,8 +12,8 @@ type daemonRunner interface {
 	Run(ctx context.Context) error
 }
 
-var newDaemon = func(cfg daemon.Config, pushHandler func(ctx context.Context, token string) error) daemonRunner {
-	return daemon.New(cfg, pushHandler)
+var newDaemon = func(cfg daemon.Config, regHandler func(ctx context.Context, token string) error, updateHandler func(ctx context.Context) error) daemonRunner {
+	return daemon.New(cfg, regHandler, updateHandler)
 }
 
 func NewDaemonCmd(deps *CommandDeps) *cobra.Command {
@@ -21,21 +21,24 @@ func NewDaemonCmd(deps *CommandDeps) *cobra.Command {
 		Use:   "daemon",
 		Short: "Run the persistent agent daemon",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var pushHandler func(ctx context.Context, token string) error
+			var regHandler func(ctx context.Context, token string) error
+			var updateHandler func(ctx context.Context) error
+
 			if deps.Config.Daemon.ReportBootOptions {
 				mgr, _ := deps.Manager(cmd.Context())
 				mgrName := ""
-				if mgr != nil {
-					mgrName = mgr.Name()
+				if activeMgr := mgr; activeMgr != nil {
+					mgrName = activeMgr.Name()
 				}
 				rep := reporter.New(deps.Config, deps.Grub, mgrName)
-				pushHandler = rep.PushBootOptions
+				regHandler = rep.RegisterDaemon
+				updateHandler = rep.PushBootOptions
 			}
 			d := newDaemon(daemon.Config{
 				Port:              deps.Config.Daemon.Port,
 				ReportBootOptions: deps.Config.Daemon.ReportBootOptions,
 				APIKey:            deps.Config.Daemon.APIKey,
-			}, pushHandler)
+			}, regHandler, updateHandler)
 			return d.Run(cmd.Context())
 		},
 	}

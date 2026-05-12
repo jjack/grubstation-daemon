@@ -68,16 +68,16 @@ func (d *Daemon) handleUnixConnection(ctx context.Context, conn net.Conn, token 
 	scanner := bufio.NewScanner(conn)
 	if scanner.Scan() {
 		if cmd := scanner.Text(); cmd == "push" {
-			if d.PushHandler != nil {
+			if d.UpdateHandler != nil {
 				slog.Info("Push requested via local Unix socket")
-				if err := d.PushHandler(ctx, token); err != nil {
+				if err := d.UpdateHandler(ctx); err != nil {
 					slog.Error("Socket requested push failed", "error", err)
 					_, _ = fmt.Fprintf(conn, "ERROR: %v\n", err)
 				} else {
 					_, _ = fmt.Fprintf(conn, "OK\n")
 				}
 			} else {
-				_, _ = conn.Write([]byte("ERROR: PushHandler not configured\n"))
+				_, _ = conn.Write([]byte("ERROR: UpdateHandler not configured\n"))
 			}
 		}
 	}

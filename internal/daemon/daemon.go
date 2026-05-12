@@ -27,14 +27,16 @@ type Config struct {
 
 // Daemon represents the background service.
 type Daemon struct {
-	Config      Config
-	PushHandler func(ctx context.Context, token string) error
+	Config          Config
+	RegisterHandler func(ctx context.Context, token string) error
+	UpdateHandler   func(ctx context.Context) error
 }
 
-func New(cfg Config, pushHandler func(ctx context.Context, token string) error) *Daemon {
+func New(cfg Config, regHandler func(ctx context.Context, token string) error, updateHandler func(ctx context.Context) error) *Daemon {
 	return &Daemon{
-		Config:      cfg,
-		PushHandler: pushHandler,
+		Config:          cfg,
+		RegisterHandler: regHandler,
+		UpdateHandler:   updateHandler,
 	}
 }
 
@@ -48,8 +50,8 @@ func (d *Daemon) run(ctx context.Context) error {
 
 	go d.listenUnixSocket(ctx, token)
 
-	// 1. Initial Handshake with Retry logic
-	if d.PushHandler != nil {
+	// 1. Initial Handshake (Register + First Update) with Retry logic
+	if d.RegisterHandler != nil {
 		go func() {
 			backoff := d.Config.RetryInterval
 			if backoff == 0 {
@@ -61,8 +63,8 @@ func (d *Daemon) run(ctx context.Context) error {
 				case <-ctx.Done():
 					return
 				default:
-					if err := d.PushHandler(ctx, token); err != nil {
-						slog.Error("Initial handshake failed, retrying...", "error", err, "retry_in", backoff)
+					if err := d.RegisterHandler(ctx, token); err != nil {
+						slog.Error("Initial registration failed, retrying...", "error", err, "retry_in", backoff)
 						select {
 						case <-ctx.Done():
 							return
@@ -74,7 +76,16 @@ func (d *Daemon) run(ctx context.Context) error {
 						}
 						continue
 					}
-					slog.Info("Initial handshake successful")
+					slog.Info("Initial registration successful")
+
+					// Immediately send first update after successful registration
+					if d.UpdateHandler != nil {
+						if err := d.UpdateHandler(ctx); err != nil {
+							slog.Error("Initial update failed", "error", err)
+						} else {
+							slog.Info("Initial update successful")
+						}
+					}
 					return
 				}
 			}
@@ -114,9 +125,9 @@ func (d *Daemon) run(ctx context.Context) error {
 				// Execute final push and shutdown in a goroutine
 				go func() {
 					// Final push before OS shutdown if we are via HTTP
-					if d.Config.ReportBootOptions && d.PushHandler != nil {
+					if d.Config.ReportBootOptions && d.UpdateHandler != nil {
 						slog.Info("Performing pre-shutdown GRUB report push")
-						if err := d.PushHandler(ctx, token); err != nil {
+						if err := d.UpdateHandler(ctx); err != nil {
 							slog.Error("Pre-shutdown push failed", "error", err)
 						}
 					}
@@ -143,11 +154,11 @@ func (d *Daemon) run(ctx context.Context) error {
 	slog.Info("Shutting down daemon...")
 
 	// Final push if GRUB is enabled (for manual SIGTERM/systemd stop)
-	if d.Config.ReportBootOptions && runtime.GOOS == "linux" && d.PushHandler != nil {
+	if d.Config.ReportBootOptions && runtime.GOOS == "linux" && d.UpdateHandler != nil {
 		slog.Info("Performing final GRUB report push")
 		pushCtx, pushCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer pushCancel()
-		if err := d.PushHandler(pushCtx, token); err != nil {
+		if err := d.UpdateHandler(pushCtx); err != nil {
 			slog.Error("Final push failed", "error", err)
 		}
 	}

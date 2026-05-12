@@ -30,7 +30,7 @@ func TestNewDaemonCmd_RunEInvokesDaemon(t *testing.T) {
 	defer func() { newDaemon = oldNewDaemon }()
 
 	called := false
-	newDaemon = func(cfg daemon.Config, pushHandler func(ctx context.Context, token string) error) daemonRunner {
+	newDaemon = func(cfg daemon.Config, regHandler func(ctx context.Context, token string) error, updateHandler func(ctx context.Context) error) daemonRunner {
 		if cfg.Port != 1234 {
 			t.Fatalf("expected listen port 1234, got %d", cfg.Port)
 		}

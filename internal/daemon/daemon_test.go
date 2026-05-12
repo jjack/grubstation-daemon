@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os/exec"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -49,7 +50,7 @@ func TestDaemonHealthcheckEndpoint(t *testing.T) {
 	defer cancel()
 
 	port := getFreePort(t)
-	d := New(Config{Port: port, APIKey: "test-key"}, nil)
+	d := New(Config{Port: port, APIKey: "test-key"}, nil, nil)
 
 	done := make(chan error, 1)
 	go func() {
@@ -93,7 +94,7 @@ func TestDaemon_Shutdown_Unauthorized(t *testing.T) {
 	d := New(Config{
 		Port:   port,
 		APIKey: token,
-	}, nil)
+	}, nil, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -124,7 +125,7 @@ func TestDaemon_InvalidMethod(t *testing.T) {
 	defer cancel()
 
 	port := getFreePort(t)
-	d := New(Config{Port: port, APIKey: "test-key"}, nil)
+	d := New(Config{Port: port, APIKey: "test-key"}, nil, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -155,7 +156,7 @@ func TestDaemon_NotFound(t *testing.T) {
 
 	port := getFreePort(t)
 	token := "token"
-	d := New(Config{Port: port, APIKey: token}, nil)
+	d := New(Config{Port: port, APIKey: token}, nil, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -188,15 +189,19 @@ func TestDaemon_Run_HandshakeSuccess(t *testing.T) {
 	// Find an available port
 	port := getFreePort(t)
 	token := "secret"
-	handshakeDone := make(chan bool, 1)
+	registrationDone := make(chan bool, 1)
+	updateDone := make(chan bool, 1)
 
 	d := New(Config{
 		Port:   port,
 		APIKey: token,
 	}, func(ctx context.Context, tok string) error {
 		if tok == token {
-			handshakeDone <- true
+			registrationDone <- true
 		}
+		return nil
+	}, func(ctx context.Context) error {
+		updateDone <- true
 		return nil
 	})
 
@@ -209,10 +214,17 @@ func TestDaemon_Run_HandshakeSuccess(t *testing.T) {
 	}
 
 	select {
-	case <-handshakeDone:
+	case <-registrationDone:
 		// Success
 	case <-time.After(2 * time.Second):
-		t.Error("handshake not called within timeout")
+		t.Error("registration not called within timeout")
+	}
+
+	select {
+	case <-updateDone:
+		// Success
+	case <-time.After(2 * time.Second):
+		t.Error("initial update not called within timeout")
 	}
 
 	cancel()
@@ -225,15 +237,15 @@ func TestDaemon_Run_DynamicToken(t *testing.T) {
 
 	port := getFreePort(t)
 	var capturedToken string
-	handshakeDone := make(chan bool, 1)
+	registrationDone := make(chan bool, 1)
 
 	// No APIKey provided, should generate one
 	token := "test-api-key"
 	d := New(Config{Port: port, APIKey: token}, func(ctx context.Context, tok string) error {
 		capturedToken = tok
-		handshakeDone <- true
+		registrationDone <- true
 		return nil
-	})
+	}, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -244,12 +256,12 @@ func TestDaemon_Run_DynamicToken(t *testing.T) {
 	}
 
 	select {
-	case <-handshakeDone:
+	case <-registrationDone:
 		if capturedToken != token {
 			t.Errorf("expected token %s, got %s", token, capturedToken)
 		}
 	case <-time.After(2 * time.Second):
-		t.Error("handshake not called")
+		t.Error("registration not called")
 	}
 
 	cancel()
@@ -274,14 +286,14 @@ func TestDaemon_Shutdown_Success(t *testing.T) {
 	defer cancel()
 
 	token := "token"
-	pushCalled := make(chan bool, 10)
+	updateCalled := make(chan bool, 10)
 	d := New(Config{
 		Port:              port,
 		APIKey:            token,
 		ReportBootOptions: true,
 		ShutdownDelay:     time.Millisecond,
-	}, func(ctx context.Context, tok string) error {
-		pushCalled <- true
+	}, nil, func(ctx context.Context) error {
+		updateCalled <- true
 		return nil
 	})
 
@@ -308,15 +320,15 @@ func TestDaemon_Shutdown_Success(t *testing.T) {
 		t.Error("shutdown command not called")
 	}
 
-	// Drain any remaining pushes to avoid blocking the daemon's finalization
+	// Drain any remaining updates to avoid blocking the daemon's finalization
 	go func() {
-		for range pushCalled {
+		for range updateCalled {
 		}
 	}()
 
 	cancel()
 	<-done
-	close(pushCalled)
+	close(updateCalled)
 }
 
 func TestDaemon_Run_HandshakeRetry(t *testing.T) {
@@ -325,7 +337,7 @@ func TestDaemon_Run_HandshakeRetry(t *testing.T) {
 
 	port := getFreePort(t)
 	callCount := 0
-	handshakeDone := make(chan bool, 1)
+	registrationDone := make(chan bool, 1)
 
 	d := New(Config{
 		Port:          port,
@@ -336,9 +348,9 @@ func TestDaemon_Run_HandshakeRetry(t *testing.T) {
 		if callCount == 1 {
 			return errors.New("fail")
 		}
-		handshakeDone <- true
+		registrationDone <- true
 		return nil
-	})
+	}, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -349,12 +361,12 @@ func TestDaemon_Run_HandshakeRetry(t *testing.T) {
 	}
 
 	select {
-	case <-handshakeDone:
+	case <-registrationDone:
 		if callCount < 2 {
 			t.Errorf("expected retry, callCount was %d", callCount)
 		}
 	case <-time.After(1 * time.Second):
-		t.Error("handshake retry did not succeed in time")
+		t.Error("registration retry did not succeed in time")
 	}
 
 	cancel()
@@ -368,13 +380,19 @@ func TestDaemon_FinalPush(t *testing.T) {
 
 	port := getFreePort(t)
 	token := "token"
-	pushCalled := make(chan bool, 10)
+	
+	var wg sync.WaitGroup
+	wg.Add(3) // 1 registration + 1 initial update + 1 final update
+
 	d := New(Config{
 		Port:              port,
 		APIKey:            token,
 		ReportBootOptions: true,
 	}, func(ctx context.Context, tok string) error {
-		pushCalled <- true
+		wg.Done()
+		return nil
+	}, func(ctx context.Context) error {
+		wg.Done()
 		return nil
 	})
 
@@ -387,23 +405,21 @@ func TestDaemon_FinalPush(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Start a goroutine to drain the push channel so it doesn't block the daemon's finalization
-	pushCount := 0
-	doneDraining := make(chan bool)
-	go func() {
-		for range pushCalled {
-			pushCount++
-		}
-		doneDraining <- true
-	}()
-
 	cancel() // Stop daemon
 	<-done
-	close(pushCalled)
-	<-doneDraining
 
-	if pushCount < 2 {
-		t.Errorf("expected at least 2 pushes (handshake + final), got %d", pushCount)
+	// Wait for all expected calls to finish
+	finished := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(finished)
+	}()
+
+	select {
+	case <-finished:
+		// Success
+	case <-time.After(2 * time.Second):
+		t.Errorf("Timed out waiting for expected registration and updates")
 	}
 }
 
@@ -425,7 +441,7 @@ func TestDaemon_PerformOSShutdown_Error(t *testing.T) {
 		}
 	}
 
-	d := New(Config{APIKey: "test-key", ShutdownDelay: time.Millisecond}, nil)
+	d := New(Config{APIKey: "test-key", ShutdownDelay: time.Millisecond}, nil, nil)
 	d.performOSShutdown()
 
 	select {

@@ -22,17 +22,33 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
-type PushPayload struct {
-	MACAddress     string   `json:"mac"`
-	WolAddress     string   `json:"broadcast_address,omitempty"`
-	WolPort        int      `json:"broadcast_port,omitempty"`
-	Address        string   `json:"address"`
-	BootOptions    []string `json:"boot_options"`
-	APIToken       string   `json:"api_key,omitempty"`
-	Version        string   `json:"daemon_version,omitempty"`
-	Port           int      `json:"daemon_port,omitempty"`
-	OS             string   `json:"os"`
-	ServiceManager string   `json:"service_manager,omitempty"`
+type Action string
+
+const (
+	ActionRegisterAction Action = "register_daemon"
+	ActionUpdateAction   Action = "update_boot_options"
+)
+
+type CommonPayload struct {
+	Action     Action `json:"action"`
+	MACAddress string `json:"mac"`
+	Address    string `json:"address"`
+	Version    string `json:"daemon_version,omitempty"`
+	OS         string `json:"os"`
+}
+
+type RegistrationPayload struct {
+	CommonPayload
+	WolAddress     string `json:"broadcast_address,omitempty"`
+	WolPort        int    `json:"broadcast_port,omitempty"`
+	APIToken       string `json:"api_key,omitempty"`
+	Port           int    `json:"daemon_port,omitempty"`
+	ServiceManager string `json:"service_manager,omitempty"`
+}
+
+type UpdatePayload struct {
+	CommonPayload
+	BootOptions []string `json:"boot_options"`
 }
 
 func NewClient(baseURL, webhookID string, httpClient *http.Client) *Client {
@@ -46,7 +62,7 @@ func NewClient(baseURL, webhookID string, httpClient *http.Client) *Client {
 	}
 }
 
-func (c *Client) Push(ctx context.Context, payload PushPayload) error {
+func (c *Client) Push(ctx context.Context, payload any) error {
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return fmt.Errorf("invalid base url: %w", err)

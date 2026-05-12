@@ -21,10 +21,7 @@ func TestUnixSocketPush(t *testing.T) {
 	defer cancel()
 
 	pushed := false
-	d := New(Config{}, func(ctx context.Context, token string) error {
-		if token != "test-token" {
-			return errors.New("wrong token")
-		}
+	d := New(Config{}, nil, func(ctx context.Context) error {
 		pushed = true
 		return nil
 	})
@@ -51,7 +48,7 @@ func TestUnixSocket_ListenError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := New(Config{}, nil)
+	d := New(Config{}, nil, nil)
 
 	// Call in a goroutine with a channel to signal completion
 	done := make(chan struct{})
@@ -77,7 +74,7 @@ func TestUnixSocket_PushHandlerError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := New(Config{}, func(ctx context.Context, token string) error {
+	d := New(Config{}, nil, func(ctx context.Context) error {
 		return errors.New("push failed")
 	})
 	go d.listenUnixSocket(ctx, "token")
@@ -98,12 +95,12 @@ func TestUnixSocket_NoPushHandler(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := New(Config{}, nil)
+	d := New(Config{}, nil, nil)
 	go d.listenUnixSocket(ctx, "token")
 	time.Sleep(50 * time.Millisecond)
 
 	err := RequestPushViaSocket(ctx)
-	if err == nil || !strings.Contains(err.Error(), "PushHandler not configured") {
+	if err == nil || !strings.Contains(err.Error(), "UpdateHandler not configured") {
 		t.Errorf("expected not configured error, got %v", err)
 	}
 }

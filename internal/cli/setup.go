@@ -20,7 +20,7 @@ import (
 
 var osMkdirAll = os.MkdirAll
 
-func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error {
+func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string, token string) error {
 	mgr, err := deps.Manager(cmd.Context())
 	if err != nil {
 		return err
@@ -57,7 +57,14 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error
 			mgrName = activeMgr.Name()
 		}
 		rep := reporter.New(deps.Config, deps.Grub, mgrName)
-		if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
+
+		if token != "" {
+			if err := rep.RegisterDaemon(cmd.Context(), token); err != nil {
+				return err
+			}
+		}
+
+		if err := rep.PushBootOptions(cmd.Context()); err != nil {
 			return err
 		}
 		tap.Message("Successfully pushed initial state to Home Assistant.")
@@ -88,7 +95,7 @@ func NewApplyCmd(deps *CommandDeps) *cobra.Command {
 				return fmt.Errorf("failed to read config flag: %w", err)
 			}
 			tap.Intro("GrubStation Apply")
-			err = performInstall(cmd, deps, cfgFile)
+			err = performInstall(cmd, deps, cfgFile, "")
 			if err != nil {
 				return err
 			}
@@ -145,7 +152,7 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if applyOnly {
 				cfgPath, _ := cmd.Flags().GetString("config")
-				return performInstall(cmd, deps, cfgPath)
+				return performInstall(cmd, deps, cfgPath, "")
 			}
 
 			if _, err := ensureSupport(cmd.Context(), deps); err != nil {
@@ -202,7 +209,7 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 			tap.Intro("Proceeding with installation...")
 			// We update the deps config with our freshly generated config so the installer can use it
 			*deps.Config = *cfg
-			if err := performInstall(cmd, deps, cfgPath); err != nil {
+			if err := performInstall(cmd, deps, cfgPath, ""); err != nil {
 				return err
 			}
 
@@ -213,7 +220,7 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 				mgrName = activeMgr.Name()
 			}
 			rep := reporter.New(deps.Config, deps.Grub, mgrName)
-			if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
+			if err := rep.PushBootOptions(cmd.Context()); err != nil {
 				return err
 			}
 			tap.Message("Successfully pushed initial state to Home Assistant.")
