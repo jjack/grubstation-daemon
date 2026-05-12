@@ -59,7 +59,7 @@ func (d *Daemon) run(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to generate dynamic token: %w", err)
 		}
-		slog.Info("Using dynamically generated TOFU token", "token", token)
+		slog.Info("Using dynamically generated TOFU token")
 	} else {
 		slog.Info("Using configured API key")
 	}
