@@ -11,11 +11,11 @@ func TestValidateWebhookID(t *testing.T) {
 		webhookID string
 		wantErr   bool
 	}{
-		{"valid", "my_webhook_123", false},
-		{"valid with hyphen", "my-webhook-123", false},
+		{"valid", "0b1eb94bad526a8f845df65e19bf1dfb165a17917f77d981acb4f5774dbb7953", false},
 		{"empty", "", true},
 		{"invalid characters", "my!webhook", true},
 		{"too long", strings.Repeat("a", 256), true},
+		{"too short", strings.Repeat("a", 32), true},
 	}
 
 	for _, tt := range tests {

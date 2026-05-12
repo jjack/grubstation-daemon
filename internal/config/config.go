@@ -41,15 +41,15 @@ const (
 var viperBindPFlag = func(v *viper.Viper, key string, flag *pflag.Flag) error { return v.BindPFlag(key, flag) }
 
 type Config struct {
-	Host          HostConfig           `yaml:"host"`
-	WakeOnLan     *WakeOnLanConfig     `yaml:"wake_on_lan,omitempty"`
-	HomeAssistant HomeAssistantConfig  `yaml:"homeassistant"`
-	Grub          *GrubConfig          `yaml:"grub,omitempty"`
-	Daemon        DaemonConfig         `yaml:"daemon"`
+	Host          HostConfig          `yaml:"host"`
+	WakeOnLan     *WakeOnLanConfig    `yaml:"wake_on_lan,omitempty"`
+	HomeAssistant HomeAssistantConfig `yaml:"homeassistant"`
+	Grub          *GrubConfig         `yaml:"grub,omitempty"`
+	Daemon        DaemonConfig        `yaml:"daemon"`
 }
 
 type DaemonConfig struct {
-	Port              int    `yaml:"daemon_port"`
+	Port              int    `yaml:"port"`
 	APIKey            string `yaml:"api_key,omitempty"`
 	ReportBootOptions bool   `yaml:"report_boot_options"`
 }
@@ -80,18 +80,27 @@ func (c *Config) ToYAML(maskWebhook bool) (string, error) {
 
 	// If sub-configs are empty or default, nil them out so omitempty works
 	if displayCfg.WakeOnLan != nil {
-		if displayCfg.WakeOnLan.Address == DefaultWolBroadcastAddress && displayCfg.WakeOnLan.Port == DefaultWolBroadcastPort {
+		if displayCfg.WakeOnLan.Address == DefaultWolBroadcastAddress {
+			displayCfg.WakeOnLan.Address = ""
+		}
+		if displayCfg.WakeOnLan.Port == DefaultWolBroadcastPort {
+			displayCfg.WakeOnLan.Port = 0
+		}
+		if displayCfg.WakeOnLan.Address == "" && displayCfg.WakeOnLan.Port == 0 {
 			displayCfg.WakeOnLan = nil
 		}
 	}
 	if displayCfg.Grub != nil {
+		if displayCfg.Grub.WaitTimeSeconds == DefaultGrubWaitSeconds {
+			displayCfg.Grub.WaitTimeSeconds = 0
+		}
 		if displayCfg.Grub.WaitTimeSeconds == DefaultGrubWaitSeconds && displayCfg.Grub.ConfigPath == "" {
 			displayCfg.Grub = nil
 		}
 	}
 
-	if maskWebhook && len(displayCfg.HomeAssistant.WebhookID) > 4 {
-		displayCfg.HomeAssistant.WebhookID = displayCfg.HomeAssistant.WebhookID[:4] + "..."
+	if maskWebhook {
+		displayCfg.HomeAssistant.WebhookID = displayCfg.HomeAssistant.WebhookID[:4] + "..." + displayCfg.HomeAssistant.WebhookID[len(displayCfg.HomeAssistant.WebhookID)-4:]
 	}
 
 	out, err := yaml.Marshal(displayCfg)

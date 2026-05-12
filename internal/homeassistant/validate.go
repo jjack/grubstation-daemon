@@ -7,10 +7,12 @@ import (
 	"regexp"
 )
 
+const WebHookMaxLength = 64
+
 var (
 	ErrWebhookIDEmpty       = errors.New("webhook id cannot be empty")
 	ErrWebhookIDInvalidChar = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
-	ErrWebhookIDTooLong     = errors.New("webhook id cannot be longer than 255 characters")
+	ErrWebhookIDWrongSize   = errors.New("webhook id should be 64 characters long")
 	ErrURLEmpty             = errors.New("home assistant url cannot be empty")
 	ErrHTTPSUnsupported     = errors.New("https is not supported by grub; please use an http:// url")
 )
@@ -20,11 +22,12 @@ func ValidateWebhookID(webhookID string) error {
 		return ErrWebhookIDEmpty
 	}
 
-	if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(webhookID) {
-		return ErrWebhookIDInvalidChar
+	if len(webhookID) != WebHookMaxLength {
+		return ErrWebhookIDWrongSize
 	}
-	if len(webhookID) > 255 {
-		return ErrWebhookIDTooLong
+
+	if !regexp.MustCompile(`^[a-z0-9]+$`).MatchString(webhookID) {
+		return ErrWebhookIDInvalidChar
 	}
 
 	return nil
