@@ -15,7 +15,9 @@ import (
 	"github.com/jjack/grubstation-daemon/internal/cli/survey"
 	"github.com/jjack/grubstation-daemon/internal/config"
 	"github.com/jjack/grubstation-daemon/internal/grub"
+	"github.com/jjack/grubstation-daemon/internal/homeassistant"
 	"github.com/jjack/grubstation-daemon/internal/servicemanager"
+
 	"github.com/yarlson/tap"
 )
 
@@ -515,21 +517,22 @@ func TestApplyCmd_StartServiceWarning(t *testing.T) {
 }
 
 type mockSystemResolver struct {
-	discoverHomeAssistantFunc func(ctx context.Context) ([]string, error)
+	discoverHomeAssistantFunc func(ctx context.Context) ([]homeassistant.ServiceInstance, error)
 	detectSystemHostnameFunc  func() (string, error)
 	getWOLInterfacesFunc      func() ([]net.Interface, error)
 	getIPInfoFunc             func(inf net.Interface) ([]string, map[string]string)
-	getFQDNOptsFunc           func(hostname string) string
+	getFQDNFunc               func(hostname string) string
 	saveConfigFunc            func(cfg *config.Config, path string) error
 	discoverGrubConfigFunc    func(ctx context.Context) (string, error)
 }
 
-func (m *mockSystemResolver) DiscoverHomeAssistant(ctx context.Context) ([]string, error) {
+func (m *mockSystemResolver) DiscoverHomeAssistant(ctx context.Context) ([]homeassistant.ServiceInstance, error) {
 	if m.discoverHomeAssistantFunc != nil {
 		return m.discoverHomeAssistantFunc(ctx)
 	}
-	return []string{"http://homeassistant.local:8123"}, nil
+	return []homeassistant.ServiceInstance{{Name: "Home", URLs: []string{"http://homeassistant.local:8123"}}}, nil
 }
+
 
 func (m *mockSystemResolver) DiscoverGrubConfig(ctx context.Context) (string, error) {
 	if m.discoverGrubConfigFunc != nil {
@@ -560,8 +563,8 @@ func (m *mockSystemResolver) GetIPInfo(inf net.Interface) ([]string, map[string]
 }
 
 func (m *mockSystemResolver) GetFQDN(hostname string) string {
-	if m.getFQDNOptsFunc != nil {
-		return m.getFQDNOptsFunc(hostname)
+	if m.getFQDNFunc != nil {
+		return m.getFQDNFunc(hostname)
 	}
 	return hostname + ".local"
 }

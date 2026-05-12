@@ -11,8 +11,10 @@ import (
 )
 
 func TestDiscover_Timeout(t *testing.T) {
-	// Without a zeroconf server, this will timeout and return an empty string.
-	urls, err := Discover(context.Background())
+	// Use a short timeout so the test doesn't wait the full 3s discoveryTimeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	urls, err := Discover(ctx)
 	if err != nil {
 		t.Fatalf("expected no error on timeout, got %v", err)
 	}
@@ -66,21 +68,29 @@ func TestDiscover_Success(t *testing.T) {
 		return &mockResolver{
 			browseFunc: func(ctx context.Context, service string, domain string, entries chan<- *zeroconf.ServiceEntry) error {
 				entries <- &zeroconf.ServiceEntry{
+					ServiceRecord: zeroconf.ServiceRecord{
+						Instance: "Home",
+					},
 					AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
 					Port:     8123,
 					Text:     []string{"internal_url=http://ha.local:8123"},
 				}
+				close(entries)
 				return nil
 			},
 		}, nil
 	}
 
-	urls, err := Discover(context.Background())
+	instances, err := Discover(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if len(urls) != 2 || urls[0] != "http://192.168.1.100:8123" || urls[1] != "http://ha.local:8123" {
-		t.Errorf("expected ['http://192.168.1.100:8123', 'http://ha.local:8123'], got %v", urls)
+	if len(instances) != 1 || instances[0].Name != "Home" {
+		t.Errorf("expected 1 instance named 'Home', got %v", instances)
+	}
+	urls := instances[0].URLs
+	if len(urls) != 2 || urls[0] != "http://ha.local:8123" || urls[1] != "http://192.168.1.100:8123" {
+		t.Errorf("expected ['http://ha.local:8123', 'http://192.168.1.100:8123'], got %v", urls)
 	}
 }
 
@@ -91,31 +101,33 @@ func TestDiscover_MultipleSuccess(t *testing.T) {
 		return &mockResolver{
 			browseFunc: func(ctx context.Context, service string, domain string, entries chan<- *zeroconf.ServiceEntry) error {
 				entries <- &zeroconf.ServiceEntry{
+					ServiceRecord: zeroconf.ServiceRecord{
+						Instance: "Home1",
+					},
 					AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
 					Port:     8123,
 					Text:     []string{"internal_url=http://ha1.local:8123"},
 				}
 				entries <- &zeroconf.ServiceEntry{
+					ServiceRecord: zeroconf.ServiceRecord{
+						Instance: "Home2",
+					},
 					AddrIPv4: []net.IP{net.ParseIP("192.168.1.101")},
 					Port:     8123,
 					Text:     []string{"internal_url=http://ha2.local:8123"},
 				}
-				entries <- &zeroconf.ServiceEntry{
-					AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")}, // Duplicate IP
-					Port:     8123,
-					Text:     []string{"internal_url=http://ha1.local:8123"}, // Duplicate URL
-				}
+				close(entries)
 				return nil
 			},
 		}, nil
 	}
 
-	urls, err := Discover(context.Background())
+	instances, err := Discover(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if len(urls) != 4 {
-		t.Errorf("expected 4 unique URLs, got %d: %v", len(urls), urls)
+	if len(instances) != 2 {
+		t.Errorf("expected 2 instances, got %d", len(instances))
 	}
 }
 
@@ -158,7 +170,7 @@ func TestExtractURLs(t *testing.T) {
 				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
 				Port:     8123,
 			},
-			expected: []string{"http://192.168.1.100:8123", "http://ha.local:8123", "http://base.local"},
+			expected: []string{"http://ha.local:8123", "http://base.local", "http://192.168.1.100:8123"},
 		},
 		{
 			name: "base_url present",
@@ -167,7 +179,7 @@ func TestExtractURLs(t *testing.T) {
 				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
 				Port:     8123,
 			},
-			expected: []string{"http://192.168.1.100:8123", "http://base.local:8123"},
+			expected: []string{"http://base.local:8123", "http://192.168.1.100:8123"},
 		},
 		{
 			name: "empty txt records only ip",
@@ -179,22 +191,22 @@ func TestExtractURLs(t *testing.T) {
 			expected: []string{"http://192.168.1.100:8123"},
 		},
 		{
-			name: "ignore https internal_url",
+			name: "include https internal_url",
 			entry: &zeroconf.ServiceEntry{
 				Text:     []string{"internal_url=https://ha.local:8123", "base_url=http://base.local:8123"},
 				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
 				Port:     8123,
 			},
-			expected: []string{"http://192.168.1.100:8123", "http://base.local:8123"},
+			expected: []string{"https://ha.local:8123", "http://base.local:8123", "http://192.168.1.100:8123"},
 		},
 		{
-			name: "ignore https base_url",
+			name: "include https base_url",
 			entry: &zeroconf.ServiceEntry{
 				Text:     []string{"base_url=https://base.local:8123"},
 				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
 				Port:     8123,
 			},
-			expected: []string{"http://192.168.1.100:8123"},
+			expected: []string{"https://base.local:8123", "http://192.168.1.100:8123"},
 		},
 		{
 			name: "no txt records only ip",
@@ -203,6 +215,14 @@ func TestExtractURLs(t *testing.T) {
 				Port:     8123,
 			},
 			expected: []string{"http://10.0.0.5:8123"},
+		},
+		{
+			name: "multiple ips",
+			entry: &zeroconf.ServiceEntry{
+				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100"), net.ParseIP("10.0.0.5")},
+				Port:     8123,
+			},
+			expected: []string{"http://192.168.1.100:8123", "http://10.0.0.5:8123"},
 		},
 		{
 			name:     "no useful info",

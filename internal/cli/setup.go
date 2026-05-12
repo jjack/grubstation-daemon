@@ -37,13 +37,17 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string, token
 
 	if deps.Config.Daemon.ReportBootOptions {
 		waitTime := config.DefaultGrubWaitSeconds
+		targetURL := deps.Config.HomeAssistant.URL
 		if deps.Config.Grub != nil {
 			waitTime = deps.Config.Grub.WaitTimeSeconds
+			if deps.Config.Grub.URL != "" {
+				targetURL = deps.Config.Grub.URL
+			}
 		}
 
 		opts := grub.SetupOptions{
 			TargetMAC:       deps.Config.Host.MACAddress,
-			TargetURL:       deps.Config.HomeAssistant.URL,
+			TargetURL:       targetURL,
 			AuthToken:       deps.Config.HomeAssistant.WebhookID,
 			WaitTimeSeconds: waitTime,
 		}

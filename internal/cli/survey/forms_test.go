@@ -10,12 +10,13 @@ import (
 	"time"
 
 	"github.com/jjack/grubstation-daemon/internal/config"
+	"github.com/jjack/grubstation-daemon/internal/homeassistant"
 	"github.com/spf13/cobra"
 	"github.com/yarlson/tap"
 )
 
 type mockSystemResolver struct {
-	discoverHomeAssistantFunc func(ctx context.Context) ([]string, error)
+	discoverHomeAssistantFunc func(ctx context.Context) ([]homeassistant.ServiceInstance, error)
 	detectSystemHostnameFunc  func() (string, error)
 	getWOLInterfacesFunc      func() ([]net.Interface, error)
 	getIPInfoFunc             func(inf net.Interface) ([]string, map[string]string)
@@ -24,11 +25,11 @@ type mockSystemResolver struct {
 	discoverGrubConfigFunc    func(ctx context.Context) (string, error)
 }
 
-func (m *mockSystemResolver) DiscoverHomeAssistant(ctx context.Context) ([]string, error) {
+func (m *mockSystemResolver) DiscoverHomeAssistant(ctx context.Context) ([]homeassistant.ServiceInstance, error) {
 	if m.discoverHomeAssistantFunc != nil {
 		return m.discoverHomeAssistantFunc(ctx)
 	}
-	return []string{"http://hass.local:8123"}, nil
+	return []homeassistant.ServiceInstance{{Name: "Home", URLs: []string{"http://hass.local:8123"}}}, nil
 }
 
 func (m *mockSystemResolver) DiscoverGrubConfig(ctx context.Context) (string, error) {
@@ -174,37 +175,18 @@ func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 
-		// 1. Installation Mode: Select first option
-		in.EmitKeypress("", tap.Key{Name: "return"})
-		time.Sleep(20 * time.Millisecond)
+		for i := 0; i < 7; i++ {
+			in.EmitKeypress("", tap.Key{Name: "return"})
+			time.Sleep(20 * time.Millisecond)
+		}
 
-		// 2. Network Interface: Select first option
-		in.EmitKeypress("", tap.Key{Name: "return"})
-		time.Sleep(20 * time.Millisecond)
-
-		// 3. Host Address: Select first option
-		in.EmitKeypress("", tap.Key{Name: "return"})
-		time.Sleep(20 * time.Millisecond)
-
-		// 4. Daemon Port: Default
-		in.EmitKeypress("", tap.Key{Name: "return"})
-		time.Sleep(20 * time.Millisecond)
-
-		// 5. WOL Address: Select first option
-		in.EmitKeypress("", tap.Key{Name: "return"})
-		time.Sleep(20 * time.Millisecond)
-
-		// 6. WOL Port: Default
-		in.EmitKeypress("", tap.Key{Name: "return"})
-		time.Sleep(20 * time.Millisecond)
-
-		// 7. GRUB Wait Time: Default
-		in.EmitKeypress("", tap.Key{Name: "return"})
-		time.Sleep(20 * time.Millisecond)
-
-		// 8. Multiple HA Selection: Select second option (ha2)
+		// 8. HA Instance Selection: Select second option (Home2)
 		in.EmitKeypress("", tap.Key{Name: "down"})
 		time.Sleep(20 * time.Millisecond)
+		in.EmitKeypress("", tap.Key{Name: "return"})
+		time.Sleep(20 * time.Millisecond)
+
+		// 8.1 HA Agent URL Selection: Select first option (http://ha2.local:8123)
 		in.EmitKeypress("", tap.Key{Name: "return"})
 		time.Sleep(20 * time.Millisecond)
 
@@ -217,8 +199,11 @@ func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
 	}()
 
 	deps := setupSurveyDeps(t)
-	deps.resolver.discoverHomeAssistantFunc = func(ctx context.Context) ([]string, error) {
-		return []string{"http://ha1.local:8123", "http://ha2.local:8123"}, nil
+	deps.resolver.discoverHomeAssistantFunc = func(ctx context.Context) ([]homeassistant.ServiceInstance, error) {
+		return []homeassistant.ServiceInstance{
+			{Name: "Home1", URLs: []string{"http://ha1.local:8123"}},
+			{Name: "Home2", URLs: []string{"http://ha2.local:8123"}},
+		}, nil
 	}
 
 	cfg, _, err := generateConfigInteractive(ctx, deps, false, 0)
@@ -228,6 +213,64 @@ func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
 
 	if cfg.HomeAssistant.URL != "http://ha2.local:8123" {
 		t.Errorf("expected http://ha2.local:8123, got %s", cfg.HomeAssistant.URL)
+	}
+}
+
+func TestGenerateConfigSurvey_HTTPS_HA(t *testing.T) {
+	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
+	ctx := context.Background()
+	in := tap.NewMockReadable()
+	out := tap.NewMockWritable()
+	tap.SetTermIO(in, out)
+	defer tap.SetTermIO(nil, nil)
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		for i := 0; i < 7; i++ {
+			in.EmitKeypress("", tap.Key{Name: "return"})
+			time.Sleep(20 * time.Millisecond)
+		}
+
+		// 8. Instance Selection: Select first option (Home)
+		in.EmitKeypress("", tap.Key{Name: "return"})
+		time.Sleep(20 * time.Millisecond)
+
+		// 8.1 Agent URL Selection: Select first option (https://hass.plzwrk.net)
+		in.EmitKeypress("", tap.Key{Name: "return"})
+		time.Sleep(20 * time.Millisecond)
+
+		// 8.2 GRUB URL Selection: Select first option (http IP)
+		in.EmitKeypress("", tap.Key{Name: "return"})
+		time.Sleep(20 * time.Millisecond)
+
+		// 9. HA Webhook: Type ID
+		webhook := "webhook123"
+		for _, r := range webhook {
+			in.EmitKeypress(string(r), tap.Key{})
+		}
+		in.EmitKeypress("", tap.Key{Name: "return"})
+	}()
+
+	deps := setupSurveyDeps(t)
+	deps.resolver.discoverHomeAssistantFunc = func(ctx context.Context) ([]homeassistant.ServiceInstance, error) {
+		return []homeassistant.ServiceInstance{
+			{
+				Name: "Home",
+				URLs: []string{"https://hass.plzwrk.net", "http://10.15.0.53:8123"},
+			},
+		}, nil
+	}
+
+	cfg, _, err := generateConfigInteractive(ctx, deps, false, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.HomeAssistant.URL != "https://hass.plzwrk.net" {
+		t.Errorf("expected https://hass.plzwrk.net, got %s", cfg.HomeAssistant.URL)
+	}
+	if cfg.Grub.URL != "http://10.15.0.53:8123" {
+		t.Errorf("expected http://10.15.0.53:8123 for grub, got %s", cfg.Grub.URL)
 	}
 }
 

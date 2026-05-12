@@ -10,12 +10,13 @@ import (
 	"strings"
 
 	"github.com/jjack/grubstation-daemon/internal/config"
+	"github.com/jjack/grubstation-daemon/internal/homeassistant"
 	"github.com/spf13/cobra"
 	"github.com/yarlson/tap"
 )
 
 type SystemResolver interface {
-	DiscoverHomeAssistant(ctx context.Context) ([]string, error)
+	DiscoverHomeAssistant(ctx context.Context) ([]homeassistant.ServiceInstance, error)
 	DetectSystemHostname() (string, error)
 	GetWOLInterfaces() ([]net.Interface, error)
 	GetIPInfo(inf net.Interface) ([]string, map[string]string)
@@ -73,13 +74,13 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 
 	// Background HA Discovery
 	type haResult struct {
-		urls []string
-		err  error
+		instances []homeassistant.ServiceInstance
+		err       error
 	}
 	haChan := make(chan haResult, 1)
 	go func() {
-		urls, err := resolver.DiscoverHomeAssistant(ctx)
-		haChan <- haResult{urls, err}
+		instances, err := resolver.DiscoverHomeAssistant(ctx)
+		haChan <- haResult{instances, err}
 	}()
 
 	// 2. Installation Mode
@@ -195,50 +196,102 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 	}
 
 	// 8. Home Assistant URL
-	var discoveredURLs []string
+	var discovered []homeassistant.ServiceInstance
 	select {
 	case res := <-haChan:
-		discoveredURLs = res.urls
+		discovered = res.instances
 	default:
 		s := tap.NewSpinner(tap.SpinnerOptions{})
 		s.Start("Discovering Home Assistant...")
 		res := <-haChan
 		s.Stop("Home Assistant discovery complete", 0)
-		discoveredURLs = res.urls
+		discovered = res.instances
 	}
 
 	var haURL string
-	if len(discoveredURLs) > 1 {
-		var opts []tap.SelectOption[string]
-		for _, u := range discoveredURLs {
-			opts = append(opts, tap.SelectOption[string]{Value: u, Label: fmt.Sprintf("%s (Autodiscovered)", u)})
-		}
-		opts = append(opts, tap.SelectOption[string]{Value: "other", Label: "Other (Enter manually)"})
+	var grubURL string
 
-		choice := tap.Select(ctx, tap.SelectOptions[string]{
-			Message: "Multiple Home Assistant instances discovered. Please select one:",
-			Options: opts,
+	totalURLs := 0
+	for _, inst := range discovered {
+		totalURLs += len(inst.URLs)
+	}
+
+	if totalURLs == 1 {
+		// Single URL fallback
+		haURL = discovered[0].URLs[0]
+	} else if len(discovered) > 0 {
+		// 1. Instance Selection
+		var instOpts []tap.SelectOption[int]
+		for i, inst := range discovered {
+			label := inst.Name
+			hint := strings.Join(inst.URLs, ", ")
+			instOpts = append(instOpts, tap.SelectOption[int]{Value: i, Label: label, Hint: hint})
+		}
+		instOpts = append(instOpts, tap.SelectOption[int]{Value: -1, Label: "Other (Enter manually)"})
+
+		instIdx := tap.Select(ctx, tap.SelectOptions[int]{
+			Message: "Home Assistant instances discovered. Please select one:",
+			Options: instOpts,
 		})
 		if ctx.Err() != nil {
 			return nil, false, ctx.Err()
 		}
-		if choice != "other" {
-			haURL = choice
+
+		if instIdx != -1 {
+			selectedInst := discovered[instIdx]
+
+			// 2. Agent URL Selection
+			var agentOpts []tap.SelectOption[string]
+			for _, u := range selectedInst.URLs {
+				hint := "IP Address"
+				if strings.Contains(u, "://") {
+					parts := strings.Split(u, "://")
+					if len(parts) > 1 && !strings.Contains(parts[1], ":") {
+						// Heuristic: if no port and has protocol, it's likely a domain from TXT
+						hint = "Domain"
+					}
+				}
+				if strings.HasPrefix(u, "https://") {
+					hint += " (HTTPS)"
+				} else {
+					hint += " (HTTP)"
+				}
+				agentOpts = append(agentOpts, tap.SelectOption[string]{Value: u, Label: u, Hint: hint})
+			}
+
+			haURL = tap.Select(ctx, tap.SelectOptions[string]{
+				Message: fmt.Sprintf("Select URL for the Agent (%s):", selectedInst.Name),
+				Options: agentOpts,
+			})
+			if ctx.Err() != nil {
+				return nil, false, ctx.Err()
+			}
+
+			// 3. GRUB URL Selection (only if Agent is HTTPS)
+			if strings.HasPrefix(haURL, "https://") {
+				var grubOpts []tap.SelectOption[string]
+				for _, u := range selectedInst.URLs {
+					if !strings.HasPrefix(u, "https://") {
+						grubOpts = append(grubOpts, tap.SelectOption[string]{Value: u, Label: u})
+					}
+				}
+
+				if len(grubOpts) > 0 {
+					grubURL = tap.Select(ctx, tap.SelectOptions[string]{
+						Message: "Select HTTP URL for GRUB (HTTPS not readily supported in GRUB):",
+						Options: grubOpts,
+					})
+					if ctx.Err() != nil {
+						return nil, false, ctx.Err()
+					}
+				}
+			}
 		}
 	}
 
 	if haURL == "" {
-		var defaultURL string
-		haURLMessage := "Home Assistant URL"
-		if len(discoveredURLs) == 1 {
-			defaultURL = discoveredURLs[0]
-			haURLMessage = fmt.Sprintf("%s (auto-discovered)", haURLMessage)
-		}
-
 		haURL = tap.Text(ctx, tap.TextOptions{
-			Message:      haURLMessage,
-			DefaultValue: defaultURL,
-			InitialValue: defaultURL,
+			Message: "Home Assistant URL",
 			Validate: func(s string) error {
 				return config.ValidateURL(s)
 			},
@@ -279,6 +332,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 		Grub: &config.GrubConfig{
 			WaitTimeSeconds: grubWaitTime,
 			ConfigPath:      grubConfigPath,
+			URL:             grubURL,
 		},
 	}, isDryRun, nil
 }

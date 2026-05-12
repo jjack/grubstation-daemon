@@ -57,6 +57,7 @@ type DaemonConfig struct {
 type GrubConfig struct {
 	ConfigPath      string `yaml:"config_path,omitempty"`
 	WaitTimeSeconds int    `yaml:"wait_time_seconds,omitempty"`
+	URL             string `yaml:"url,omitempty"`
 }
 
 type WakeOnLanConfig struct {

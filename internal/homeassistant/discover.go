@@ -21,7 +21,12 @@ var newResolver = func() (mdnsResolver, error) {
 	return zeroconf.NewResolver(nil)
 }
 
-func Discover(ctx context.Context) ([]string, error) {
+type ServiceInstance struct {
+	Name string
+	URLs []string
+}
+
+func Discover(ctx context.Context) ([]ServiceInstance, error) {
 	resolver, err := newResolver()
 	if err != nil {
 		return nil, err
@@ -37,46 +42,54 @@ func Discover(ctx context.Context) ([]string, error) {
 		errChan <- resolver.Browse(ctx, homeAssistantService, "local.", entries)
 	}()
 
-	var urls []string
+	var instances []ServiceInstance
 	seen := make(map[string]bool)
 
 	for {
 		select {
-		case err := <-errChan:
-			if err != nil {
-				return nil, err
-			}
-			return urls, nil
-		case <-ctx.Done():
-			return urls, nil
-		case entry, ok := <-entries:
+		case err, ok := <-errChan:
 			if !ok {
 				continue
 			}
+			if err != nil {
+				return nil, err
+			}
+			errChan = nil
+		case entry, ok := <-entries:
+			if !ok {
+				return instances, nil
+			}
 
+			var instanceURLs []string
 			for _, url := range extractURLs(entry) {
 				if url != "" && !seen[url] {
 					seen[url] = true
-					urls = append(urls, url)
+					instanceURLs = append(instanceURLs, url)
 				}
+			}
+
+			if len(instanceURLs) > 0 {
+				name := entry.Instance
+				if name == "" {
+					name = "Home Assistant"
+				}
+				instances = append(instances, ServiceInstance{
+					Name: name,
+					URLs: instanceURLs,
+				})
 			}
 		}
 	}
 }
 
 func isSupportedURL(url string) bool {
-	return url != "" && !strings.HasPrefix(strings.ToLower(url), "https://")
+	return url != "" && (strings.HasPrefix(strings.ToLower(url), "http://") || strings.HasPrefix(strings.ToLower(url), "https://"))
 }
 
 func extractURLs(entry *zeroconf.ServiceEntry) []string {
 	var urls []string
 
-	if len(entry.AddrIPv4) > 0 {
-		ip := entry.AddrIPv4[0].String()
-		port := entry.Port
-		urls = append(urls, fmt.Sprintf("http://%s:%d", ip, port))
-	}
-
+	// Check TXT records for configured URLs
 	for _, txt := range entry.Text {
 		if strings.HasPrefix(txt, "internal_url=") {
 			if url := strings.TrimPrefix(txt, "internal_url="); isSupportedURL(url) {
@@ -88,6 +101,11 @@ func extractURLs(entry *zeroconf.ServiceEntry) []string {
 				urls = append(urls, url)
 			}
 		}
+	}
+
+	// Add all IPv4 addresses as potential URLs
+	for _, ip := range entry.AddrIPv4 {
+		urls = append(urls, fmt.Sprintf("http://%s:%d", ip.String(), entry.Port))
 	}
 
 	return urls
