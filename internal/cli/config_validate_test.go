@@ -16,7 +16,7 @@ func TestConfigValidateCmd_Valid(t *testing.T) {
 		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       "http://ha.local",
-			WebhookID: "test-webhook",
+			WebhookID: strings.Repeat("a", 64),
 		},
 		WakeOnLan: &config.WakeOnLanConfig{
 			Address: "192.168.1.255",

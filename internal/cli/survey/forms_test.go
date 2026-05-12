@@ -139,7 +139,7 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 
 		// 9. HA Webhook: Type ID
-		webhook := "webhook123"
+		webhook := strings.Repeat("a", 64)
 		for _, r := range webhook {
 			in.EmitKeypress(string(r), tap.Key{})
 		}
@@ -191,7 +191,7 @@ func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 
 		// 9. HA Webhook: Type ID
-		webhook := "webhook123"
+		webhook := strings.Repeat("a", 64)
 		for _, r := range webhook {
 			in.EmitKeypress(string(r), tap.Key{})
 		}
@@ -244,7 +244,7 @@ func TestGenerateConfigSurvey_HTTPS_HA(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 
 		// 9. HA Webhook: Type ID
-		webhook := "webhook123"
+		webhook := strings.Repeat("a", 64)
 		for _, r := range webhook {
 			in.EmitKeypress(string(r), tap.Key{})
 		}

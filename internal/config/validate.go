@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 const WebHookMaxLength = 64
@@ -63,7 +64,15 @@ func ValidateURL(v string) error {
 	if err != nil || u.Scheme == "" || u.Host == "" {
 		return ErrInvalidURL
 	}
-	if u.Scheme == "https" {
+	return nil
+}
+
+func ValidateGrubURL(v string) error {
+	if err := ValidateURL(v); err != nil {
+		return err
+	}
+	u, _ := url.Parse(v)
+	if strings.ToLower(u.Scheme) == "https" {
 		return ErrHTTPSUnsupported
 	}
 	return nil
@@ -78,7 +87,7 @@ func ValidateWebhookID(webhookID string) error {
 		return ErrWebhookIDWrongSize
 	}
 
-	if !regexp.MustCompile(`^[a-z0-9]+$`).MatchString(webhookID) {
+	if !regexp.MustCompile(`^[a-z0-9_-]+$`).MatchString(webhookID) {
 		return ErrWebhookIDInvalidChar
 	}
 
@@ -126,6 +135,11 @@ func (c *Config) Validate() error {
 	if c.Daemon.ReportBootOptions {
 		if c.Grub == nil || c.Grub.ConfigPath == "" {
 			return ErrGrubConfigPathEmpty
+		}
+		if c.Grub.URL != "" {
+			if err := ValidateGrubURL(c.Grub.URL); err != nil {
+				return err
+			}
 		}
 	}
 

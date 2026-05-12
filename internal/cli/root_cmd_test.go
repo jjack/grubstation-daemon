@@ -2,12 +2,14 @@ package cli
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
 func TestCLI_PersistentPreRun(t *testing.T) {
 	cli := NewCLI()
 
+	validWebhook := strings.Repeat("a", 64)
 	cli.RootCmd.SetArgs([]string{
 		"config",
 		"validate",
@@ -18,7 +20,7 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 		"--broadcast-address", "192.168.1.255",
 		"--broadcast-port", "7",
 		"--homeassistant-url", "http://override-ha.local",
-		"--homeassistant-webhook-id", "override-webhook",
+		"--homeassistant-webhook-id", validWebhook,
 	})
 
 	var b bytes.Buffer
@@ -48,7 +50,7 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 	if cli.Config.HomeAssistant.URL != "http://override-ha.local" {
 		t.Errorf("url not overridden")
 	}
-	if cli.Config.HomeAssistant.WebhookID != "override-webhook" {
+	if cli.Config.HomeAssistant.WebhookID != validWebhook {
 		t.Errorf("webhook not overridden")
 	}
 }
@@ -56,6 +58,7 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 func TestCLI_PersistentPreRun_ConfigLoadFail(t *testing.T) {
 	cli := NewCLI()
 
+	validWebhook := strings.Repeat("a", 64)
 	cli.RootCmd.SetArgs([]string{
 		"config",
 		"validate",
@@ -63,7 +66,7 @@ func TestCLI_PersistentPreRun_ConfigLoadFail(t *testing.T) {
 		"--host-mac", "00:11:22:33:44:55",
 		"--host-address", "test-host",
 		"--homeassistant-url", "http://test-ha.local",
-		"--homeassistant-webhook-id", "test-webhook",
+		"--homeassistant-webhook-id", validWebhook,
 	})
 
 	var b bytes.Buffer

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -57,7 +58,7 @@ func TestValidateURL(t *testing.T) {
 		wantErr bool
 	}{
 		{"valid http", "http://localhost:8123", false},
-		{"invalid https", "https://homeassistant.local", true},
+		{"valid https", "https://homeassistant.local", false},
 		{"empty", "", true},
 		{"invalid format", "not-a-url", true},
 		{"missing scheme", "/just/a/path", true},
@@ -72,15 +73,40 @@ func TestValidateURL(t *testing.T) {
 	}
 }
 
+func TestValidateGrubURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{"valid http", "http://localhost:8123", false},
+		{"invalid https", "https://homeassistant.local", true},
+		{"empty", "", true},
+		{"invalid format", "not-a-url", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := ValidateGrubURL(tt.url); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateGrubURL() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestValidateWebhookID(t *testing.T) {
+	validID := strings.Repeat("a", 64)
 	tests := []struct {
 		name    string
 		id      string
 		wantErr bool
 	}{
-		{"valid id", "my-webhook_123", false},
+		{"valid id", validID, false},
+		{"valid id with underscores", strings.Repeat("a", 30) + "_" + strings.Repeat("b", 33), false},
+		{"valid id with hyphens", strings.Repeat("a", 30) + "-" + strings.Repeat("b", 33), false},
 		{"empty", "", true},
-		{"invalid characters", "webhook!", true},
+		{"invalid characters", strings.Repeat("a", 63) + "!", true},
+		{"too short", "short", true},
+		{"too long", strings.Repeat("a", 65), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -153,6 +179,7 @@ func TestValidateGrubWaitTime(t *testing.T) {
 }
 
 func TestConfigValidate(t *testing.T) {
+	validID := strings.Repeat("a", 64)
 	validCfg := func() *Config {
 		return &Config{
 			Host: HostConfig{
@@ -164,8 +191,8 @@ func TestConfigValidate(t *testing.T) {
 				Port:    9,
 			},
 			HomeAssistant: HomeAssistantConfig{
-				URL:       "http://localhost:8123",
-				WebhookID: "test_webhook",
+				URL:       "https://localhost:8123",
+				WebhookID: validID,
 			},
 			Daemon: DaemonConfig{
 				ReportBootOptions: true,
@@ -173,6 +200,7 @@ func TestConfigValidate(t *testing.T) {
 			Grub: &GrubConfig{
 				ConfigPath:      "/tmp/grub.cfg",
 				WaitTimeSeconds: 2,
+				URL:             "http://localhost:8123",
 			},
 		}
 	}
@@ -186,11 +214,14 @@ func TestConfigValidate(t *testing.T) {
 		{"invalid MAC", func(c *Config) { c.Host.MACAddress = "invalid" }, true},
 		{"invalid Address", func(c *Config) { c.Host.Address = "invalid address format" }, true},
 		{"empty URL", func(c *Config) { c.HomeAssistant.URL = "" }, true},
+		{"valid HTTPS URL", func(c *Config) { c.HomeAssistant.URL = "https://hass.io" }, false},
 		{"empty WebhookID", func(c *Config) { c.HomeAssistant.WebhookID = "" }, true},
 		{"invalid WolBroadcastPort", func(c *Config) { c.WakeOnLan.Port = -1 }, true},
 		{"invalid WolBroadcastAddress", func(c *Config) { c.WakeOnLan.Address = "invalid-ip" }, true},
 		{"missing Grub ConfigPath when enabled", func(c *Config) { c.Daemon.ReportBootOptions = true; c.Grub.ConfigPath = "" }, true},
 		{"valid with Grub ConfigPath when enabled", func(c *Config) { c.Daemon.ReportBootOptions = true; c.Grub.ConfigPath = "/tmp/grub.cfg" }, false},
+		{"invalid Grub URL", func(c *Config) { c.Grub.URL = "https://hass.io" }, true},
+		{"valid Grub URL", func(c *Config) { c.Grub.URL = "http://hass.io" }, false},
 	}
 
 	for _, tt := range tests {
