@@ -26,12 +26,12 @@ type PushPayload struct {
 	MACAddress     string   `json:"mac"`
 	WolAddress     string   `json:"broadcast_address,omitempty"`
 	WolPort        int      `json:"broadcast_port,omitempty"`
-	Name           string   `json:"name"`
 	Address        string   `json:"address"`
 	BootOptions    []string `json:"boot_options"`
 	APIToken       string   `json:"api_key,omitempty"`
 	Version        string   `json:"daemon_version,omitempty"`
 	Port           int      `json:"daemon_port,omitempty"`
+	OS             string   `json:"os"`
 	ServiceManager string   `json:"service_manager,omitempty"`
 }
 

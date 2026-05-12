@@ -12,7 +12,6 @@ func TestConfigValidateCmd_Valid(t *testing.T) {
 	cfg := &config.Config{
 		Host: config.HostConfig{
 			MACAddress: "00:11:22:33:44:55",
-			Name:       "test-name",
 			Address:    "test-host",
 		},
 		HomeAssistant: config.HomeAssistantConfig{

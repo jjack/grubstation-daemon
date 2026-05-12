@@ -24,7 +24,7 @@ type SystemResolver interface {
 	DiscoverHomeAssistant(ctx context.Context) (string, error)
 	DetectSystemHostname() (string, error)
 	GetWOLInterfaces() ([]net.Interface, error)
-	GetIPv4Info(inf net.Interface) ([]string, map[string]string)
+	GetIPInfo(inf net.Interface) ([]string, map[string]string)
 	GetFQDN(hostname string) string
 	SaveConfig(cfg *config.Config, path string) error
 	DiscoverGrubConfig(ctx context.Context) (string, error)
@@ -44,8 +44,8 @@ func (d *DefaultSystemResolver) GetWOLInterfaces() ([]net.Interface, error) {
 	return host.GetWOLInterfaces()
 }
 
-func (d *DefaultSystemResolver) GetIPv4Info(inf net.Interface) ([]string, map[string]string) {
-	return host.GetIPv4Info(inf)
+func (d *DefaultSystemResolver) GetIPInfo(inf net.Interface) ([]string, map[string]string) {
+	return host.GetIPInfo(inf)
 }
 func (d *DefaultSystemResolver) GetFQDN(hostname string) string { return host.GetFQDN(hostname) }
 func (d *DefaultSystemResolver) SaveConfig(cfg *config.Config, path string) error {
@@ -123,7 +123,6 @@ func NewCLI() *CLI {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", config.DefaultConfigPath(), "config file")
 	rootCmd.PersistentFlags().String(config.FlagGrubConfig, "", "GRUB config path override")
 	rootCmd.PersistentFlags().String(config.FlagMac, "", "MAC Address override")
-	rootCmd.PersistentFlags().String(config.FlagName, "", "Name override")
 	rootCmd.PersistentFlags().String(config.FlagAddress, "", "Address override")
 	rootCmd.PersistentFlags().String(config.FlagWolAddress, "", "WOL target address override (defaults to 255.255.255.255)")
 	rootCmd.PersistentFlags().Int(config.FlagWolPort, 9, "WOL target port override (defaults to 9)")

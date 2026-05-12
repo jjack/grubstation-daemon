@@ -37,6 +37,30 @@ func (w *WindowsService) IsActive(ctx context.Context) bool {
 	return true
 }
 
+func (w *WindowsService) IsInstalled(ctx context.Context) (bool, error) {
+	m, err := mgr.Connect()
+	if err != nil {
+		return false, err
+	}
+	defer m.Disconnect()
+
+	s, err := m.OpenService(windowsServiceName)
+	if err == nil {
+		s.Close()
+		return true, nil
+	}
+	return false, nil
+}
+
+func (w *WindowsService) CheckPermissions(ctx context.Context) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return fmt.Errorf("this operation requires administrator privileges: %w", err)
+	}
+	m.Disconnect()
+	return nil
+}
+
 func (w *WindowsService) Install(ctx context.Context, configPath string) error {
 	exepath, err := os.Executable()
 	if err != nil {

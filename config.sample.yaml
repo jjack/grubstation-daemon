@@ -1,7 +1,5 @@
 # Host configuration details
 host:
-  # The name of this machine as it will appear in Home Assistant
-  name:        "my-remote-pc"
   # The IP address or FQDN used to ping/check if the machine is online
   address:     "192.168.1.50"
   # The MAC address of the network interface for Wake-on-LAN (WOL)
@@ -24,7 +22,7 @@ homeassistant:
 # Daemon configuration
 daemon:
   # The port the daemon will listen on for shutdown requests
-  listen_port: 8081
+  port: 8081
   # (Optional) Static API key for the daemon. If not set, a dynamic TOFU token is generated.
   # api_key: "your-secret-api-key"
   # Whether to report boot options to Home Assistant on startup/shutdown

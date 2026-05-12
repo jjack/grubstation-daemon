@@ -27,9 +27,10 @@ func TestDefaultSystemResolver(t *testing.T) {
 
 	ifaces, _ := resolver.GetWOLInterfaces()
 	if len(ifaces) > 0 {
-		_, _ = resolver.GetIPv4Info(ifaces[0])
+		ips, _ := resolver.GetIPInfo(ifaces[0])
+		_ = ips
 	} else {
-		_, _ = resolver.GetIPv4Info(net.Interface{})
+		_, _ = resolver.GetIPInfo(net.Interface{})
 	}
 
 	_ = resolver.GetFQDN("localhost")

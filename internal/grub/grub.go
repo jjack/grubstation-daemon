@@ -260,9 +260,9 @@ func (g *Grub) Setup(ctx context.Context, opts SetupOptions) error {
 
 // SetupWarning returns a message about potential hardware incompatibilities with GRUB networking.
 func (g *Grub) SetupWarning() string {
-	return "The exact GRUB networking configuration applied by this tool may not work perfectly\n" +
-		"for every motherboard due to how finicky UEFI and network firmware can be across different\n" +
-		"hardware vendors. If your system struggles to connect to the network from within GRUB,\n" +
+	return "note: the exact GRUB networking configuration applied by this tool may not work perfectly" +
+		"for every motherboard due to how finicky UEFI and network firmware can be across different" +
+		"hardware vendors. If your system struggles to connect to the network from within GRUB," +
 		"you may need to manually troubleshoot your GRUB network settings."
 }
 

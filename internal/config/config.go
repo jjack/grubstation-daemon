@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	DefaultWolAddress = "255.255.255.255"
-	DefaultWolPort    = 9
+	DefaultWolAddress      = "255.255.255.255"
+	DefaultWolPort         = 9
+	DefaultDaemonPort      = 8081
+	DefaultGrubWaitSeconds = 2
 )
 
 func DefaultConfigPath() string {
@@ -48,7 +50,7 @@ type Config struct {
 }
 
 type DaemonConfig struct {
-	ListenPort        int    `yaml:"listen_port"`
+	Port              int    `yaml:"daemon_port"`
 	APIKey            string `yaml:"api_key,omitempty"`
 	ReportBootOptions bool   `yaml:"report_boot_options"`
 }
@@ -83,7 +85,7 @@ func (c *Config) ToYAML(maskWebhook bool) (string, error) {
 	if displayCfg.WakeOnLan.Port == DefaultWolPort {
 		displayCfg.WakeOnLan.Port = 0
 	}
-	if displayCfg.Grub.WaitTimeSeconds == 2 {
+	if displayCfg.Grub.WaitTimeSeconds == DefaultGrubWaitSeconds {
 		displayCfg.Grub.WaitTimeSeconds = 0
 	}
 
@@ -95,7 +97,7 @@ func (c *Config) ToYAML(maskWebhook bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Final cleanup: if wake_on_lan or grub are empty, remove them from output
 	// This is a bit of a hack but avoids pointers which complicate the rest of the app.
 	lines := strings.Split(string(out), "\n")
@@ -129,7 +131,7 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 			"wake_on_lan.port":         FlagWolPort,
 			"homeassistant.url":        FlagHassURL,
 			"homeassistant.webhook_id": FlagHassWebhook,
-			"daemon.listen_port":       FlagDaemonPort,
+			"daemon.port":              FlagDaemonPort,
 			"daemon.api_key":           FlagDaemonKey,
 		}
 		for configKey, flagName := range flagMap {
@@ -155,18 +157,19 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal configuration: %w", err)
 	}
 
-	if cfg.Daemon.ListenPort == 0 {
-		cfg.Daemon.ListenPort = 8081
+	if cfg.Daemon.Port == 0 {
+		cfg.Daemon.Port = DefaultDaemonPort
 	}
 	if cfg.Grub.WaitTimeSeconds == 0 {
-		cfg.Grub.WaitTimeSeconds = 2
+		cfg.Grub.WaitTimeSeconds = DefaultGrubWaitSeconds
 	}
 
 	return &cfg, nil
 }
 
 func Save(cfg *Config, path string) error {
-	out, err := cfg.ToYAML(false)
+	maskWebHook := false
+	out, err := cfg.ToYAML(maskWebHook)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}

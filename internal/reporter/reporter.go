@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime"
 
 	"github.com/jjack/grubstation-daemon/internal/config"
 	"github.com/jjack/grubstation-daemon/internal/grub"
@@ -49,12 +50,12 @@ func (r *Reporter) PushBootOptions(ctx context.Context, token string) error {
 		MACAddress:     hostCfg.MACAddress,
 		WolAddress:     wolCfg.Address,
 		WolPort:        wolCfg.Port,
-		Name:           hostCfg.Name,
 		Address:        hostCfg.Address,
 		BootOptions:    bootOptions,
 		APIToken:       token,
 		Version:        version.Version,
-		Port:           daemonCfg.ListenPort,
+		Port:           daemonCfg.Port,
+		OS:             runtime.GOOS,
 		ServiceManager: r.ManagerName,
 	}
 
@@ -72,7 +73,7 @@ func (r *Reporter) PushBootOptions(ctx context.Context, token string) error {
 	slog.Debug("Payload", "payload", payload)
 
 	if err := haClient.Push(ctx, payload); err != nil {
-		return fmt.Errorf("failed to push boot options to HA webhook: %w", err)
+		return err
 	}
 
 	slog.Debug("Successfully pushed boot options to Home Assistant")

@@ -49,7 +49,7 @@ func TestDaemonHealthcheckEndpoint(t *testing.T) {
 	defer cancel()
 
 	port := getFreePort(t)
-	d := New(Config{ListenPort: port, APIKey: "test-key"}, nil)
+	d := New(Config{Port: port, APIKey: "test-key"}, nil)
 
 	done := make(chan error, 1)
 	go func() {
@@ -91,8 +91,8 @@ func TestDaemon_Shutdown_Unauthorized(t *testing.T) {
 	port := getFreePort(t)
 	token := "secret-token"
 	d := New(Config{
-		ListenPort: port,
-		APIKey:     token,
+		Port:   port,
+		APIKey: token,
 	}, nil)
 
 	done := make(chan error, 1)
@@ -124,7 +124,7 @@ func TestDaemon_InvalidMethod(t *testing.T) {
 	defer cancel()
 
 	port := getFreePort(t)
-	d := New(Config{ListenPort: port, APIKey: "test-key"}, nil)
+	d := New(Config{Port: port, APIKey: "test-key"}, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -155,7 +155,7 @@ func TestDaemon_NotFound(t *testing.T) {
 
 	port := getFreePort(t)
 	token := "token"
-	d := New(Config{ListenPort: port, APIKey: token}, nil)
+	d := New(Config{Port: port, APIKey: token}, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -191,8 +191,8 @@ func TestDaemon_Run_HandshakeSuccess(t *testing.T) {
 	handshakeDone := make(chan bool, 1)
 
 	d := New(Config{
-		ListenPort: port,
-		APIKey:     token,
+		Port:   port,
+		APIKey: token,
 	}, func(ctx context.Context, tok string) error {
 		if tok == token {
 			handshakeDone <- true
@@ -229,7 +229,7 @@ func TestDaemon_Run_DynamicToken(t *testing.T) {
 
 	// No APIKey provided, should generate one
 	token := "test-api-key"
-	d := New(Config{ListenPort: port, APIKey: token}, func(ctx context.Context, tok string) error {
+	d := New(Config{Port: port, APIKey: token}, func(ctx context.Context, tok string) error {
 		capturedToken = tok
 		handshakeDone <- true
 		return nil
@@ -276,7 +276,7 @@ func TestDaemon_Shutdown_Success(t *testing.T) {
 	token := "token"
 	pushCalled := make(chan bool, 10)
 	d := New(Config{
-		ListenPort:        port,
+		Port:              port,
 		APIKey:            token,
 		ReportBootOptions: true,
 		ShutdownDelay:     time.Millisecond,
@@ -328,7 +328,7 @@ func TestDaemon_Run_HandshakeRetry(t *testing.T) {
 	handshakeDone := make(chan bool, 1)
 
 	d := New(Config{
-		ListenPort:    port,
+		Port:          port,
 		APIKey:        "test-key",
 		RetryInterval: 10 * time.Millisecond,
 	}, func(ctx context.Context, tok string) error {
@@ -370,7 +370,7 @@ func TestDaemon_FinalPush(t *testing.T) {
 	token := "token"
 	pushCalled := make(chan bool, 10)
 	d := New(Config{
-		ListenPort:        port,
+		Port:              port,
 		APIKey:            token,
 		ReportBootOptions: true,
 	}, func(ctx context.Context, tok string) error {

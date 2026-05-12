@@ -9,6 +9,8 @@ import (
 type Manager interface {
 	Name() string
 	IsActive(ctx context.Context) bool
+	IsInstalled(ctx context.Context) (bool, error)
+	CheckPermissions(ctx context.Context) error
 	Install(ctx context.Context, configPath string) error
 	Uninstall(ctx context.Context) error
 	Start(ctx context.Context) error

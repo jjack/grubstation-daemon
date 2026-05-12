@@ -8,23 +8,25 @@ import (
 	"path/filepath"
 	"strings"
 
-	"charm.land/huh/v2"
 	"github.com/jjack/grubstation-daemon/internal/cli/survey"
 	"github.com/jjack/grubstation-daemon/internal/config"
 	"github.com/jjack/grubstation-daemon/internal/grub"
 	"github.com/jjack/grubstation-daemon/internal/reporter"
 	"github.com/jjack/grubstation-daemon/internal/servicemanager"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/yarlson/tap"
 )
 
-var (
-	osMkdirAll       = os.MkdirAll
-	checkWriteAccess = defaultCheckWriteAccess
-)
+var osMkdirAll = os.MkdirAll
 
 func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error {
 	mgr, err := deps.Manager(cmd.Context())
 	if err != nil {
+		return err
+	}
+
+	if err := mgr.CheckPermissions(cmd.Context()); err != nil {
 		return err
 	}
 
@@ -41,29 +43,38 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string) error
 			WaitTimeSeconds: deps.Config.Grub.WaitTimeSeconds,
 		}
 
-		cmd.Printf("Installing into grub...\n")
+		tap.Message("Installing into grub...", tap.MessageOptions{
+			Hint: deps.Grub.SetupWarning(),
+		})
 		if err := deps.Grub.Setup(cmd.Context(), opts); err != nil {
 			return fmt.Errorf("failed to install grub: %w", err)
 		}
+
+		tap.Message("Pushing initial boot options to Home Assistant...")
+		activeMgr, _ := deps.Manager(cmd.Context())
+		mgrName := ""
+		if activeMgr != nil {
+			mgrName = activeMgr.Name()
+		}
+		rep := reporter.New(deps.Config, deps.Grub, mgrName)
+		if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
+			return err
+		}
+		tap.Message("Successfully pushed initial state to Home Assistant.")
 	}
 
-	cmd.Printf("Installing into service manager: %s\n", mgr.Name())
+	tap.Message(fmt.Sprintf("Installing into service manager: %s", mgr.Name()))
 	if err := mgr.Install(cmd.Context(), absConfig); err != nil {
 		return fmt.Errorf("failed to install manager: %w", err)
 	}
 
-	cmd.Printf("Starting service...\n")
+	tap.Message("Starting service...")
 	if err := mgr.Start(cmd.Context()); err != nil {
-		cmd.Printf("Warning: failed to start service: %v\n", err)
+		return fmt.Errorf("failed to start service: %v", err)
 	}
 
-	cmd.Println("Installation completed successfully.")
+	tap.Message("Installation completed successfully.")
 
-	if deps.Config.Daemon.ReportBootOptions {
-		if warning := deps.Grub.SetupWarning(); warning != "" {
-			cmd.Printf("\nNote: %s\n", warning)
-		}
-	}
 	return nil
 }
 
@@ -76,55 +87,30 @@ func NewApplyCmd(deps *CommandDeps) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read config flag: %w", err)
 			}
-			return performInstall(cmd, deps, cfgFile)
+			tap.Intro("GrubStation Apply")
+			err = performInstall(cmd, deps, cfgFile)
+			if err != nil {
+				return err
+			}
+			tap.Outro("Apply complete!")
+			return nil
 		},
 	}
 }
 
-var runConfirm = func(installNow *bool) error {
-	return huh.NewConfirm().
-		Title("Would you like to install the service now?").
-		Description("(Requires root/sudo privileges)").
-		Value(installNow).
-		Run()
-}
-
-func ensureSupport(ctx context.Context, deps *CommandDeps) error {
+func ensureSupport(ctx context.Context, deps *CommandDeps) (servicemanager.Manager, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return nil, err
 	}
-	_, err := deps.Registry.Detect(ctx)
+	mgr, err := deps.Registry.Detect(ctx)
 	if err != nil {
 		if errors.Is(err, servicemanager.ErrNotSupported) {
 			supported := strings.Join(deps.Registry.SupportedServices(), ", ")
-			return fmt.Errorf("no supported service manager detected. Please ensure you have one of the following installed: %s", supported)
+			return nil, fmt.Errorf("no supported service manager detected. Please ensure you have one of the following installed: %s", supported)
 		}
-		return err
+		return nil, err
 	}
-	return nil
-}
-
-func defaultCheckWriteAccess(path string) error {
-	// If the file exists, check if it's writable.
-	if _, err := os.Stat(path); err == nil {
-		f, err := os.OpenFile(path, os.O_WRONLY, 0)
-		if err != nil {
-			return fmt.Errorf("config file %s is not writable (try running with sudo?): %w", path, err)
-		}
-		_ = f.Close()
-		return nil
-	}
-
-	// File doesn't exist, check directory for write access.
-	dir := filepath.Dir(path)
-	testFile := filepath.Join(dir, ".grubstation-write-test")
-	f, err := os.Create(testFile)
-	if err != nil {
-		return fmt.Errorf("no write access to directory %s (try running with sudo?): %w", dir, err)
-	}
-	_ = f.Close()
-	_ = os.Remove(testFile)
-	return nil
+	return mgr, nil
 }
 
 type surveyDepsAdapter struct {
@@ -135,15 +121,34 @@ func (a surveyDepsAdapter) GetSystemResolver() survey.SystemResolver {
 	return a.deps.SystemResolver
 }
 
+func (a surveyDepsAdapter) IsInstalled(ctx context.Context) (bool, error) {
+	mgr, err := ensureSupport(ctx, a.deps)
+	if err != nil {
+		return false, err
+	}
+	return mgr.IsInstalled(ctx)
+}
+
 func NewSetupCmd(deps *CommandDeps) *cobra.Command {
+	var applyOnly bool
+
 	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Run the automated setup wizard to configure and install the agent",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if applyOnly {
+				// For apply, we WANT the default config loading to happen
+				return nil
+			}
 			return nil // Override root config loading, we are generating it from scratch
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := ensureSupport(cmd.Context(), deps); err != nil {
+			if applyOnly {
+				cfgPath, _ := cmd.Flags().GetString("config")
+				return performInstall(cmd, deps, cfgPath)
+			}
+
+			if _, err := ensureSupport(cmd.Context(), deps); err != nil {
 				return err
 			}
 
@@ -152,62 +157,73 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 				cfgPath = config.DefaultConfigPath()
 			}
 
+			var currentPort int
+			if _, err := os.Stat(cfgPath); err == nil {
+				v := viper.New()
+				v.SetConfigFile(cfgPath)
+				if err := v.ReadInConfig(); err == nil {
+					currentPort = v.GetInt("daemon.port")
+				}
+			}
+
 			if err := osMkdirAll(filepath.Dir(cfgPath), 0o755); err != nil {
 				return fmt.Errorf("failed to create config directory: %w", err)
 			}
 
-			if err := checkWriteAccess(cfgPath); err != nil {
-				return err
-			}
-
-			// Clear the terminal screen before starting the interactive prompts
+			// Clear the terminal screen before starting the interactive wizard
 			cmd.Print("\033[H\033[2J")
 
-			cfg, err := survey.RunGenerateSurvey(cmd.Context(), surveyDepsAdapter{deps: deps})
+			tap.Intro("GrubStation Setup")
+
+			cfg, isDryRun, err := survey.RunGenerateSurvey(cmd.Context(), surveyDepsAdapter{deps: deps}, true, currentPort)
 			if err != nil {
+				if errors.Is(err, survey.ErrAborted) {
+					tap.Message("Setup aborted.")
+					tap.Outro("Goodbye!")
+					return nil
+				}
 				return err
 			}
 
-			survey.PrintConfigSummary(cmd, cfg, cfgPath)
+			if isDryRun {
+				tap.Message("Dry run completed. Configuration shown above was not saved.")
+				tap.Outro("Dry run finished")
+				return nil
+			}
 
 			if err := deps.SystemResolver.SaveConfig(cfg, cfgPath); err != nil {
 				return err
 			}
 
-			var installNow bool
-			if err := runConfirm(&installNow); err != nil {
+			tap.Outro("Configuration setup complete.", tap.MessageOptions{
+				Hint: fmt.Sprintf("saved to: %s", cfgPath),
+			})
+
+			tap.Intro("Proceeding with installation...")
+			// We update the deps config with our freshly generated config so the installer can use it
+			*deps.Config = *cfg
+			if err := performInstall(cmd, deps, cfgPath); err != nil {
 				return err
 			}
 
-			if installNow {
-				cmd.Println("\nProceeding with installation...")
-				// We update the deps config with our freshly generated config so the installer can use it
-				*deps.Config = *cfg
-				if err := performInstall(cmd, deps, cfgPath); err != nil {
-					return err
-				}
-
-				cmd.Println("\nPushing initial boot options to Home Assistant...")
-				mgr, _ := deps.Manager(cmd.Context())
-				mgrName := ""
-				if mgr != nil {
-					mgrName = mgr.Name()
-				}
-				rep := reporter.New(deps.Config, deps.Grub, mgrName)
-				if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
-					cmd.Printf("Warning: failed to push initial state to Home Assistant: %v\n", err)
-					cmd.Println("You can try pushing manually later with 'grubstation boot push'")
-				} else {
-					cmd.Println("Successfully pushed initial state to Home Assistant.")
-				}
-				return nil
+			tap.Message("Pushing initial boot options to Home Assistant...")
+			activeMgr, _ := deps.Manager(cmd.Context())
+			mgrName := ""
+			if activeMgr != nil {
+				mgrName = activeMgr.Name()
 			}
+			rep := reporter.New(deps.Config, deps.Grub, mgrName)
+			if err := rep.PushBootOptions(cmd.Context(), ""); err != nil {
+				return err
+			}
+			tap.Message("Successfully pushed initial state to Home Assistant.")
 
-			cmd.Println("\nSetup complete. You can install the system service later by running 'grubstation service install'")
-			cmd.Println("To populate Home Assistant immediately without rebooting, run: grubstation boot push")
+			tap.Outro("Setup complete! To populate Home Assistant again without rebooting, run: grubstation boot push")
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&applyOnly, "apply", false, "Skip survey and install service based on current config")
 
 	return cmd
 }

@@ -15,27 +15,12 @@ func NewServiceCmd(deps *CommandDeps) *cobra.Command {
 		Short: "Manage the grubstation service",
 	}
 
-	cmd.AddCommand(NewServiceInstallCmd(deps))
 	cmd.AddCommand(NewServiceUninstallCmd(deps))
 	cmd.AddCommand(NewServiceStartCmd(deps))
 	cmd.AddCommand(NewServiceStopCmd(deps))
 	cmd.AddCommand(NewServiceStatusCmd(deps))
 
 	return cmd
-}
-
-func NewServiceInstallCmd(deps *CommandDeps) *cobra.Command {
-	return &cobra.Command{
-		Use:   "install",
-		Short: "Install the grubstation service and GRUB hooks",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfgFile, err := cmd.Flags().GetString("config")
-			if err != nil {
-				return fmt.Errorf("failed to read config flag: %w", err)
-			}
-			return performInstall(cmd, deps, cfgFile)
-		},
-	}
 }
 
 func NewServiceUninstallCmd(deps *CommandDeps) *cobra.Command {
@@ -112,7 +97,7 @@ func NewServiceStatusCmd(deps *CommandDeps) *cobra.Command {
 
 			// Also check health endpoint
 			client := &http.Client{Timeout: 2 * time.Second}
-			url := fmt.Sprintf("http://localhost:%d/healthcheck", deps.Config.Daemon.ListenPort)
+			url := fmt.Sprintf("http://localhost:%d/healthcheck", deps.Config.Daemon.Port)
 			resp, err := client.Get(url)
 			if err != nil {
 				cmd.Printf("Daemon health check failed: %v (daemon might not be running or port is blocked)\n", err)

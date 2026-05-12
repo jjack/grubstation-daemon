@@ -32,7 +32,7 @@ func NewDaemonCmd(deps *CommandDeps) *cobra.Command {
 				pushHandler = rep.PushBootOptions
 			}
 			d := newDaemon(daemon.Config{
-				ListenPort:        deps.Config.Daemon.ListenPort,
+				Port:              deps.Config.Daemon.Port,
 				ReportBootOptions: deps.Config.Daemon.ReportBootOptions,
 				APIKey:            deps.Config.Daemon.APIKey,
 			}, pushHandler)

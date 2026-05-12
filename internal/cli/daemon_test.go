@@ -31,8 +31,8 @@ func TestNewDaemonCmd_RunEInvokesDaemon(t *testing.T) {
 
 	called := false
 	newDaemon = func(cfg daemon.Config, pushHandler func(ctx context.Context, token string) error) daemonRunner {
-		if cfg.ListenPort != 1234 {
-			t.Fatalf("expected listen port 1234, got %d", cfg.ListenPort)
+		if cfg.Port != 1234 {
+			t.Fatalf("expected listen port 1234, got %d", cfg.Port)
 		}
 		if !cfg.ReportBootOptions {
 			t.Fatalf("expected ReportBootOptions to be true")
@@ -41,7 +41,7 @@ func TestNewDaemonCmd_RunEInvokesDaemon(t *testing.T) {
 	}
 
 	cfg := &config.Config{
-		Daemon: config.DaemonConfig{ListenPort: 1234, ReportBootOptions: true},
+		Daemon: config.DaemonConfig{Port: 1234, ReportBootOptions: true},
 	}
 	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/tmp/grub.cfg"}, Registry: servicemanager.NewRegistry()}
 	cmd := NewDaemonCmd(deps)

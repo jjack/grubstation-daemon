@@ -14,7 +14,6 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 		"--config", "../../config.sample.yaml",
 		"--grub-config", "/custom/grub.cfg",
 		"--host-mac", "aa:bb:cc:dd:ee:ff",
-		"--host-name", "override-name",
 		"--host-address", "10.0.0.1",
 		"--wol-address", "192.168.1.255",
 		"--wol-port", "7",
@@ -36,9 +35,6 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 	}
 	if cli.Config.Host.MACAddress != "aa:bb:cc:dd:ee:ff" {
 		t.Errorf("mac not overridden")
-	}
-	if cli.Config.Host.Name != "override-name" {
-		t.Errorf("name not overridden")
 	}
 	if cli.Config.Host.Address != "10.0.0.1" {
 		t.Errorf("address not overridden")
@@ -65,7 +61,6 @@ func TestCLI_PersistentPreRun_ConfigLoadFail(t *testing.T) {
 		"validate",
 		"--config", "does-not-exist.yaml",
 		"--host-mac", "00:11:22:33:44:55",
-		"--host-name", "test-name",
 		"--host-address", "test-host",
 		"--homeassistant-url", "http://test-ha.local",
 		"--homeassistant-webhook-id", "test-webhook",

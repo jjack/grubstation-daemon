@@ -63,7 +63,6 @@ menuentry 'Windows' {
 	// 3. Configure reporter
 	cfg := &config.Config{
 		Host: config.HostConfig{
-			Name:       "test-host",
 			Address:    "192.168.1.10",
 			MACAddress: "AA:BB:CC:DD:EE:FF",
 		},
@@ -90,9 +89,6 @@ menuentry 'Windows' {
 	}
 
 	// 5. Verify
-	if receivedPayload.Name != "test-host" {
-		t.Errorf("expected host test-host, got %s", receivedPayload.Name)
-	}
 	if receivedPayload.APIToken != "tofu-token" {
 		t.Errorf("expected token tofu-token, got %s", receivedPayload.APIToken)
 	}
@@ -171,8 +167,5 @@ func TestReporter_PushBootOptions_PushError(t *testing.T) {
 	err := r.PushBootOptions(context.Background(), "token")
 	if err == nil {
 		t.Fatal("expected error when HA push fails, got nil")
-	}
-	if !strings.Contains(err.Error(), "failed to push boot options to HA webhook") {
-		t.Errorf("expected error message to contain 'failed to push boot options to HA webhook', got: %v", err)
 	}
 }

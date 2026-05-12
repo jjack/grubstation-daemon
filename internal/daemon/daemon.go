@@ -18,7 +18,7 @@ var (
 
 // Config holds the daemon configuration.
 type Config struct {
-	ListenPort        int
+	Port              int
 	ReportBootOptions bool
 	APIKey            string
 	RetryInterval     time.Duration
@@ -83,7 +83,7 @@ func (d *Daemon) run(ctx context.Context) error {
 
 	// 2. Start HTTP Server
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", d.Config.ListenPort),
+		Addr:         fmt.Sprintf(":%d", d.Config.Port),
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -130,7 +130,7 @@ func (d *Daemon) run(ctx context.Context) error {
 	}
 
 	go func() {
-		slog.Info("Starting HTTP listener", "port", d.Config.ListenPort)
+		slog.Info("Starting HTTP listener", "port", d.Config.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("HTTP server failed", "error", err)
 		}

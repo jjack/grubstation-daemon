@@ -180,7 +180,7 @@ func TestGetIPv4Info(t *testing.T) {
 		return []net.Addr{ipnet}, nil
 	}
 
-	ips, broadcasts := GetIPv4Info(net.Interface{Name: "eth0"})
+	ips, broadcasts := GetIPInfo(net.Interface{Name: "eth0"})
 	if len(ips) != 1 || ips[0] != "192.168.1.50" {
 		t.Errorf("expected ips to contain 192.168.1.50, got %v", ips)
 	}
@@ -197,7 +197,7 @@ func TestGetIPv4Info_Error(t *testing.T) {
 		return nil, errors.New("mock addrs error")
 	}
 
-	ips, broadcasts := GetIPv4Info(net.Interface{Name: "eth0"})
+	ips, broadcasts := GetIPInfo(net.Interface{Name: "eth0"})
 	if len(ips) != 0 {
 		t.Errorf("expected no ips on error, got %v", ips)
 	}
@@ -216,7 +216,7 @@ func TestGetIPv4Info_IPv6(t *testing.T) {
 		return []net.Addr{ipnet}, nil
 	}
 
-	ips, broadcasts := GetIPv4Info(net.Interface{Name: "eth0"})
+	ips, broadcasts := GetIPInfo(net.Interface{Name: "eth0"})
 	if len(ips) != 1 || ips[0] != "2001:db8::1" {
 		t.Errorf("expected ips to contain 2001:db8::1, got %v", ips)
 	}
@@ -233,7 +233,7 @@ func TestGetIPv4Info_NonIPNet(t *testing.T) {
 		return []net.Addr{&net.UnixAddr{Name: "test", Net: "unix"}}, nil
 	}
 
-	ips, broadcasts := GetIPv4Info(net.Interface{Name: "eth0"})
+	ips, broadcasts := GetIPInfo(net.Interface{Name: "eth0"})
 	if len(ips) != 0 {
 		t.Errorf("expected 0 ips, got %d", len(ips))
 	}

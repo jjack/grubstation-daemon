@@ -47,6 +47,24 @@ func (s *Systemd) IsActive(ctx context.Context) bool {
 	return err == nil && fi.IsDir()
 }
 
+func (s *Systemd) IsInstalled(ctx context.Context) (bool, error) {
+	_, err := os.Stat(systemdServicePath)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+func (s *Systemd) CheckPermissions(ctx context.Context) error {
+	if os.Getuid() != 0 {
+		return fmt.Errorf("this operation requires root privileges (try running with sudo)")
+	}
+	return nil
+}
+
 func (s *Systemd) Install(ctx context.Context, configPath string) error {
 	absConfig, err := filepath.Abs(configPath)
 	if err != nil {

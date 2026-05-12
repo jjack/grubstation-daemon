@@ -72,23 +72,30 @@ func GetWOLInterfaces() ([]net.Interface, error) {
 }
 
 func getLastIP(ipnet *net.IPNet) net.IP {
-	// The net.IP mask is a byte slice. To get the last IP,
-	// we OR the IP with the inverse of the mask.
 	ipv4 := ipnet.IP.To4()
 	if ipv4 == nil {
 		return nil // IPv6 doesn't use subnet broadcasts for WOL
 	}
 
-	last := make(net.IP, len(ipv4))
-	for i := 0; i < len(ipv4); i++ {
-		// Calculate the subnet broadcast address by setting all host bits to 1 (bitwise OR with the inverted mask).
-		last[i] = ipv4[i] | ^ipnet.Mask[i]
+	mask := ipnet.Mask
+	if len(mask) == 16 {
+		// If it's a 16-byte mask for an IPv4 address, the mask is in the last 4 bytes.
+		mask = mask[12:]
+	}
+
+	if len(mask) != 4 {
+		return nil
+	}
+
+	last := make(net.IP, 4)
+	for i := 0; i < 4; i++ {
+		last[i] = ipv4[i] | ^mask[i]
 	}
 	return last
 }
 
-// GetIPv4Info returns a list of IPv4 addresses and a map of those addresses to their computed broadcast address.
-func GetIPv4Info(inf net.Interface) ([]string, map[string]string) {
+// GetIPInfo returns a list of IP addresses (IPv4 and IPv6) and a map of those addresses to their computed broadcast address (for IPv4).
+func GetIPInfo(inf net.Interface) ([]string, map[string]string) {
 	var ips []string
 	broadcasts := make(map[string]string)
 

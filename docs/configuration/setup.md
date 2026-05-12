@@ -20,10 +20,10 @@ This command launches an interactive wizard that autodetects your system setting
 
 ## 2. Applying Configuration Later
 
-If you answered "no" to the installation prompt during `setup`, or if you created the `config.yaml` manually (e.g., via Ansible), you can apply the hooks directly using the `service install` command:
+If you answered "no" to the installation prompt during `setup`, or if you created the `config.yaml` manually (e.g., via Ansible), you can apply the hooks directly using the `setup --apply` command:
 
 ```bash
-sudo grubstation service install --config /etc/grubstation/config.yaml
+sudo grubstation setup --apply --config /etc/grubstation/config.yaml
 ```
 
 ## 3. Running as a Daemon
@@ -54,8 +54,6 @@ If you prefer to write the `config.yaml` entirely from scratch or automate it vi
 ```yaml
 # Host configuration details
 host:
-  # The name of this machine as it will appear in Home Assistant
-  name:        "my-remote-pc"
   # The IP address or FQDN used to ping/check if the machine is online
   address:     "192.168.1.50"
   # The MAC address of the network interface for Wake-on-LAN (WOL)
@@ -78,7 +76,7 @@ homeassistant:
 # Daemon configuration
 daemon:
   # The port the daemon will listen on
-  listen_port: 8081
+  port: 8081
   # (Optional) Static API key for the daemon. If not set, a dynamic TOFU token is generated.
   # api_key: "your-secret-api-key"
   # Whether to report boot options to Home Assistant on startup/shutdown
