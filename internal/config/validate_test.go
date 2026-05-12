@@ -159,7 +159,7 @@ func TestConfigValidate(t *testing.T) {
 				MACAddress: "00:11:22:33:44:55",
 				Address:    "test-host",
 			},
-			WakeOnLan: WakeOnLanConfig{
+			WakeOnLan: &WakeOnLanConfig{
 				Address: "192.168.1.255",
 				Port:    9,
 			},
@@ -170,7 +170,7 @@ func TestConfigValidate(t *testing.T) {
 			Daemon: DaemonConfig{
 				ReportBootOptions: true,
 			},
-			Grub: GrubConfig{
+			Grub: &GrubConfig{
 				ConfigPath:      "/tmp/grub.cfg",
 				WaitTimeSeconds: 2,
 			},

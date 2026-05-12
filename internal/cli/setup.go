@@ -36,15 +36,21 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string, token
 	}
 
 	if deps.Config.Daemon.ReportBootOptions {
+		waitTime := config.DefaultGrubWaitSeconds
+		if deps.Config.Grub != nil {
+			waitTime = deps.Config.Grub.WaitTimeSeconds
+		}
+
 		opts := grub.SetupOptions{
 			TargetMAC:       deps.Config.Host.MACAddress,
 			TargetURL:       deps.Config.HomeAssistant.URL,
 			AuthToken:       deps.Config.HomeAssistant.WebhookID,
-			WaitTimeSeconds: deps.Config.Grub.WaitTimeSeconds,
+			WaitTimeSeconds: waitTime,
 		}
 
+		warning := deps.Grub.SetupWarning()
 		tap.Message("Installing into grub...", tap.MessageOptions{
-			Hint: deps.Grub.SetupWarning(),
+			Hint: warning,
 		})
 		if err := deps.Grub.Setup(cmd.Context(), opts); err != nil {
 			return fmt.Errorf("failed to install grub: %w", err)

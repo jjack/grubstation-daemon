@@ -113,18 +113,24 @@ func (c *Config) Validate() error {
 	if err := ValidateWebhookID(c.HomeAssistant.WebhookID); err != nil {
 		return err
 	}
-	if c.Daemon.ReportBootOptions && c.Grub.ConfigPath == "" {
-		return ErrGrubConfigPathEmpty
+
+	if c.Daemon.ReportBootOptions {
+		if c.Grub == nil || c.Grub.ConfigPath == "" {
+			return ErrGrubConfigPathEmpty
+		}
 	}
-	portStr := ""
-	if c.WakeOnLan.Port != 0 {
-		portStr = strconv.Itoa(c.WakeOnLan.Port)
-	}
-	if err := ValidatePort(portStr); err != nil {
-		return err
-	}
-	if err := ValidateWolBroadcastAddress(c.WakeOnLan.Address); err != nil {
-		return err
+
+	if c.WakeOnLan != nil {
+		portStr := ""
+		if c.WakeOnLan.Port != 0 {
+			portStr = strconv.Itoa(c.WakeOnLan.Port)
+		}
+		if err := ValidatePort(portStr); err != nil {
+			return err
+		}
+		if err := ValidateWolBroadcastAddress(c.WakeOnLan.Address); err != nil {
+			return err
+		}
 	}
 	return nil
 }

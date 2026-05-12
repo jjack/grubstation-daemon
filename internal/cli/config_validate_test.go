@@ -18,7 +18,7 @@ func TestConfigValidateCmd_Valid(t *testing.T) {
 			URL:       "http://ha.local",
 			WebhookID: "test-webhook",
 		},
-		WakeOnLan: config.WakeOnLanConfig{
+		WakeOnLan: &config.WakeOnLanConfig{
 			Address: "192.168.1.255",
 			Port:    9,
 		},

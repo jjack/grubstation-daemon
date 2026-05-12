@@ -94,6 +94,7 @@ func setupSurveyDeps(t *testing.T) *mockSurveyDeps {
 }
 
 func TestGenerateConfigSurvey_Success(t *testing.T) {
+	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -283,7 +284,7 @@ func TestPrintConfigSummary(t *testing.T) {
 			Address:    "192.168.1.50",
 			MACAddress: "00:11:22:33:44:55",
 		},
-		WakeOnLan: config.WakeOnLanConfig{
+		WakeOnLan: &config.WakeOnLanConfig{
 			Address: "192.168.1.255",
 			Port:    99,
 		},
@@ -295,7 +296,7 @@ func TestPrintConfigSummary(t *testing.T) {
 			Port:              8081,
 			ReportBootOptions: true,
 		},
-		Grub: config.GrubConfig{
+		Grub: &config.GrubConfig{
 			WaitTimeSeconds: 2,
 		},
 	}

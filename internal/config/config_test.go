@@ -18,7 +18,7 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 			MACAddress: "00:11:22:33:44:55",
 			Address:    "10.0.0.1",
 		},
-		WakeOnLan: WakeOnLanConfig{
+		WakeOnLan: &WakeOnLanConfig{
 			Address: "192.168.1.255",
 			Port:    9,
 		},
@@ -27,7 +27,7 @@ func TestConfig_SaveAndLoad(t *testing.T) {
 			WebhookID: "test-webhook",
 		},
 		Daemon: DaemonConfig{ReportBootOptions: true},
-		Grub: GrubConfig{
+		Grub: &GrubConfig{
 			ConfigPath: "/boot/grub/grub.cfg",
 		},
 	}
@@ -73,7 +73,7 @@ func TestConfig_SaveAndLoad_Defaults(t *testing.T) {
 			MACAddress: "00:11:22:33:44:55",
 			Address:    "10.0.0.1",
 		},
-		WakeOnLan: WakeOnLanConfig{
+		WakeOnLan: &WakeOnLanConfig{
 			Address: DefaultWolBroadcastAddress,
 			Port:    DefaultWolBroadcastPort,
 		},
@@ -93,11 +93,8 @@ func TestConfig_SaveAndLoad_Defaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read config file: %v", err)
 	}
-	if strings.Contains(string(content), "address") && strings.Contains(string(content), "wake_on_lan") {
-		t.Errorf("expected wol address to be omitted from save, but found in file: %s", string(content))
-	}
-	if strings.Contains(string(content), "port") && strings.Contains(string(content), "wake_on_lan") {
-		t.Errorf("expected wol port to be omitted from save, but found in file: %s", string(content))
+	if strings.Contains(string(content), "wake_on_lan") {
+		t.Errorf("expected wake_on_lan to be omitted from save, but found in file: %s", string(content))
 	}
 
 	loadedCfg, err := Load(cfgPath, nil)
@@ -105,11 +102,8 @@ func TestConfig_SaveAndLoad_Defaults(t *testing.T) {
 		t.Fatalf("failed to load config: %v", err)
 	}
 
-	if loadedCfg.WakeOnLan.Address != "" {
-		t.Errorf("expected broadcast address to be empty, got %s", loadedCfg.WakeOnLan.Address)
-	}
-	if loadedCfg.WakeOnLan.Port != 0 {
-		t.Errorf("expected broadcast port to be 0, got %d", loadedCfg.WakeOnLan.Port)
+	if loadedCfg.WakeOnLan != nil {
+		t.Errorf("expected WakeOnLan to be nil, got %+v", loadedCfg.WakeOnLan)
 	}
 }
 
@@ -171,11 +165,11 @@ func TestLoad_WithFlags(t *testing.T) {
 	if cfg.Host.Address != "flag-address" {
 		t.Errorf("expected address flag-address, got %v", cfg.Host.Address)
 	}
-	if cfg.WakeOnLan.Address != "1.1.1.1" {
-		t.Errorf("expected broadcast address 1.1.1.1, got %v", cfg.WakeOnLan.Address)
+	if cfg.WakeOnLan == nil || cfg.WakeOnLan.Address != "1.1.1.1" {
+		t.Errorf("expected broadcast address 1.1.1.1, got %v", cfg.WakeOnLan)
 	}
-	if cfg.WakeOnLan.Port != 7 {
-		t.Errorf("expected broadcast port 7, got %v", cfg.WakeOnLan.Port)
+	if cfg.WakeOnLan == nil || cfg.WakeOnLan.Port != 7 {
+		t.Errorf("expected broadcast port 7, got %v", cfg.WakeOnLan)
 	}
 	if cfg.HomeAssistant.URL != "http://flag" {
 		t.Errorf("expected url http://flag, got %v", cfg.HomeAssistant.URL)
@@ -183,7 +177,7 @@ func TestLoad_WithFlags(t *testing.T) {
 	if cfg.HomeAssistant.WebhookID != "flag-webhook" {
 		t.Errorf("expected webhook flag-webhook, got %v", cfg.HomeAssistant.WebhookID)
 	}
-	if cfg.Grub.ConfigPath != "/flag/grub.cfg" {
-		t.Errorf("expected grub config /flag/grub.cfg, got %v", cfg.Grub.ConfigPath)
+	if cfg.Grub == nil || cfg.Grub.ConfigPath != "/flag/grub.cfg" {
+		t.Errorf("expected grub config /flag/grub.cfg, got %v", cfg.Grub)
 	}
 }

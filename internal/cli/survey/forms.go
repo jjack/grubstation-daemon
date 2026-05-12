@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 
@@ -238,7 +239,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 			Address:    hostAddress,
 			MACAddress: selectedIface.HardwareAddr.String(),
 		},
-		WakeOnLan: config.WakeOnLanConfig{
+		WakeOnLan: &config.WakeOnLanConfig{
 			Address: WolBroadcastAddress,
 			Port:    wolBroadcastPort,
 		},
@@ -250,7 +251,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 			Port:              daemonPort,
 			ReportBootOptions: reportsBoot,
 		},
-		Grub: config.GrubConfig{
+		Grub: &config.GrubConfig{
 			WaitTimeSeconds: grubWaitTime,
 			ConfigPath:      grubConfigPath,
 		},
@@ -338,6 +339,11 @@ func validatePort(s string, isReinstall bool, currentPort int) error {
 	if isReinstall && port == currentPort {
 		return nil
 	}
+
+	if os.Getenv("GRUBSTATION_SKIP_PORT_CHECK") == "true" {
+		return nil
+	}
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return fmt.Errorf("port %d is in use or unavailable: %v", port, err)

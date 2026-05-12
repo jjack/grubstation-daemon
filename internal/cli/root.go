@@ -113,7 +113,7 @@ func NewCLI() *CLI {
 			*deps.Config = *cfg
 			cli.Config = deps.Config
 
-			if cfg.Grub.ConfigPath != "" {
+			if cfg.Grub != nil && cfg.Grub.ConfigPath != "" {
 				deps.Grub.ConfigPath = cfg.Grub.ConfigPath
 			}
 			return nil

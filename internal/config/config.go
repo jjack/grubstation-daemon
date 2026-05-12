@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/pflag"
@@ -42,11 +41,11 @@ const (
 var viperBindPFlag = func(v *viper.Viper, key string, flag *pflag.Flag) error { return v.BindPFlag(key, flag) }
 
 type Config struct {
-	Host          HostConfig          `yaml:"host"`
-	WakeOnLan     WakeOnLanConfig     `yaml:"wake_on_lan"`
-	HomeAssistant HomeAssistantConfig `yaml:"homeassistant"`
-	Grub          GrubConfig          `yaml:"grub"`
-	Daemon        DaemonConfig        `yaml:"daemon"`
+	Host          HostConfig           `yaml:"host"`
+	WakeOnLan     *WakeOnLanConfig     `yaml:"wake_on_lan,omitempty"`
+	HomeAssistant HomeAssistantConfig  `yaml:"homeassistant"`
+	Grub          *GrubConfig          `yaml:"grub,omitempty"`
+	Daemon        DaemonConfig         `yaml:"daemon"`
 }
 
 type DaemonConfig struct {
@@ -78,15 +77,16 @@ type HomeAssistantConfig struct {
 func (c *Config) ToYAML(maskWebhook bool) (string, error) {
 	displayCfg := *c
 
-	// Apply suppression for default values
-	if displayCfg.WakeOnLan.Address == DefaultWolBroadcastAddress {
-		displayCfg.WakeOnLan.Address = ""
+	// If sub-configs are empty or default, nil them out so omitempty works
+	if displayCfg.WakeOnLan != nil {
+		if displayCfg.WakeOnLan.Address == DefaultWolBroadcastAddress && displayCfg.WakeOnLan.Port == DefaultWolBroadcastPort {
+			displayCfg.WakeOnLan = nil
+		}
 	}
-	if displayCfg.WakeOnLan.Port == DefaultWolBroadcastPort {
-		displayCfg.WakeOnLan.Port = 0
-	}
-	if displayCfg.Grub.WaitTimeSeconds == DefaultGrubWaitSeconds {
-		displayCfg.Grub.WaitTimeSeconds = 0
+	if displayCfg.Grub != nil {
+		if displayCfg.Grub.WaitTimeSeconds == DefaultGrubWaitSeconds && displayCfg.Grub.ConfigPath == "" {
+			displayCfg.Grub = nil
+		}
 	}
 
 	if maskWebhook && len(displayCfg.HomeAssistant.WebhookID) > 4 {
@@ -98,18 +98,7 @@ func (c *Config) ToYAML(maskWebhook bool) (string, error) {
 		return "", err
 	}
 
-	// Final cleanup: if wake_on_lan or grub are empty, remove them from output
-	// This is a bit of a hack but avoids pointers which complicate the rest of the app.
-	lines := strings.Split(string(out), "\n")
-	var finalLines []string
-	skipNextIfEmpty := map[string]bool{"wake_on_lan: {}": true, "grub: {}": true}
-	for _, line := range lines {
-		if !skipNextIfEmpty[line] {
-			finalLines = append(finalLines, line)
-		}
-	}
-
-	return strings.Join(finalLines, "\n"), nil
+	return string(out), nil
 }
 
 func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
@@ -159,6 +148,11 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 
 	if cfg.Daemon.Port == 0 {
 		cfg.Daemon.Port = DefaultDaemonPort
+	}
+
+	// Ensure sub-structs exist if we want to apply defaults
+	if cfg.Grub == nil {
+		cfg.Grub = &GrubConfig{}
 	}
 	if cfg.Grub.WaitTimeSeconds == 0 {
 		cfg.Grub.WaitTimeSeconds = DefaultGrubWaitSeconds
