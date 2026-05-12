@@ -20,20 +20,30 @@ type Reporter struct {
 	Config      *config.Config
 	Grub        *grub.Grub
 	ManagerName string
+	HAClient    *ha.Client
 }
 
 func New(cfg *config.Config, g *grub.Grub, managerName string) *Reporter {
+	var haClient *ha.Client
+	if cfg.HomeAssistant.URL != "" && cfg.HomeAssistant.WebhookID != "" {
+		haClient = ha.NewClient(cfg.HomeAssistant.URL, cfg.HomeAssistant.WebhookID, nil)
+	}
+
 	return &Reporter{
 		Config:      cfg,
 		Grub:        g,
 		ManagerName: managerName,
+		HAClient:    haClient,
 	}
 }
 
 // RegisterDaemon performs the initial registration handshake with Home Assistant.
 func (r *Reporter) RegisterDaemon(ctx context.Context, token string) error {
+	if r.HAClient == nil {
+		return ErrMissingHAConfig
+	}
+
 	hostCfg := r.Config.Host
-	haCfg := r.Config.HomeAssistant
 	daemonCfg := r.Config.Daemon
 
 	payload := ha.RegistrationPayload{
@@ -49,18 +59,8 @@ func (r *Reporter) RegisterDaemon(ctx context.Context, token string) error {
 		DaemonPort:  daemonCfg.Port,
 	}
 
-	if haCfg.URL == "" || haCfg.WebhookID == "" {
-		return ErrMissingHAConfig
-	}
-
-	haClient := ha.NewClient(
-		haCfg.URL,
-		haCfg.WebhookID,
-		nil,
-	)
-
-	slog.Debug("Registering daemon with Home Assistant", "webhook_id", haCfg.WebhookID)
-	if err := haClient.PostWebhook(ctx, payload); err != nil {
+	slog.Debug("Registering daemon with Home Assistant", "webhook_id", r.HAClient.WebhookID)
+	if err := r.HAClient.PostWebhook(ctx, payload); err != nil {
 		return err
 	}
 
@@ -70,6 +70,10 @@ func (r *Reporter) RegisterDaemon(ctx context.Context, token string) error {
 
 // PushBootOptions pushes the current GRUB boot options to Home Assistant.
 func (r *Reporter) PushBootOptions(ctx context.Context) error {
+	if r.HAClient == nil {
+		return ErrMissingHAConfig
+	}
+
 	var bootOptions []string
 	if r.Config.Daemon.ReportBootOptions {
 		var err error
@@ -80,7 +84,6 @@ func (r *Reporter) PushBootOptions(ctx context.Context) error {
 	}
 
 	hostCfg := r.Config.Host
-	haCfg := r.Config.HomeAssistant
 	wolCfg := r.Config.WakeOnLan
 
 	payload := ha.UpdatePayload{
@@ -92,23 +95,16 @@ func (r *Reporter) PushBootOptions(ctx context.Context) error {
 			OS:             runtime.GOOS,
 			ServiceManager: r.ManagerName,
 		},
-		BootOptions:         bootOptions,
-		WolBroadcastAddress: wolCfg.Address,
-		WolBroadcastPort:    wolCfg.Port,
+		BootOptions: bootOptions,
 	}
 
-	if haCfg.URL == "" || haCfg.WebhookID == "" {
-		return ErrMissingHAConfig
+	if wolCfg != nil {
+		payload.WolBroadcastAddress = wolCfg.Address
+		payload.WolBroadcastPort = wolCfg.Port
 	}
 
-	haClient := ha.NewClient(
-		haCfg.URL,
-		haCfg.WebhookID,
-		nil,
-	)
-
-	slog.Debug("Pushing boot options to Home Assistant", "webhook_id", haCfg.WebhookID, "payload", payload)
-	if err := haClient.PostWebhook(ctx, payload); err != nil {
+	slog.Debug("Pushing boot options to Home Assistant", "webhook_id", r.HAClient.WebhookID, "payload", payload)
+	if err := r.HAClient.PostWebhook(ctx, payload); err != nil {
 		return err
 	}
 

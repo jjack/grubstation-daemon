@@ -46,7 +46,7 @@ func TestReporter_RegisterDaemon_Success(t *testing.T) {
 			Address:    "192.168.1.10",
 			MACAddress: "AA:BB:CC:DD:EE:FF",
 		},
-		WakeOnLan: config.WakeOnLanConfig{
+		WakeOnLan: &config.WakeOnLanConfig{
 			Address: "192.168.1.255",
 			Port:    9,
 		},
@@ -123,7 +123,7 @@ menuentry 'Windows' {
 			Address:    "192.168.1.10",
 			MACAddress: "AA:BB:CC:DD:EE:FF",
 		},
-		WakeOnLan: config.WakeOnLanConfig{
+		WakeOnLan: &config.WakeOnLanConfig{
 			Address: "192.168.1.255",
 			Port:    9,
 		},
@@ -193,6 +193,10 @@ func TestReporter_PushBootOptions_NoGrubReporting(t *testing.T) {
 
 func TestReporter_PushBootOptions_GrubError(t *testing.T) {
 	cfg := &config.Config{
+		HomeAssistant: config.HomeAssistantConfig{
+			URL:       "http://localhost",
+			WebhookID: "webhook",
+		},
 		Daemon: config.DaemonConfig{
 			ReportBootOptions: true,
 		},
