@@ -59,7 +59,7 @@ func (r *Reporter) RegisterDaemon(ctx context.Context, token string) error {
 		DaemonPort:  daemonCfg.Port,
 	}
 
-	slog.Debug("Registering daemon with Home Assistant", "webhook_id", r.HAClient.WebhookID)
+	slog.Debug("Registering daemon with Home Assistant")
 	if err := r.HAClient.PostWebhook(ctx, payload); err != nil {
 		return err
 	}

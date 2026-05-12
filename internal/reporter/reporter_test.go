@@ -69,7 +69,7 @@ func TestReporter_RegisterDaemon_Success(t *testing.T) {
 
 	// 4. Verify
 	if receivedPayload.Action != ha.ActionRegisterAction {
-		t.Errorf("expected action register_daemon, got %s", receivedPayload.Action)
+		t.Errorf("expected action register_daemon_token, got %s", receivedPayload.Action)
 	}
 	if receivedPayload.DaemonToken != "tofu-token" {
 		t.Errorf("expected token tofu-token, got %s", receivedPayload.DaemonToken)

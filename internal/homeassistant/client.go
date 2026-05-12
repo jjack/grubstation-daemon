@@ -25,7 +25,7 @@ type Client struct {
 type Action string
 
 const (
-	ActionRegisterAction Action = "register_daemon"
+	ActionRegisterAction Action = "register_daemon_token"
 	ActionUpdateAction   Action = "update_boot_options"
 )
 
