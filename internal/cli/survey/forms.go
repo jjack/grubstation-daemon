@@ -223,9 +223,8 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 		// 1. Instance Selection
 		var instOpts []tap.SelectOption[int]
 		for i, inst := range discovered {
-			label := inst.Name
-			hint := strings.Join(inst.URLs, ", ")
-			instOpts = append(instOpts, tap.SelectOption[int]{Value: i, Label: label, Hint: hint})
+			label := fmt.Sprintf("%s (%s)", inst.Name, strings.Join(inst.URLs, ", "))
+			instOpts = append(instOpts, tap.SelectOption[int]{Value: i, Label: label})
 		}
 		instOpts = append(instOpts, tap.SelectOption[int]{Value: -1, Label: "Other (Enter manually)"})
 
@@ -243,20 +242,11 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 			// 2. Agent URL Selection
 			var agentOpts []tap.SelectOption[string]
 			for _, u := range selectedInst.URLs {
-				hint := "IP Address"
-				if strings.Contains(u, "://") {
-					parts := strings.Split(u, "://")
-					if len(parts) > 1 && !strings.Contains(parts[1], ":") {
-						// Heuristic: if no port and has protocol, it's likely a domain from TXT
-						hint = "Domain"
-					}
-				}
+				label := u
 				if strings.HasPrefix(u, "https://") {
-					hint += " (HTTPS)"
-				} else {
-					hint += " (HTTP)"
+					label += " (HTTPS is Preferred)"
 				}
-				agentOpts = append(agentOpts, tap.SelectOption[string]{Value: u, Label: u, Hint: hint})
+				agentOpts = append(agentOpts, tap.SelectOption[string]{Value: u, Label: label})
 			}
 
 			haURL = tap.Select(ctx, tap.SelectOptions[string]{

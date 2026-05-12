@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+const WebHookMaxLength = 64
+
 var (
 	ErrAddressEmpty               = errors.New("address cannot be empty")
 	ErrInvalidWolBroadcastAddress = errors.New("invalid WOL address: must be a valid IP address")
@@ -25,6 +27,7 @@ var (
 	ErrURLEmpty                   = errors.New("url cannot be empty")
 	ErrWebhookIDEmpty             = errors.New("webhook id cannot be empty")
 	ErrWebhookIDInvalidChar       = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
+	ErrWebhookIDWrongSize         = errors.New("webhook id should be 64 characters long")
 )
 
 func ValidateGrubWaitTime(v string) error {
@@ -66,13 +69,19 @@ func ValidateURL(v string) error {
 	return nil
 }
 
-func ValidateWebhookID(v string) error {
-	if v == "" {
+func ValidateWebhookID(webhookID string) error {
+	if webhookID == "" {
 		return ErrWebhookIDEmpty
 	}
-	if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(v) {
+
+	if len(webhookID) != WebHookMaxLength {
+		return ErrWebhookIDWrongSize
+	}
+
+	if !regexp.MustCompile(`^[a-z0-9]+$`).MatchString(webhookID) {
 		return ErrWebhookIDInvalidChar
 	}
+
 	return nil
 }
 
