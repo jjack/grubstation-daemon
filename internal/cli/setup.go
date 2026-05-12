@@ -225,7 +225,7 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 			}
 			tap.Message("Successfully pushed initial state to Home Assistant.")
 
-			tap.Outro("Setup complete! To populate Home Assistant again without rebooting, run: grubstation boot push")
+			tap.Outro("Setup complete!")
 			return nil
 		},
 	}

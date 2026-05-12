@@ -37,17 +37,16 @@ func TestClient_Push(t *testing.T) {
 	client := NewClient(ts.URL, "test-webhook", nil)
 	payload := RegistrationPayload{
 		CommonPayload: CommonPayload{
-			Action:     ActionRegisterAction,
-			MACAddress: "aa:bb:cc:dd",
-			Address:    "10.0.0.1",
-			Version:    "v1.0.0",
+			Action:         ActionRegisterAction,
+			MACAddress:     "aa:bb:cc:dd",
+			Address:        "10.0.0.1",
+			Version:        "v1.0.0",
+			OS:             "linux",
+			ServiceManager: "systemd",
 		},
-		WolAddress:     "192.168.1.255",
-		WolPort:        9,
-		ServiceManager: "systemd",
 	}
 
-	err := client.Push(context.Background(), payload)
+	err := client.PostWebhook(context.Background(), payload)
 	if err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -68,7 +67,7 @@ func TestClient_Push(t *testing.T) {
 
 func TestClient_Push_InvalidURL(t *testing.T) {
 	client := NewClient(":\x00invalid%url", "test", nil)
-	err := client.Push(context.Background(), RegistrationPayload{})
+	err := client.PostWebhook(context.Background(), RegistrationPayload{})
 	if err == nil {
 		t.Fatal("expected error on invalid URL, got nil")
 	}
@@ -81,7 +80,7 @@ func TestClient_Push_HostError(t *testing.T) {
 	defer ts.Close()
 
 	client := NewClient(ts.URL, "test-webhook", nil)
-	err := client.Push(context.Background(), RegistrationPayload{})
+	err := client.PostWebhook(context.Background(), RegistrationPayload{})
 	if err == nil {
 		t.Fatal("expected error on server 500, got nil")
 	}
@@ -94,7 +93,7 @@ func TestClient_Push_HostError(t *testing.T) {
 func TestClient_Push_HttpClientError(t *testing.T) {
 	// Create client with invalid base url matching protocol scheme error
 	client := NewClient("http://127.0.0.1:0", "test", nil)
-	err := client.Push(context.Background(), RegistrationPayload{})
+	err := client.PostWebhook(context.Background(), RegistrationPayload{})
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -104,7 +103,7 @@ func TestClient_Push_CreateRequestError(t *testing.T) {
 	client := NewClient("http://homeassistant.local:8123", "test", nil)
 	// Passing a nil context causes http.NewRequestWithContext to reliably return an error
 	//nolint:staticcheck // SA1012: we intentionally pass nil for testing
-	err := client.Push(nil, RegistrationPayload{})
+	err := client.PostWebhook(nil, RegistrationPayload{})
 	if err == nil {
 		t.Fatal("expected error on nil context, got nil")
 	}

@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -15,6 +17,14 @@ var (
 	execCommand = exec.Command
 	osExit      = os.Exit
 )
+
+func generateToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
 
 // Config holds the daemon configuration.
 type Config struct {
@@ -44,9 +54,15 @@ func New(cfg Config, regHandler func(ctx context.Context, token string) error, u
 func (d *Daemon) run(ctx context.Context) error {
 	token := d.Config.APIKey
 	if token == "" {
-		return fmt.Errorf("API key must be configured")
+		var err error
+		token, err = generateToken()
+		if err != nil {
+			return fmt.Errorf("failed to generate dynamic token: %w", err)
+		}
+		slog.Info("Using dynamically generated TOFU token", "token", token)
+	} else {
+		slog.Info("Using configured API key")
 	}
-	slog.Info("Using configured API key")
 
 	go d.listenUnixSocket(ctx, token)
 

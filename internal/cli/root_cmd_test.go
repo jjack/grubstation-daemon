@@ -15,8 +15,8 @@ func TestCLI_PersistentPreRun(t *testing.T) {
 		"--grub-config", "/custom/grub.cfg",
 		"--host-mac", "aa:bb:cc:dd:ee:ff",
 		"--host-address", "10.0.0.1",
-		"--wol-address", "192.168.1.255",
-		"--wol-port", "7",
+		"--broadcast-address", "192.168.1.255",
+		"--broadcast-port", "7",
 		"--homeassistant-url", "http://override-ha.local",
 		"--homeassistant-webhook-id", "override-webhook",
 	})

@@ -74,8 +74,8 @@ func TestConfig_SaveAndLoad_Defaults(t *testing.T) {
 			Address:    "10.0.0.1",
 		},
 		WakeOnLan: WakeOnLanConfig{
-			Address: DefaultWolAddress,
-			Port:    DefaultWolPort,
+			Address: DefaultWolBroadcastAddress,
+			Port:    DefaultWolBroadcastPort,
 		},
 		HomeAssistant: HomeAssistantConfig{
 			URL:       "http://ha.local",
@@ -140,16 +140,16 @@ func TestLoad_WithFlags(t *testing.T) {
 	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	fs.String(FlagMac, "", "")
 	fs.String(FlagAddress, "", "")
-	fs.String(FlagWolAddress, "", "")
-	fs.Int(FlagWolPort, 0, "")
+	fs.String(FlagWolBroadcastAddress, "", "")
+	fs.Int(FlagWolBroadcastPort, 0, "")
 	fs.String(FlagHassURL, "", "")
 	fs.String(FlagHassWebhook, "", "")
 	fs.String(FlagGrubConfig, "", "")
 
 	_ = fs.Set(FlagMac, "aa:bb:cc:dd:ee:ff")
 	_ = fs.Set(FlagAddress, "flag-address")
-	_ = fs.Set(FlagWolAddress, "1.1.1.1")
-	_ = fs.Set(FlagWolPort, "7")
+	_ = fs.Set(FlagWolBroadcastAddress, "1.1.1.1")
+	_ = fs.Set(FlagWolBroadcastPort, "7")
 	_ = fs.Set(FlagHassURL, "http://flag")
 	_ = fs.Set(FlagHassWebhook, "flag-webhook")
 	_ = fs.Set(FlagGrubConfig, "/flag/grub.cfg")

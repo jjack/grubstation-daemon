@@ -10,21 +10,21 @@ import (
 )
 
 var (
-	ErrAddressEmpty          = errors.New("address cannot be empty")
-	ErrInvalidWolAddress     = errors.New("invalid WOL address: must be a valid IP address")
-	ErrInvalidWolPort        = errors.New("invalid WOL port: must be a number between 1 and 65535")
-	ErrGrubConfigPathEmpty   = errors.New("grub config path cannot be empty")
-	ErrGrubWaitTimeInvalid   = errors.New("grub wait time must be a number between 1 and 300 seconds")
-	ErrGrubWaitTimeEmpty     = errors.New("grub wait time cannot be empty")
-	ErrGrubWaitTimeNotNumber = errors.New("grub wait time must be a number")
-	ErrInvalidHost           = errors.New("host must be a valid IP address or hostname (letters, numbers, hyphens, dots)")
-	ErrInvalidMACAddress     = errors.New("invalid MAC address format")
-	ErrInvalidURL            = errors.New("invalid URL format")
-	ErrMACAddressEmpty       = errors.New("mac address cannot be empty")
-	ErrHTTPSUnsupported      = errors.New("https is not supported by grub; please use an http:// url")
-	ErrURLEmpty              = errors.New("url cannot be empty")
-	ErrWebhookIDEmpty        = errors.New("webhook id cannot be empty")
-	ErrWebhookIDInvalidChar  = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
+	ErrAddressEmpty               = errors.New("address cannot be empty")
+	ErrInvalidWolBroadcastAddress = errors.New("invalid WOL address: must be a valid IP address")
+	ErrInvalidWolBroadcastPort    = errors.New("invalid WOL port: must be a number between 1 and 65535")
+	ErrGrubConfigPathEmpty        = errors.New("grub config path cannot be empty")
+	ErrGrubWaitTimeInvalid        = errors.New("grub wait time must be a number between 1 and 300 seconds")
+	ErrGrubWaitTimeEmpty          = errors.New("grub wait time cannot be empty")
+	ErrGrubWaitTimeNotNumber      = errors.New("grub wait time must be a number")
+	ErrInvalidHost                = errors.New("host must be a valid IP address or hostname (letters, numbers, hyphens, dots)")
+	ErrInvalidMACAddress          = errors.New("invalid MAC address format")
+	ErrInvalidURL                 = errors.New("invalid URL format")
+	ErrMACAddressEmpty            = errors.New("mac address cannot be empty")
+	ErrHTTPSUnsupported           = errors.New("https is not supported by grub; please use an http:// url")
+	ErrURLEmpty                   = errors.New("url cannot be empty")
+	ErrWebhookIDEmpty             = errors.New("webhook id cannot be empty")
+	ErrWebhookIDInvalidChar       = errors.New("webhook id can only contain letters, numbers, hyphens, and underscores")
 )
 
 func ValidateGrubWaitTime(v string) error {
@@ -76,13 +76,13 @@ func ValidateWebhookID(v string) error {
 	return nil
 }
 
-func ValidateWolAddress(v string) error {
+func ValidateWolBroadcastAddress(v string) error {
 	// empty means use the default address - 255.255.255.255
 	if v == "" {
 		return nil
 	}
 	if net.ParseIP(v) == nil {
-		return ErrInvalidWolAddress
+		return ErrInvalidWolBroadcastAddress
 	}
 	return nil
 }
@@ -95,7 +95,7 @@ func ValidatePort(v string) error {
 	port, err := strconv.Atoi(v)
 	if err != nil || port < 1 || port > 65535 {
 		slog.Error("Invalid WOL port", "port", port)
-		return ErrInvalidWolPort
+		return ErrInvalidWolBroadcastPort
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func (c *Config) Validate() error {
 	if err := ValidatePort(portStr); err != nil {
 		return err
 	}
-	if err := ValidateWolAddress(c.WakeOnLan.Address); err != nil {
+	if err := ValidateWolBroadcastAddress(c.WakeOnLan.Address); err != nil {
 		return err
 	}
 	return nil

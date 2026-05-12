@@ -152,7 +152,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 	}
 
 	// 6. WOL Address & Port
-	wolAddress := tap.Select(ctx, tap.SelectOptions[string]{
+	WolBroadcastAddress := tap.Select(ctx, tap.SelectOptions[string]{
 		Message: "WOL Broadcast Address (you may need to choose subnet broadcast for cross-VLAN setups)",
 		Options: buildWolSelectOptions(hostAddress, ips, broadcasts),
 	})
@@ -160,7 +160,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 		return nil, false, ctx.Err()
 	}
 
-	defaultValue := strconv.Itoa(config.DefaultWolPort)
+	defaultValue := strconv.Itoa(config.DefaultWolBroadcastPort)
 	wolBroadcastPortStr := tap.Text(ctx, tap.TextOptions{
 		Message:      fmt.Sprintf("WOL Broadcast Port (default: %s)", defaultValue),
 		DefaultValue: defaultValue,
@@ -239,7 +239,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 			MACAddress: selectedIface.HardwareAddr.String(),
 		},
 		WakeOnLan: config.WakeOnLanConfig{
-			Address: wolAddress,
+			Address: WolBroadcastAddress,
 			Port:    wolBroadcastPort,
 		},
 		HomeAssistant: config.HomeAssistantConfig{
@@ -285,7 +285,7 @@ func buildHostSelectOptions(hostname, fqdn string, ips []string) []tap.SelectOpt
 
 func buildWolSelectOptions(hostAddress string, ips []string, ipBroadcasts map[string]string) []tap.SelectOption[string] {
 	opts := []tap.SelectOption[string]{
-		{Value: config.DefaultWolAddress, Label: fmt.Sprintf("%s (Default)", config.DefaultWolAddress)},
+		{Value: config.DefaultWolBroadcastAddress, Label: fmt.Sprintf("%s (Default)", config.DefaultWolBroadcastAddress)},
 	}
 
 	selectedIP := net.ParseIP(hostAddress)

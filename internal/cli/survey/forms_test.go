@@ -236,8 +236,8 @@ func TestBuildWolSelectOptions(t *testing.T) {
 	if len(opts) != 3 {
 		t.Fatalf("expected 3 options, got %d", len(opts))
 	}
-	if opts[0].Value != config.DefaultWolAddress {
-		t.Errorf("expected DefaultWolAddress, got %s", opts[0].Value)
+	if opts[0].Value != config.DefaultWolBroadcastAddress {
+		t.Errorf("expected DefaultWolBroadcastAddress, got %s", opts[0].Value)
 	}
 	if opts[1].Value != "192.168.1.255" {
 		t.Errorf("expected subnet broadcast 192.168.1.255, got %s", opts[1].Value)

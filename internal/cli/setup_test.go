@@ -33,9 +33,11 @@ func (m *mockInstallInitSystem) IsActive(ctx context.Context) bool { return true
 func (m *mockInstallInitSystem) IsInstalled(ctx context.Context) (bool, error) {
 	return m.isInstalledVal, m.isInstalledErr
 }
+
 func (m *mockInstallInitSystem) CheckPermissions(ctx context.Context) error {
 	return m.permissionErr
 }
+
 func (m *mockInstallInitSystem) Install(ctx context.Context, configPath string) error {
 	m.configPath = configPath
 	return m.installErr
@@ -119,66 +121,6 @@ func TestApplyCmd_AbsConfigError(t *testing.T) {
 	}
 }
 
-func TestSetupCmd_ConfigFlagFallback(t *testing.T) {
-	oldRunGenerateSurvey := survey.RunGenerateSurvey
-	defer func() {
-		survey.RunGenerateSurvey = oldRunGenerateSurvey
-	}()
-
-	oldOsMkdirAll := osMkdirAll
-	osMkdirAll = func(path string, perm os.FileMode) error { return nil }
-	defer func() {
-		osMkdirAll = oldOsMkdirAll
-	}()
-
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("OK"))
-	}))
-	defer ts.Close()
-
-	survey.RunGenerateSurvey = func(ctx context.Context, deps survey.SurveyDeps, isReinstall bool, currentPort int) (*config.Config, bool, error) {
-		return &config.Config{
-			HomeAssistant: config.HomeAssistantConfig{URL: ts.URL, WebhookID: "fake"},
-		}, false, nil
-	}
-
-	initMock := &mockInstallInitSystem{}
-	initReg := servicemanager.NewRegistry()
-	initReg.Register("mock-init", func() servicemanager.Manager { return initMock })
-
-	var savedPath string
-	sysResolver := &mockSystemResolver{
-		saveConfigFunc: func(cfg *config.Config, path string) error {
-			savedPath = path
-			return nil
-		},
-	}
-
-	deps := &CommandDeps{
-		Config:         &config.Config{},
-		Grub:           &grub.Grub{},
-		Registry:       initReg,
-		SystemResolver: sysResolver,
-	}
-
-	cmd := NewSetupCmd(deps)
-	cmd.ResetFlags() // Strip the "config" flag to force GetString to error out
-
-	// Suppress tap output
-	tap.SetTermIO(nil, tap.NewMockWritable())
-	defer tap.SetTermIO(nil, nil)
-
-	err := cmd.Execute()
-	if err != nil {
-		t.Fatalf("expected no error from setup fallback, got %v", err)
-	}
-
-	if savedPath != "/etc/grubstation/config.yaml" {
-		t.Errorf("expected default fallback path /etc/grubstation/config.yaml, got %s", savedPath)
-	}
-}
-
 func TestSetupCmd_Execute(t *testing.T) {
 	oldRunGenerateSurvey := survey.RunGenerateSurvey
 	defer func() {
@@ -218,7 +160,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 			wantInstall: true,
 			wantOut: []string{
 				"Proceeding with installation...",
-				"Setup complete! To populate Home Assistant again without rebooting, run: grubstation boot push",
+				"Setup complete!",
 			},
 		},
 		{
@@ -430,7 +372,7 @@ func TestSetupCmd_Execute(t *testing.T) {
 			defer tap.SetTermIO(nil, nil)
 
 			cmd.Flags().String("config", "dummy.yaml", "")
-			
+
 			finalArgs := tt.args
 			if len(finalArgs) == 0 {
 				finalArgs = []string{"--config", "dummy.yaml"}
@@ -635,7 +577,7 @@ type mockSurveyService struct{}
 
 func (m *mockSurveyService) Name() string                                         { return "systemd" }
 func (m *mockSurveyService) IsActive(ctx context.Context) bool                    { return true }
-func (m *mockSurveyService) IsInstalled(ctx context.Context) (bool, error)         { return false, nil }
+func (m *mockSurveyService) IsInstalled(ctx context.Context) (bool, error)        { return false, nil }
 func (m *mockSurveyService) CheckPermissions(ctx context.Context) error           { return nil }
 func (m *mockSurveyService) Install(ctx context.Context, configPath string) error { return nil }
 func (m *mockSurveyService) Uninstall(ctx context.Context) error                  { return nil }

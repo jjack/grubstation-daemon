@@ -33,23 +33,20 @@ func New(cfg *config.Config, g *grub.Grub, managerName string) *Reporter {
 // RegisterDaemon performs the initial registration handshake with Home Assistant.
 func (r *Reporter) RegisterDaemon(ctx context.Context, token string) error {
 	hostCfg := r.Config.Host
-	wolCfg := r.Config.WakeOnLan
 	haCfg := r.Config.HomeAssistant
 	daemonCfg := r.Config.Daemon
 
 	payload := ha.RegistrationPayload{
 		CommonPayload: ha.CommonPayload{
-			Action:     ha.ActionRegisterAction,
-			MACAddress: hostCfg.MACAddress,
-			Address:    hostCfg.Address,
-			Version:    version.Version,
-			OS:         runtime.GOOS,
+			Action:         ha.ActionRegisterAction,
+			MACAddress:     hostCfg.MACAddress,
+			Address:        hostCfg.Address,
+			Version:        version.Version,
+			OS:             runtime.GOOS,
+			ServiceManager: r.ManagerName,
 		},
-		WolAddress:     wolCfg.Address,
-		WolPort:        wolCfg.Port,
-		APIToken:       token,
-		Port:           daemonCfg.Port,
-		ServiceManager: r.ManagerName,
+		DaemonToken: token,
+		DaemonPort:  daemonCfg.Port,
 	}
 
 	if haCfg.URL == "" || haCfg.WebhookID == "" {
@@ -63,7 +60,7 @@ func (r *Reporter) RegisterDaemon(ctx context.Context, token string) error {
 	)
 
 	slog.Debug("Registering daemon with Home Assistant", "webhook_id", haCfg.WebhookID)
-	if err := haClient.Push(ctx, payload); err != nil {
+	if err := haClient.PostWebhook(ctx, payload); err != nil {
 		return err
 	}
 
@@ -84,16 +81,20 @@ func (r *Reporter) PushBootOptions(ctx context.Context) error {
 
 	hostCfg := r.Config.Host
 	haCfg := r.Config.HomeAssistant
+	wolCfg := r.Config.WakeOnLan
 
 	payload := ha.UpdatePayload{
 		CommonPayload: ha.CommonPayload{
-			Action:     ha.ActionUpdateAction,
-			MACAddress: hostCfg.MACAddress,
-			Address:    hostCfg.Address,
-			Version:    version.Version,
-			OS:         runtime.GOOS,
+			Action:         ha.ActionUpdateAction,
+			MACAddress:     hostCfg.MACAddress,
+			Address:        hostCfg.Address,
+			Version:        version.Version,
+			OS:             runtime.GOOS,
+			ServiceManager: r.ManagerName,
 		},
-		BootOptions: bootOptions,
+		BootOptions:         bootOptions,
+		WolBroadcastAddress: wolCfg.Address,
+		WolBroadcastPort:    wolCfg.Port,
 	}
 
 	if haCfg.URL == "" || haCfg.WebhookID == "" {
@@ -106,8 +107,8 @@ func (r *Reporter) PushBootOptions(ctx context.Context) error {
 		nil,
 	)
 
-	slog.Debug("Pushing boot options to Home Assistant", "webhook_id", haCfg.WebhookID)
-	if err := haClient.Push(ctx, payload); err != nil {
+	slog.Debug("Pushing boot options to Home Assistant", "webhook_id", haCfg.WebhookID, "payload", payload)
+	if err := haClient.PostWebhook(ctx, payload); err != nil {
 		return err
 	}
 

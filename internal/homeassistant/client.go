@@ -30,25 +30,25 @@ const (
 )
 
 type CommonPayload struct {
-	Action     Action `json:"action"`
-	MACAddress string `json:"mac"`
-	Address    string `json:"address"`
-	Version    string `json:"daemon_version,omitempty"`
-	OS         string `json:"os"`
+	Action         Action `json:"action"`
+	MACAddress     string `json:"mac"`
+	Address        string `json:"address"`
+	Version        string `json:"daemon_version,omitempty"`
+	OS             string `json:"host_os,omitempty"`
+	ServiceManager string `json:"daemon_service_manager,omitempty"`
 }
 
 type RegistrationPayload struct {
 	CommonPayload
-	WolAddress     string `json:"broadcast_address,omitempty"`
-	WolPort        int    `json:"broadcast_port,omitempty"`
-	APIToken       string `json:"api_key,omitempty"`
-	Port           int    `json:"daemon_port,omitempty"`
-	ServiceManager string `json:"service_manager,omitempty"`
+	DaemonToken string `json:"daemon_token,omitempty"`
+	DaemonPort  int    `json:"daemon_port,omitempty"`
 }
 
 type UpdatePayload struct {
 	CommonPayload
-	BootOptions []string `json:"boot_options"`
+	BootOptions         []string `json:"boot_options"`
+	WolBroadcastAddress string   `json:"broadcast_address,omitempty"`
+	WolBroadcastPort    int      `json:"broadcast_port,omitempty"`
 }
 
 func NewClient(baseURL, webhookID string, httpClient *http.Client) *Client {
@@ -62,7 +62,7 @@ func NewClient(baseURL, webhookID string, httpClient *http.Client) *Client {
 	}
 }
 
-func (c *Client) Push(ctx context.Context, payload any) error {
+func (c *Client) PostWebhook(ctx context.Context, payload any) error {
 	u, err := url.Parse(c.BaseURL)
 	if err != nil {
 		return fmt.Errorf("invalid base url: %w", err)

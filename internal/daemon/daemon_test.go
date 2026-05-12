@@ -240,8 +240,7 @@ func TestDaemon_Run_DynamicToken(t *testing.T) {
 	registrationDone := make(chan bool, 1)
 
 	// No APIKey provided, should generate one
-	token := "test-api-key"
-	d := New(Config{Port: port, APIKey: token}, func(ctx context.Context, tok string) error {
+	d := New(Config{Port: port, APIKey: ""}, func(ctx context.Context, tok string) error {
 		capturedToken = tok
 		registrationDone <- true
 		return nil
@@ -257,8 +256,11 @@ func TestDaemon_Run_DynamicToken(t *testing.T) {
 
 	select {
 	case <-registrationDone:
-		if capturedToken != token {
-			t.Errorf("expected token %s, got %s", token, capturedToken)
+		if capturedToken == "" {
+			t.Error("expected a generated token, got empty string")
+		}
+		if len(capturedToken) < 16 {
+			t.Errorf("generated token too short: %s", capturedToken)
 		}
 	case <-time.After(2 * time.Second):
 		t.Error("registration not called")

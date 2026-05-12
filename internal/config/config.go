@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	DefaultWolAddress      = "255.255.255.255"
-	DefaultWolPort         = 9
-	DefaultDaemonPort      = 8081
-	DefaultGrubWaitSeconds = 2
+	DefaultWolBroadcastAddress = "255.255.255.255"
+	DefaultWolBroadcastPort    = 9
+	DefaultDaemonPort          = 8081
+	DefaultGrubWaitSeconds     = 2
 )
 
 func DefaultConfigPath() string {
@@ -28,15 +28,15 @@ func DefaultConfigPath() string {
 }
 
 const (
-	FlagGrubConfig  = "grub-config"
-	FlagMac         = "host-mac"
-	FlagAddress     = "host-address"
-	FlagWolAddress  = "wol-address"
-	FlagWolPort     = "wol-port"
-	FlagHassURL     = "homeassistant-url"
-	FlagHassWebhook = "homeassistant-webhook-id"
-	FlagDaemonPort  = "daemon-port"
-	FlagDaemonKey   = "daemon-key"
+	FlagGrubConfig          = "grub-config"
+	FlagMac                 = "host-mac"
+	FlagAddress             = "host-address"
+	FlagWolBroadcastAddress = "broadcast-address"
+	FlagWolBroadcastPort    = "broadcast-port"
+	FlagHassURL             = "homeassistant-url"
+	FlagHassWebhook         = "homeassistant-webhook-id"
+	FlagDaemonPort          = "daemon-port"
+	FlagDaemonKey           = "daemon-key"
 )
 
 var viperBindPFlag = func(v *viper.Viper, key string, flag *pflag.Flag) error { return v.BindPFlag(key, flag) }
@@ -78,11 +78,11 @@ type HomeAssistantConfig struct {
 func (c *Config) ToYAML(maskWebhook bool) (string, error) {
 	displayCfg := *c
 
-	// Apply suppression for default values to match existing logic
-	if displayCfg.WakeOnLan.Address == DefaultWolAddress {
+	// Apply suppression for default values
+	if displayCfg.WakeOnLan.Address == DefaultWolBroadcastAddress {
 		displayCfg.WakeOnLan.Address = ""
 	}
-	if displayCfg.WakeOnLan.Port == DefaultWolPort {
+	if displayCfg.WakeOnLan.Port == DefaultWolBroadcastPort {
 		displayCfg.WakeOnLan.Port = 0
 	}
 	if displayCfg.Grub.WaitTimeSeconds == DefaultGrubWaitSeconds {
@@ -127,8 +127,8 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 			"grub.config_path":         FlagGrubConfig,
 			"host.mac":                 FlagMac,
 			"host.address":             FlagAddress,
-			"wake_on_lan.address":      FlagWolAddress,
-			"wake_on_lan.port":         FlagWolPort,
+			"wake_on_lan.address":      FlagWolBroadcastAddress,
+			"wake_on_lan.port":         FlagWolBroadcastPort,
 			"homeassistant.url":        FlagHassURL,
 			"homeassistant.webhook_id": FlagHassWebhook,
 			"daemon.port":              FlagDaemonPort,

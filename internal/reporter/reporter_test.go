@@ -71,11 +71,11 @@ func TestReporter_RegisterDaemon_Success(t *testing.T) {
 	if receivedPayload.Action != ha.ActionRegisterAction {
 		t.Errorf("expected action register_daemon, got %s", receivedPayload.Action)
 	}
-	if receivedPayload.APIToken != "tofu-token" {
-		t.Errorf("expected token tofu-token, got %s", receivedPayload.APIToken)
+	if receivedPayload.DaemonToken != "tofu-token" {
+		t.Errorf("expected token tofu-token, got %s", receivedPayload.DaemonToken)
 	}
-	if receivedPayload.Port != 8081 {
-		t.Errorf("expected port 8081, got %d", receivedPayload.Port)
+	if receivedPayload.DaemonPort != 8081 {
+		t.Errorf("expected port 8081, got %d", receivedPayload.DaemonPort)
 	}
 	if receivedPayload.ServiceManager != "test-manager" {
 		t.Errorf("expected service manager test-manager, got %s", receivedPayload.ServiceManager)
@@ -123,6 +123,10 @@ menuentry 'Windows' {
 			Address:    "192.168.1.10",
 			MACAddress: "AA:BB:CC:DD:EE:FF",
 		},
+		WakeOnLan: config.WakeOnLanConfig{
+			Address: "192.168.1.255",
+			Port:    9,
+		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       server.URL,
 			WebhookID: "webhook123",
@@ -144,6 +148,15 @@ menuentry 'Windows' {
 	// 5. Verify
 	if receivedPayload.Action != ha.ActionUpdateAction {
 		t.Errorf("expected action update_boot_options, got %s", receivedPayload.Action)
+	}
+	if receivedPayload.ServiceManager != "test-manager" {
+		t.Errorf("expected service manager test-manager, got %s", receivedPayload.ServiceManager)
+	}
+	if receivedPayload.WolBroadcastAddress != "192.168.1.255" {
+		t.Errorf("expected broadcast address 192.168.1.255, got %s", receivedPayload.WolBroadcastAddress)
+	}
+	if receivedPayload.WolBroadcastPort != 9 {
+		t.Errorf("expected broadcast port 9, got %d", receivedPayload.WolBroadcastPort)
 	}
 	if len(receivedPayload.BootOptions) != 2 {
 		t.Errorf("expected 2 boot options, got %d", len(receivedPayload.BootOptions))

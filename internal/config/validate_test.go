@@ -91,7 +91,7 @@ func TestValidateWebhookID(t *testing.T) {
 	}
 }
 
-func TestValidateWolAddress(t *testing.T) {
+func TestValidateWolBroadcastAddress(t *testing.T) {
 	tests := []struct {
 		name    string
 		addr    string
@@ -103,8 +103,8 @@ func TestValidateWolAddress(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := ValidateWolAddress(tt.addr); (err != nil) != tt.wantErr {
-				t.Errorf("ValidateWolAddress() error = %v, wantErr %v", err, tt.wantErr)
+			if err := ValidateWolBroadcastAddress(tt.addr); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateWolBroadcastAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -187,8 +187,8 @@ func TestConfigValidate(t *testing.T) {
 		{"invalid Address", func(c *Config) { c.Host.Address = "invalid address format" }, true},
 		{"empty URL", func(c *Config) { c.HomeAssistant.URL = "" }, true},
 		{"empty WebhookID", func(c *Config) { c.HomeAssistant.WebhookID = "" }, true},
-		{"invalid WolPort", func(c *Config) { c.WakeOnLan.Port = -1 }, true},
-		{"invalid WolAddress", func(c *Config) { c.WakeOnLan.Address = "invalid-ip" }, true},
+		{"invalid WolBroadcastPort", func(c *Config) { c.WakeOnLan.Port = -1 }, true},
+		{"invalid WolBroadcastAddress", func(c *Config) { c.WakeOnLan.Address = "invalid-ip" }, true},
 		{"missing Grub ConfigPath when enabled", func(c *Config) { c.Daemon.ReportBootOptions = true; c.Grub.ConfigPath = "" }, true},
 		{"valid with Grub ConfigPath when enabled", func(c *Config) { c.Daemon.ReportBootOptions = true; c.Grub.ConfigPath = "/tmp/grub.cfg" }, false},
 	}
