@@ -3,7 +3,7 @@ module github.com/jjack/grubstation-daemon
 go 1.26.2
 
 require (
-	github.com/go-viper/mapstructure/v2 v2.4.0
+	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
