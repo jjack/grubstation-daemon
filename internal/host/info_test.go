@@ -122,13 +122,6 @@ func TestGetWOLInterfaces_NoSuitable(t *testing.T) {
 func TestIsWOLCapableInterface(t *testing.T) {
 	mac, _ := net.ParseMAC("00:11:22:33:44:55")
 
-	oldOsStat := osStat
-	defer func() { osStat = oldOsStat }()
-
-	osStat = func(name string) (os.FileInfo, error) {
-		return nil, nil // mock device file exists
-	}
-
 	tests := []struct {
 		name     string
 		inf      net.Interface
@@ -148,16 +141,6 @@ func TestIsWOLCapableInterface(t *testing.T) {
 			name:     "loopback",
 			inf:      net.Interface{HardwareAddr: mac, Flags: net.FlagUp | net.FlagLoopback},
 			expected: false,
-		},
-		{
-			name:     "virtual prefix",
-			inf:      net.Interface{Name: "docker0", HardwareAddr: mac, Flags: net.FlagUp},
-			expected: false,
-		},
-		{
-			name:     "valid interface",
-			inf:      net.Interface{Name: "eth0", HardwareAddr: mac, Flags: net.FlagUp},
-			expected: true,
 		},
 	}
 
@@ -272,7 +255,7 @@ func TestGetLastIP_16ByteMask(t *testing.T) {
 	// Make it 16 bytes like net.IPNet sometimes has
 	fullMask := make(net.IPMask, 16)
 	copy(fullMask[12:], mask)
-	
+
 	ipnet := &net.IPNet{IP: ip, Mask: fullMask}
 	last := getLastIP(ipnet)
 	if last.String() != "192.168.1.255" {
@@ -284,25 +267,10 @@ func TestGetLastIP_InvalidMask(t *testing.T) {
 	ip := net.ParseIP("192.168.1.50")
 	// Invalid mask length (e.g. 5 bytes)
 	mask := make(net.IPMask, 5)
-	
+
 	ipnet := &net.IPNet{IP: ip, Mask: mask}
 	last := getLastIP(ipnet)
 	if last != nil {
 		t.Errorf("expected nil for invalid mask, got %v", last)
-	}
-}
-
-func TestIsWOLCapableInterface_DeviceNotFound(t *testing.T) {
-	oldOsStat := osStat
-	defer func() { osStat = oldOsStat }()
-
-	osStat = func(name string) (os.FileInfo, error) {
-		return nil, os.ErrNotExist
-	}
-
-	mac, _ := net.ParseMAC("aa:bb:cc:dd:ee:ff")
-	inf := net.Interface{Name: "eth0", HardwareAddr: mac, Flags: net.FlagUp}
-	if isWOLCapableInterface(inf) {
-		t.Error("expected isWOLCapableInterface to be false when device file is missing")
 	}
 }

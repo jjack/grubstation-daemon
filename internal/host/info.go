@@ -38,16 +38,7 @@ func isWOLCapableInterface(inf net.Interface) bool {
 		return false
 	}
 
-	virtualInterfaces := []string{"veth", "docker", "br-", "virbr", "vmnet", "vboxnet"}
-	for _, prefix := range virtualInterfaces {
-		if strings.HasPrefix(inf.Name, prefix) {
-			return false
-		}
-	}
-
-	path := fmt.Sprintf("/sys/class/net/%s/device", inf.Name)
-	_, err := osStat(path)
-	return !os.IsNotExist(err)
+	return isPhysicalInterface(inf)
 }
 
 // GetWOLInterfaces returns a slice of net.Interface that are capable of Wake-on-LAN.
