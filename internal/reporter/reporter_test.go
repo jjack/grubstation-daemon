@@ -77,9 +77,6 @@ func TestReporter_RegisterDaemon_Success(t *testing.T) {
 	if receivedPayload.DaemonPort != 8081 {
 		t.Errorf("expected port 8081, got %d", receivedPayload.DaemonPort)
 	}
-	if receivedPayload.ServiceManager != "test-manager" {
-		t.Errorf("expected service manager test-manager, got %s", receivedPayload.ServiceManager)
-	}
 }
 
 func TestReporter_PushBootOptions_Success(t *testing.T) {
@@ -148,9 +145,6 @@ menuentry 'Windows' {
 	// 5. Verify
 	if receivedPayload.Action != ha.ActionUpdateAction {
 		t.Errorf("expected action update_boot_options, got %s", receivedPayload.Action)
-	}
-	if receivedPayload.ServiceManager != "test-manager" {
-		t.Errorf("expected service manager test-manager, got %s", receivedPayload.ServiceManager)
 	}
 	if receivedPayload.WolBroadcastAddress != "192.168.1.255" {
 		t.Errorf("expected broadcast address 192.168.1.255, got %s", receivedPayload.WolBroadcastAddress)

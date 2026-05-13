@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"runtime"
 
 	"github.com/jjack/grubstation-daemon/internal/config"
 	"github.com/jjack/grubstation-daemon/internal/grub"
 	ha "github.com/jjack/grubstation-daemon/internal/homeassistant"
-	"github.com/jjack/grubstation-daemon/internal/version"
 )
 
 var ErrMissingHAConfig = errors.New("homeassistant url and webhook_id must be configured")
@@ -48,12 +46,9 @@ func (r *Reporter) RegisterDaemon(ctx context.Context, token string) error {
 
 	payload := ha.RegistrationPayload{
 		CommonPayload: ha.CommonPayload{
-			Action:         ha.ActionRegisterAction,
-			MACAddress:     hostCfg.MACAddress,
-			Address:        hostCfg.Address,
-			Version:        version.Version,
-			OS:             runtime.GOOS,
-			ServiceManager: r.ManagerName,
+			Action:     ha.ActionRegisterAction,
+			MACAddress: hostCfg.MACAddress,
+			Address:    hostCfg.Address,
 		},
 		DaemonToken: token,
 		DaemonPort:  daemonCfg.Port,
@@ -88,12 +83,9 @@ func (r *Reporter) PushBootOptions(ctx context.Context) error {
 
 	payload := ha.UpdatePayload{
 		CommonPayload: ha.CommonPayload{
-			Action:         ha.ActionUpdateAction,
-			MACAddress:     hostCfg.MACAddress,
-			Address:        hostCfg.Address,
-			Version:        version.Version,
-			OS:             runtime.GOOS,
-			ServiceManager: r.ManagerName,
+			Action:     ha.ActionUpdateAction,
+			MACAddress: hostCfg.MACAddress,
+			Address:    hostCfg.Address,
 		},
 		BootOptions: bootOptions,
 	}

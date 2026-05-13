@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -45,12 +45,21 @@ func getTestClient() *http.Client {
 	}
 }
 
-func TestDaemonHealthcheckEndpoint(t *testing.T) {
+func TestDaemonStatusEndpoint(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	port := getFreePort(t)
-	d := New(Config{Port: port, APIKey: "test-key"}, nil, nil)
+	cfg := Config{
+		Port:   port,
+		APIKey: "test-key",
+	}
+	meta := Metadata{
+		OS:             "linux",
+		Version:        "1.2.3",
+		ServiceManager: "systemd",
+	}
+	d := New(cfg, meta, nil, nil)
 
 	done := make(chan error, 1)
 	go func() {
@@ -62,9 +71,9 @@ func TestDaemonHealthcheckEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := getTestClient().Get(fmt.Sprintf("http://localhost:%d/healthcheck", port))
+	resp, err := getTestClient().Get(fmt.Sprintf("http://localhost:%d/status", port))
 	if err != nil {
-		t.Fatalf("failed to call healthcheck endpoint: %v", err)
+		t.Fatalf("failed to call status endpoint: %v", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -72,13 +81,34 @@ func TestDaemonHealthcheckEndpoint(t *testing.T) {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 
+	if resp.Header.Get("Content-Type") != "application/json" {
+		t.Errorf("expected application/json, got %s", resp.Header.Get("Content-Type"))
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("failed to read response: %v", err)
 	}
 
-	if !bytes.Equal(body, []byte("ok\n")) {
-		t.Errorf("expected body 'ok\\n', got %q", string(body))
+	var status struct {
+		Status string `json:"status"`
+		Metadata
+	}
+	if err := json.Unmarshal(body, &status); err != nil {
+		t.Fatalf("failed to unmarshal JSON: %v", err)
+	}
+
+	if status.Status != "ok" {
+		t.Errorf("expected status 'ok', got %q", status.Status)
+	}
+	if status.OS != meta.OS {
+		t.Errorf("expected OS %q, got %q", meta.OS, status.OS)
+	}
+	if status.Version != meta.Version {
+		t.Errorf("expected Version %q, got %q", meta.Version, status.Version)
+	}
+	if status.ServiceManager != meta.ServiceManager {
+		t.Errorf("expected ServiceManager %q, got %q", meta.ServiceManager, status.ServiceManager)
 	}
 
 	cancel()
@@ -94,7 +124,7 @@ func TestDaemon_Shutdown_Unauthorized(t *testing.T) {
 	d := New(Config{
 		Port:   port,
 		APIKey: token,
-	}, nil, nil)
+	}, Metadata{}, nil, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -125,7 +155,7 @@ func TestDaemon_InvalidMethod(t *testing.T) {
 	defer cancel()
 
 	port := getFreePort(t)
-	d := New(Config{Port: port, APIKey: "test-key"}, nil, nil)
+	d := New(Config{Port: port, APIKey: "test-key"}, Metadata{}, nil, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -156,7 +186,7 @@ func TestDaemon_NotFound(t *testing.T) {
 
 	port := getFreePort(t)
 	token := "token"
-	d := New(Config{Port: port, APIKey: token}, nil, nil)
+	d := New(Config{Port: port, APIKey: token}, Metadata{}, nil, nil)
 
 	done := make(chan error, 1)
 	go func() { done <- d.run(ctx) }()
@@ -195,7 +225,7 @@ func TestDaemon_Run_HandshakeSuccess(t *testing.T) {
 	d := New(Config{
 		Port:   port,
 		APIKey: token,
-	}, func(ctx context.Context, tok string) error {
+	}, Metadata{}, func(ctx context.Context, tok string) error {
 		if tok == token {
 			registrationDone <- true
 		}
@@ -240,7 +270,7 @@ func TestDaemon_Run_DynamicToken(t *testing.T) {
 	registrationDone := make(chan bool, 1)
 
 	// No APIKey provided, should generate one
-	d := New(Config{Port: port, APIKey: ""}, func(ctx context.Context, tok string) error {
+	d := New(Config{Port: port, APIKey: ""}, Metadata{}, func(ctx context.Context, tok string) error {
 		capturedToken = tok
 		registrationDone <- true
 		return nil
@@ -294,7 +324,7 @@ func TestDaemon_Shutdown_Success(t *testing.T) {
 		APIKey:            token,
 		ReportBootOptions: true,
 		ShutdownDelay:     time.Millisecond,
-	}, nil, func(ctx context.Context) error {
+	}, Metadata{}, nil, func(ctx context.Context) error {
 		updateCalled <- true
 		return nil
 	})
@@ -345,7 +375,7 @@ func TestDaemon_Run_HandshakeRetry(t *testing.T) {
 		Port:          port,
 		APIKey:        "test-key",
 		RetryInterval: 10 * time.Millisecond,
-	}, func(ctx context.Context, tok string) error {
+	}, Metadata{}, func(ctx context.Context, tok string) error {
 		callCount++
 		if callCount == 1 {
 			return errors.New("fail")
@@ -390,7 +420,7 @@ func TestDaemon_FinalPush(t *testing.T) {
 		Port:              port,
 		APIKey:            token,
 		ReportBootOptions: true,
-	}, func(ctx context.Context, tok string) error {
+	}, Metadata{}, func(ctx context.Context, tok string) error {
 		wg.Done()
 		return nil
 	}, func(ctx context.Context) error {
@@ -443,7 +473,7 @@ func TestDaemon_PerformOSShutdown_Error(t *testing.T) {
 		}
 	}
 
-	d := New(Config{APIKey: "test-key", ShutdownDelay: time.Millisecond}, nil, nil)
+	d := New(Config{APIKey: "test-key", ShutdownDelay: time.Millisecond}, Metadata{}, nil, nil)
 	d.performOSShutdown()
 
 	select {

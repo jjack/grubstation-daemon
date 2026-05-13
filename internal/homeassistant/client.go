@@ -30,12 +30,9 @@ const (
 )
 
 type CommonPayload struct {
-	Action         Action `json:"action"`
-	MACAddress     string `json:"mac"`
-	Address        string `json:"address"`
-	Version        string `json:"daemon_version,omitempty"`
-	OS             string `json:"host_os,omitempty"`
-	ServiceManager string `json:"daemon_service_manager,omitempty"`
+	Action     Action `json:"action"`
+	MACAddress string `json:"mac"`
+	Address    string `json:"address"`
 }
 
 type RegistrationPayload struct {

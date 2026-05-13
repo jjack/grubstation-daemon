@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -35,16 +36,25 @@ type Config struct {
 	ShutdownDelay     time.Duration
 }
 
+// Metadata holds system information.
+type Metadata struct {
+	OS             string `json:"os"`
+	Version        string `json:"version"`
+	ServiceManager string `json:"service_manager"`
+}
+
 // Daemon represents the background service.
 type Daemon struct {
 	Config          Config
+	Metadata        Metadata
 	RegisterHandler func(ctx context.Context, token string) error
 	UpdateHandler   func(ctx context.Context) error
 }
 
-func New(cfg Config, regHandler func(ctx context.Context, token string) error, updateHandler func(ctx context.Context) error) *Daemon {
+func New(cfg Config, meta Metadata, regHandler func(ctx context.Context, token string) error, updateHandler func(ctx context.Context) error) *Daemon {
 	return &Daemon{
 		Config:          cfg,
+		Metadata:        meta,
 		RegisterHandler: regHandler,
 		UpdateHandler:   updateHandler,
 	}
@@ -115,9 +125,16 @@ func (d *Daemon) run(ctx context.Context) error {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodGet && r.URL.Path == "/healthcheck" {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("ok\n"))
+			if r.Method == http.MethodGet && r.URL.Path == "/status" {
+				status := struct {
+					Status string `json:"status"`
+					Metadata
+				}{
+					Status:   "ok",
+					Metadata: d.Metadata,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(status)
 				return
 			}
 

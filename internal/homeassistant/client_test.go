@@ -37,12 +37,9 @@ func TestClient_Push(t *testing.T) {
 	client := NewClient(ts.URL, "test-webhook", nil)
 	payload := RegistrationPayload{
 		CommonPayload: CommonPayload{
-			Action:         ActionRegisterAction,
-			MACAddress:     "aa:bb:cc:dd",
-			Address:        "10.0.0.1",
-			Version:        "v1.0.0",
-			OS:             "linux",
-			ServiceManager: "systemd",
+			Action:     ActionRegisterAction,
+			MACAddress: "aa:bb:cc:dd",
+			Address:    "10.0.0.1",
 		},
 	}
 
@@ -56,12 +53,6 @@ func TestClient_Push(t *testing.T) {
 	}
 	if receivedPayload.MACAddress != "aa:bb:cc:dd" {
 		t.Errorf("expected MAC aa:bb:cc:dd, got %s", receivedPayload.MACAddress)
-	}
-	if receivedPayload.Version != "v1.0.0" {
-		t.Errorf("expected agent version v1.0.0, got %s", receivedPayload.Version)
-	}
-	if receivedPayload.ServiceManager != "systemd" {
-		t.Errorf("expected service manager systemd, got %s", receivedPayload.ServiceManager)
 	}
 }
 
