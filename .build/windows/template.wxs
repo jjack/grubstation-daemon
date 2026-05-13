@@ -14,7 +14,6 @@
 
         <ComponentGroup Id="ProductComponents" Directory="INSTALLDIR">
             <Component Id="Executable" Guid="*">
-                <!-- GoReleaser replaces this with the actual binary path -->
                 <File Id="GrubStationEXE" Source="grubstation.exe" KeyPath="yes" />
             </Component>
         </ComponentGroup>

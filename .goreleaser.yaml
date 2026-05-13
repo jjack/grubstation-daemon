@@ -23,6 +23,18 @@ builds:
       - arm64
       - amd64
       - "386"
+    hooks:
+      post:
+        - cmd: >-
+            {{ if eq .Os "windows" }}
+              wixl -D Version={{.Version}}
+              --arch {{ if eq .Arch "amd64" }}x64{{ else }}x86{{ end }}
+              -o "../../dist/grubstation_{{.Version}}_{{.Os}}_{{.Arch}}.msi"
+              "../../.build/windows/template.wxs"
+            {{ else }}
+              echo "Skipping MSI build for {{ .Os }}"
+            {{ end }}
+          dir: "{{ dir .Path }}"
 
 archives:
   - formats: [tar.gz]
@@ -47,24 +59,6 @@ nfpms:
       - deb
       - rpm
       - apk
-
-msis:
-  - id: grubstation
-    upgrade_code: 2e8b9308-466d-4952-9d33-4f9342718712
-    maintainer: "Jeremy Jack"
-    homepage: "https://github.com/jjack/grubstation-cli" # Updated per repo naming
-    description: "Agent to manage bare-metal OS booting via Home Assistant and WOL"
-    license: "Apache-2.0"
-    
-    template: ./.build/windows/template.wxs
-    
-    # Ensures wixl can map the binary name correctly
-    replacements:
-      BINARY: grubstation
-    
-    # Pass the version to the WiX template variables
-    wxs_variables:
-      Version: "{{ .Version }}"
 
 changelog:
   sort: asc
