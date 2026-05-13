@@ -1,6 +1,7 @@
 {
     "name": "GrubStation",
     "image": "mcr.microsoft.com/devcontainers/go:1.26",
+    "postCreateCommand": "pre-commit install",
     "customizations": {
         "vscode": {
             "settings": {
@@ -20,5 +21,7 @@
         }
     },
     "remoteUser": "vscode",
-    "features": {}
+    "features": {
+        "ghcr.io/devcontainers-extra/features/pre-commit:2": {}
+    }
 }
