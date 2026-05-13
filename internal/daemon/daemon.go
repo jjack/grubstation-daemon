@@ -15,11 +15,12 @@ import (
 
 var (
 	execCommand = exec.Command
+	randRead    = rand.Read
 )
 
 func generateToken() (string, error) {
 	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
+	if _, err := randRead(b); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil

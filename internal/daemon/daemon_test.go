@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -561,6 +562,168 @@ func TestDaemon_Shutdown_CommandError(t *testing.T) {
 
 	if result["status"] != "error" || result["error"] == "" {
 		t.Errorf("unexpected JSON response: %v", result)
+	}
+
+	cancel()
+	<-done
+}
+
+func TestDaemon_GenerateTokenFailure(t *testing.T) {
+	oldRandRead := randRead
+	defer func() { randRead = oldRandRead }()
+
+	randRead = func(b []byte) (int, error) {
+		return 0, errors.New("rand error")
+	}
+
+	d := New(Config{APIKey: ""}, Metadata{}, nil, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err := d.run(ctx)
+	if err == nil || !strings.Contains(err.Error(), "failed to generate dynamic token") {
+		t.Errorf("expected generate dynamic token error, got %v", err)
+	}
+}
+
+func TestDaemon_Run_HandshakeCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel immediately to test the select <-ctx.Done() branches
+	cancel()
+
+	port := getFreePort(t)
+	d := New(Config{
+		Port:          port,
+		APIKey:        "test-key",
+		RetryInterval: 10 * time.Millisecond,
+	}, Metadata{}, func(ctx context.Context, tok string) error {
+		return errors.New("fail")
+	}, nil)
+
+	// This should return quickly because context is cancelled
+	done := make(chan error, 1)
+	go func() { done <- d.run(ctx) }()
+
+	select {
+	case <-done:
+		// Success
+	case <-time.After(1 * time.Second):
+		t.Error("daemon run did not stop on cancelled context")
+	}
+}
+
+func TestDaemon_ListenAndServeError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Use an invalid port to trigger ListenAndServe error
+	d := New(Config{Port: -1}, Metadata{}, nil, nil)
+
+	// We just want to make sure it logs an error and continues/returns appropriately
+	// The srv.ListenAndServe() error is logged but doesn't stop the main loop
+	// until ctx is cancelled.
+	done := make(chan error, 1)
+	go func() { done <- d.run(ctx) }()
+
+	// Wait a bit to ensure it tries to start
+	time.Sleep(50 * time.Millisecond)
+
+	cancel()
+	<-done
+}
+
+func TestDaemon_Run_UpdateError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	port := getFreePort(t)
+	d := New(Config{
+		Port:   port,
+		APIKey: "test-key",
+	}, Metadata{}, func(ctx context.Context, tok string) error {
+		return nil
+	}, func(ctx context.Context) error {
+		return errors.New("update fail")
+	})
+
+	done := make(chan error, 1)
+	go func() { done <- d.run(ctx) }()
+
+	if err := waitForServer(port); err != nil {
+		t.Fatal(err)
+	}
+
+	// Just need it to run the initial update and log error
+	time.Sleep(50 * time.Millisecond)
+	
+	cancel()
+	<-done
+}
+
+func TestDaemon_FinalPush_UpdateError(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Final push logic is linux specific")
+	}
+
+	port := getFreePort(t)
+	d := New(Config{
+		Port:              port,
+		APIKey:            "token",
+		ReportBootOptions: true,
+	}, Metadata{}, nil, func(ctx context.Context) error {
+		return errors.New("final push fail")
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- d.run(ctx) }()
+
+	if err := waitForServer(port); err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+
+	cancel() // Stop daemon, triggers final push
+	<-done
+}
+
+func TestDaemon_Shutdown_PreShutdownPushError(t *testing.T) {
+	oldExec := execCommand
+	defer func() { execCommand = oldExec }()
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		return exec.Command("true")
+	}
+
+	port := getFreePort(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	token := "token"
+	d := New(Config{
+		Port:              port,
+		APIKey:            token,
+		ReportBootOptions: true,
+	}, Metadata{}, nil, func(ctx context.Context) error {
+		return errors.New("pre-shutdown push fail")
+	})
+
+	done := make(chan error, 1)
+	go func() { done <- d.run(ctx) }()
+
+	if err := waitForServer(port); err != nil {
+		t.Fatal(err)
+	}
+
+	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%d/shutdown", port), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := getTestClient().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
 	}
 
 	cancel()
