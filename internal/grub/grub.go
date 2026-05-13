@@ -39,10 +39,26 @@ var (
 )
 
 var (
-	HassGrubStationPath = "/etc/grub.d/99_ha_grub_os_reporter"
+	HassGrubStationPath = "/etc/grub.d/99_grubstation"
 	ExecLookPath        = exec.LookPath
 	ExecCommand         = exec.CommandContext
 )
+
+var knownConfigPaths = []string{
+	"/boot/grub/grub.cfg",
+	"/boot/grub2/grub.cfg",
+	"/boot/efi/EFI/fedora/grub.cfg",
+	"/boot/efi/EFI/redhat/grub.cfg",
+	"/boot/efi/EFI/ubuntu/grub.cfg",
+}
+
+//go:embed templates/99_grubstation.tmpl
+var grubTemplate string
+
+// DiscoverConfigPath attempts to auto-detect the GRUB config file path.
+func (g *Grub) DiscoverConfigPath(ctx context.Context) (string, error) {
+	return findConfig()
+}
 
 func generateWaitList(seconds int) string {
 	if seconds <= 0 {
@@ -55,24 +71,8 @@ func generateWaitList(seconds int) string {
 	return strings.Join(parts, " ")
 }
 
-var configPaths = []string{
-	"/boot/grub/grub.cfg",
-	"/boot/grub2/grub.cfg",
-	"/boot/efi/EFI/fedora/grub.cfg",
-	"/boot/efi/EFI/redhat/grub.cfg",
-	"/boot/efi/EFI/ubuntu/grub.cfg",
-}
-
-//go:embed templates/99_grub_os_reporter.tmpl
-var grubTemplate string
-
-// DiscoverConfigPath attempts to auto-detect the GRUB config file path.
-func (g *Grub) DiscoverConfigPath(ctx context.Context) (string, error) {
-	return findConfig()
-}
-
 func findConfig() (string, error) {
-	for _, path := range configPaths {
+	for _, path := range knownConfigPaths {
 		if _, err := os.Stat(path); err == nil {
 			return path, nil
 		}

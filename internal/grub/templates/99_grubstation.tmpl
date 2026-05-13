@@ -10,7 +10,7 @@ insmod http
 set fetch_success="0"
 
 # Safely store the URL as a string to prevent wildcard/query parser crashes.
-set boot_url="(http,{{ .Host }})/api/remote_boot_manager/{{ .MACAddress }}?token={{ .WebhookID }}"
+set boot_url="(http,{{ .Host }})/api/grubstation/{{ .MACAddress }}?token={{ .WebhookID }}"
 
 # Wait up to {{ .WaitTimeSeconds }} seconds for Spanning Tree Protocol to clear
 # GRUB can't math, so we iterate over a literal list of {{ .WaitTimeSeconds }} items

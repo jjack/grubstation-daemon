@@ -17,9 +17,9 @@ func TestGrub(t *testing.T) {
 		t.Skipf("Real grub.cfg not found at %s, skipping test", testDataPath)
 	}
 
-	originalPaths := configPaths
-	defer func() { configPaths = originalPaths }()
-	configPaths = []string{testDataPath}
+	originalPaths := knownConfigPaths
+	defer func() { knownConfigPaths = originalPaths }()
+	knownConfigPaths = []string{testDataPath}
 
 	g := &Grub{ConfigPath: testDataPath}
 	bootOptions, err := g.GetBootOptions(context.Background())
@@ -217,9 +217,9 @@ func TestGrub_AutoDiscovery(t *testing.T) {
 		t.Fatalf("failed to write temp grub config: %v", err)
 	}
 
-	originalPaths := configPaths
-	defer func() { configPaths = originalPaths }()
-	configPaths = []string{fakeGrubPath}
+	originalPaths := knownConfigPaths
+	defer func() { knownConfigPaths = originalPaths }()
+	knownConfigPaths = []string{fakeGrubPath}
 
 	g := &Grub{}
 	bootOptions, err := g.GetBootOptions(context.Background())
@@ -233,9 +233,9 @@ func TestGrub_AutoDiscovery(t *testing.T) {
 }
 
 func TestGrub_AutoDiscovery_Fail(t *testing.T) {
-	originalPaths := configPaths
-	defer func() { configPaths = originalPaths }()
-	configPaths = []string{"/tmp/definitely-do-not-exist"}
+	originalPaths := knownConfigPaths
+	defer func() { knownConfigPaths = originalPaths }()
+	knownConfigPaths = []string{"/tmp/definitely-do-not-exist"}
 
 	g := &Grub{}
 	_, err := g.GetBootOptions(context.Background())
@@ -303,11 +303,11 @@ func TestGrub_Discover(t *testing.T) {
 		t.Fatalf("failed to write temp grub config: %v", err)
 	}
 
-	originalPaths := configPaths
-	defer func() { configPaths = originalPaths }()
+	originalPaths := knownConfigPaths
+	defer func() { knownConfigPaths = originalPaths }()
 
 	// Test success cases
-	configPaths = []string{fakeGrubPath}
+	knownConfigPaths = []string{fakeGrubPath}
 
 	g := &Grub{}
 	path, err := g.DiscoverConfigPath(context.Background())
@@ -319,7 +319,7 @@ func TestGrub_Discover(t *testing.T) {
 	}
 
 	// Test error case
-	configPaths = []string{"/nonexistent/grub.cfg"}
+	knownConfigPaths = []string{"/nonexistent/grub.cfg"}
 	_, err = g.DiscoverConfigPath(context.Background())
 	if !errors.Is(err, ErrConfigNotFound) {
 		t.Errorf("expected ErrConfigNotFound, got %v", err)
