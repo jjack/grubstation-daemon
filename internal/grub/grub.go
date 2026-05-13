@@ -119,6 +119,11 @@ func countStructuralBraces(line string) (int, int) {
 	return opens, closes
 }
 
+var (
+	reMenu = regexp.MustCompile(`^menuentry\s+['"]([^'"]+)['"]`)
+	reSub  = regexp.MustCompile(`^submenu\s+['"]([^'"]+)['"]`)
+)
+
 // GetBootOptions parses the GRUB configuration and returns available boot options.
 func (g *Grub) GetBootOptions(ctx context.Context) ([]string, error) {
 	slog.Debug("Parsing GRUB boot options...")
@@ -152,10 +157,6 @@ func (g *Grub) GetBootOptions(ctx context.Context) ([]string, error) {
 		bodyDepth int
 	}
 	var stack []submenu
-
-	// Match lines like: menuentry 'Ubuntu' ... or menuentry "Windows" ...
-	reMenu := regexp.MustCompile(`^menuentry\s+['"]([^'"]+)['"]`)
-	reSub := regexp.MustCompile(`^submenu\s+['"]([^'"]+)['"]`)
 
 	// Create a custom buffer (initial size 64KB, max size 1MB)
 	buf := make([]byte, initialBufferSize)
