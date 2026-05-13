@@ -146,6 +146,19 @@ func TestDaemon_Shutdown_Unauthorized(t *testing.T) {
 		t.Errorf("expected 403, got %d", resp.StatusCode)
 	}
 
+	if resp.Header.Get("Content-Type") != "application/json" {
+		t.Errorf("expected application/json, got %s", resp.Header.Get("Content-Type"))
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+
+	if result["status"] != "error" || result["error"] != "Forbidden" {
+		t.Errorf("unexpected JSON response: %v", result)
+	}
+
 	cancel()
 	<-done
 }
@@ -174,6 +187,19 @@ func TestDaemon_InvalidMethod(t *testing.T) {
 
 	if resp.StatusCode != http.StatusMethodNotAllowed {
 		t.Errorf("expected 405, got %d", resp.StatusCode)
+	}
+
+	if resp.Header.Get("Content-Type") != "application/json" {
+		t.Errorf("expected application/json, got %s", resp.Header.Get("Content-Type"))
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+
+	if result["status"] != "error" || result["error"] != "Method not allowed" {
+		t.Errorf("unexpected JSON response: %v", result)
 	}
 
 	cancel()
@@ -343,7 +369,24 @@ func TestDaemon_Shutdown_Success(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+
+	if resp.Header.Get("Content-Type") != "application/json" {
+		t.Errorf("expected application/json, got %s", resp.Header.Get("Content-Type"))
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+
+	if result["status"] != "ok" {
+		t.Errorf("expected status 'ok', got %q", result["status"])
+	}
 
 	select {
 	case <-cmdCalled:

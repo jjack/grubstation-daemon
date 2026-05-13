@@ -1,5 +1,5 @@
 {
-    "name": "Go",
+    "name": "GrubStation Daemon",
     "image": "mcr.microsoft.com/devcontainers/go:1.26",
     "customizations": {
         "vscode": {
@@ -10,6 +10,7 @@
                 "editor.formatOnSave": true,
                 "editor.formatOnType": false,
                 "files.trimFinalNewlines": false,
+                "go.lintTool": "golangci-lint",
                 "go.toolsManagement.checkForUpdates": "local",
                 "go.useLanguageServer": true
             },

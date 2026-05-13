@@ -138,22 +138,26 @@ func (d *Daemon) run(ctx context.Context) error {
 				return
 			}
 
-			if r.Method != http.MethodPost {
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-				return
-			}
-
-			auth := r.Header.Get("Authorization")
-			if auth != "Bearer "+token {
-				slog.Warn("Unauthorized shutdown request", "remote_addr", r.RemoteAddr)
-				http.Error(w, "Forbidden", http.StatusForbidden)
-				return
-			}
-
 			if r.URL.Path == "/shutdown" {
+				if r.Method != http.MethodPost {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusMethodNotAllowed)
+					_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "error": "Method not allowed"})
+					return
+				}
+
+				auth := r.Header.Get("Authorization")
+				if auth != "Bearer "+token {
+					slog.Warn("Unauthorized shutdown request", "remote_addr", r.RemoteAddr)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusForbidden)
+					_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "error": "Forbidden"})
+					return
+				}
+
 				slog.Info("Shutdown requested via HTTP")
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("Shutting down...\n"))
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 
 				// Execute final push and shutdown in a goroutine
 				go func() {
@@ -166,6 +170,11 @@ func (d *Daemon) run(ctx context.Context) error {
 					}
 					d.performOSShutdown()
 				}()
+				return
+			}
+
+			if r.Method != http.MethodPost {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
 
