@@ -4,9 +4,9 @@ import (
 	"context"
 	"runtime"
 
-	"github.com/jjack/grubstation-daemon/internal/daemon"
-	"github.com/jjack/grubstation-daemon/internal/reporter"
-	"github.com/jjack/grubstation-daemon/internal/version"
+	"github.com/jjack/grubstation/internal/daemon"
+	"github.com/jjack/grubstation/internal/reporter"
+	"github.com/jjack/grubstation/internal/version"
 	"github.com/spf13/cobra"
 )
 

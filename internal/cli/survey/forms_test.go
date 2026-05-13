@@ -5,12 +5,14 @@ import (
 	"context"
 	"errors"
 	"net"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/jjack/grubstation-daemon/internal/config"
-	"github.com/jjack/grubstation-daemon/internal/homeassistant"
+	"github.com/jjack/grubstation/internal/config"
+	"github.com/jjack/grubstation/internal/homeassistant"
 	"github.com/spf13/cobra"
 	"github.com/yarlson/tap"
 )
@@ -420,5 +422,127 @@ func TestPrintConfigSummary(t *testing.T) {
 	}
 	if !strings.Contains(out, "abcd...") {
 		t.Errorf("expected truncated webhook id, got %s", out)
+	}
+}
+
+func TestGenerateConfigSurvey_NoGrub(t *testing.T) {
+	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
+	ctx := context.Background()
+	in := tap.NewMockReadable()
+	out := tap.NewMockWritable()
+	tap.SetTermIO(in, out)
+	defer tap.SetTermIO(nil, nil)
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		// 1. Installation Mode: Only two options, select first (DaemonShutdown)
+		in.EmitKeypress("", tap.Key{Name: "return"})
+		time.Sleep(20 * time.Millisecond)
+		// 2-6. Basic selections
+		for i := 0; i < 5; i++ {
+			in.EmitKeypress("", tap.Key{Name: "return"})
+			time.Sleep(20 * time.Millisecond)
+		}
+		// 8. HA URL
+		in.EmitKeypress("", tap.Key{Name: "return"})
+		time.Sleep(20 * time.Millisecond)
+		// 9. HA Webhook
+		webhook := strings.Repeat("a", 64)
+		for _, r := range webhook {
+			in.EmitKeypress(string(r), tap.Key{})
+		}
+		in.EmitKeypress("", tap.Key{Name: "return"})
+	}()
+
+	deps := setupSurveyDeps(t)
+	deps.resolver.discoverGrubConfigFunc = func(ctx context.Context) (string, error) { return "", nil }
+	cfg, _, err := generateConfigInteractive(ctx, deps, false, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.Daemon.ReportBootOptions {
+		t.Error("expected ReportBootOptions to be false when no GRUB config")
+	}
+}
+
+func TestGenerateConfigSurvey_ManualHA(t *testing.T) {
+	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
+	ctx := context.Background()
+	in := tap.NewMockReadable()
+	out := tap.NewMockWritable()
+	tap.SetTermIO(in, out)
+	defer tap.SetTermIO(nil, nil)
+
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		for i := 0; i < 7; i++ {
+			in.EmitKeypress("", tap.Key{Name: "return"})
+			time.Sleep(20 * time.Millisecond)
+		}
+		// 8. HA URL: Type manually
+		haURL := "http://manual.ha:8123"
+		for _, r := range haURL {
+			in.EmitKeypress(string(r), tap.Key{})
+		}
+		in.EmitKeypress("", tap.Key{Name: "return"})
+		time.Sleep(20 * time.Millisecond)
+		// 9. HA Webhook
+		webhook := strings.Repeat("a", 64)
+		for _, r := range webhook {
+			in.EmitKeypress(string(r), tap.Key{})
+		}
+		in.EmitKeypress("", tap.Key{Name: "return"})
+	}()
+
+	deps := setupSurveyDeps(t)
+	deps.resolver.discoverHomeAssistantFunc = func(ctx context.Context) ([]homeassistant.ServiceInstance, error) {
+		return nil, nil // No discovered instances
+	}
+
+	cfg, _, err := generateConfigInteractive(ctx, deps, false, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if cfg.HomeAssistant.URL != "http://manual.ha:8123" {
+		t.Errorf("expected http://manual.ha:8123, got %s", cfg.HomeAssistant.URL)
+	}
+}
+
+func TestValidatePort_InUse(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	port := l.Addr().(*net.TCPAddr).Port
+
+	os.Unsetenv("GRUBSTATION_SKIP_PORT_CHECK")
+	err = validatePort(strconv.Itoa(port), false, 0)
+	if err == nil {
+		t.Error("expected error for in-use port, got nil")
+	}
+}
+
+func TestBuildWolSelectOptions_IPv6(t *testing.T) {
+	ips := []string{"192.168.1.50", "fd00::1"}
+	broadcasts := map[string]string{
+		"192.168.1.50": "192.168.1.255",
+	}
+
+	// Host address is IPv6, should filter out IPv4 broadcasts
+	opts := buildWolSelectOptions("fd00::1", ips, broadcasts)
+
+	if len(opts) != 1 {
+		t.Fatalf("expected 1 option (default only), got %d", len(opts))
+	}
+}
+
+func TestValidatePort_ReinstallDifferent(t *testing.T) {
+	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
+	err := validatePort("8082", true, 8081)
+	if err != nil {
+		t.Errorf("expected no error with skip check, got %v", err)
 	}
 }

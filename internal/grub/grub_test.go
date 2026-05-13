@@ -406,3 +406,152 @@ func TestGrub_SetupWarning(t *testing.T) {
 		t.Errorf("expected warning to mention troubleshooting, got: %s", warning)
 	}
 }
+
+func TestGenerateWaitList(t *testing.T) {
+	if got := generateWaitList(0); got != "1" {
+		t.Errorf("expected 1, got %q", got)
+	}
+	if got := generateWaitList(-1); got != "1" {
+		t.Errorf("expected 1, got %q", got)
+	}
+	if got := generateWaitList(3); got != "1 2 3" {
+		t.Errorf("expected '1 2 3', got %q", got)
+	}
+}
+
+func TestGrub_Uninstall(t *testing.T) {
+	tempDir := t.TempDir()
+	HassGrubStationPath = tempDir + "/99_grubstation"
+	
+	// Pre-create file
+	_ = os.WriteFile(HassGrubStationPath, []byte(""), 0o755)
+
+	oldExecLookPath := ExecLookPath
+	oldExecCommand := ExecCommand
+	defer func() {
+		ExecLookPath = oldExecLookPath
+		ExecCommand = oldExecCommand
+	}()
+
+	ExecLookPath = func(file string) (string, error) {
+		if file == "update-grub" {
+			return "/bin/true", nil
+		}
+		return "", errors.New("not found")
+	}
+	ExecCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		return exec.Command("true")
+	}
+
+	g := &Grub{}
+	err := g.Uninstall(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err := os.Stat(HassGrubStationPath); !os.IsNotExist(err) {
+		t.Error("expected grub script to be removed")
+	}
+}
+
+func TestGrub_Uninstall_NoFile(t *testing.T) {
+	tempDir := t.TempDir()
+	HassGrubStationPath = tempDir + "/non-existent"
+	
+	g := &Grub{}
+	err := g.Uninstall(context.Background())
+	if err != nil {
+		t.Fatalf("expected no error when file is already gone, got %v", err)
+	}
+}
+
+func TestGrub_Uninstall_RemoveError(t *testing.T) {
+	// Use a non-empty directory to cause remove error
+	tempDir := t.TempDir()
+	HassGrubStationPath = tempDir
+	_ = os.WriteFile(filepath.Join(tempDir, "keep"), []byte(""), 0o644)
+	
+	g := &Grub{}
+	err := g.Uninstall(context.Background())
+	if err == nil {
+		t.Fatal("expected error when removing a non-empty directory, got nil")
+	}
+}
+
+func TestGrub_Uninstall_Grub2Mkconfig(t *testing.T) {
+	tempDir := t.TempDir()
+	HassGrubStationPath = tempDir + "/99_grubstation"
+	
+	oldExecLookPath := ExecLookPath
+	oldExecCommand := ExecCommand
+	defer func() {
+		ExecLookPath = oldExecLookPath
+		ExecCommand = oldExecCommand
+	}()
+
+	ExecLookPath = func(file string) (string, error) {
+		if file == "grub2-mkconfig" {
+			return "/bin/true", nil
+		}
+		return "", errors.New("not found")
+	}
+	ExecCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		return exec.Command("true")
+	}
+
+	g := &Grub{}
+	err := g.Uninstall(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGrub_Uninstall_UpdateGrubError(t *testing.T) {
+	oldExecLookPath := ExecLookPath
+	oldExecCommand := ExecCommand
+	defer func() {
+		ExecLookPath = oldExecLookPath
+		ExecCommand = oldExecCommand
+	}()
+
+	ExecLookPath = func(file string) (string, error) {
+		if file == "update-grub" {
+			return "/bin/false", nil
+		}
+		return "", errors.New("not found")
+	}
+	ExecCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		return exec.Command("false")
+	}
+
+	g := &Grub{}
+	err := g.Uninstall(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "update-grub failed") {
+		t.Errorf("expected update-grub failure, got %v", err)
+	}
+}
+
+func TestGrub_Uninstall_Grub2MkconfigError(t *testing.T) {
+	oldExecLookPath := ExecLookPath
+	oldExecCommand := ExecCommand
+	defer func() {
+		ExecLookPath = oldExecLookPath
+		ExecCommand = oldExecCommand
+	}()
+
+	ExecLookPath = func(file string) (string, error) {
+		if file == "grub2-mkconfig" {
+			return "/bin/false", nil
+		}
+		return "", errors.New("not found")
+	}
+	ExecCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		return exec.Command("false")
+	}
+
+	g := &Grub{}
+	err := g.Uninstall(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "grub2-mkconfig failed") {
+		t.Errorf("expected grub2-mkconfig failure, got %v", err)
+	}
+}

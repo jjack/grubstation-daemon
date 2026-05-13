@@ -16,12 +16,12 @@ func NewBootListCmd(deps *CommandDeps) *cobra.Command {
 				return fmt.Errorf("failed to get boot options from grub: %w", err)
 			}
 
-			fmt.Println("Available Boot Options:")
+			cmd.Println("Available Boot Options:")
 			if len(bootOptions) == 0 {
-				fmt.Println("  (None found)")
+				cmd.Println("  (None found)")
 			} else {
 				for _, bootOption := range bootOptions {
-					fmt.Printf("  - %s\n", bootOption)
+					cmd.Printf("  - %s\n", bootOption)
 				}
 			}
 

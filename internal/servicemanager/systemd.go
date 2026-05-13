@@ -21,6 +21,7 @@ var (
 	systemdServicePath = "/etc/systemd/system/grubstation.service"
 	osExecutable       = os.Executable
 	osWriteFile        = os.WriteFile
+	osGetuid           = os.Getuid
 	execCommand        = exec.CommandContext
 )
 
@@ -59,7 +60,7 @@ func (s *Systemd) IsInstalled(ctx context.Context) (bool, error) {
 }
 
 func (s *Systemd) CheckPermissions(ctx context.Context) error {
-	if os.Getuid() != 0 {
+	if osGetuid() != 0 {
 		return fmt.Errorf("this operation requires root privileges (try running with sudo)")
 	}
 	return nil

@@ -7,11 +7,11 @@ import (
 	"net"
 	"os"
 
-	"github.com/jjack/grubstation-daemon/internal/config"
-	"github.com/jjack/grubstation-daemon/internal/grub"
-	"github.com/jjack/grubstation-daemon/internal/homeassistant"
-	"github.com/jjack/grubstation-daemon/internal/host"
-	"github.com/jjack/grubstation-daemon/internal/servicemanager"
+	"github.com/jjack/grubstation/internal/config"
+	"github.com/jjack/grubstation/internal/grub"
+	"github.com/jjack/grubstation/internal/homeassistant"
+	"github.com/jjack/grubstation/internal/host"
+	"github.com/jjack/grubstation/internal/servicemanager"
 	"github.com/spf13/cobra"
 )
 

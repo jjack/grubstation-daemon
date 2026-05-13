@@ -1,12 +1,14 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 func TestConfig_SaveAndLoad(t *testing.T) {
@@ -181,3 +183,55 @@ func TestLoad_WithFlags(t *testing.T) {
 		t.Errorf("expected grub config /flag/grub.cfg, got %v", cfg.Grub)
 	}
 }
+
+func TestDefaultConfigPath(t *testing.T) {
+	path := DefaultConfigPath()
+	if path == "" {
+		t.Error("expected non-empty default config path")
+	}
+}
+
+func TestConfig_ToYAML_DefaultGrub(t *testing.T) {
+	cfg := &Config{
+		Grub: &GrubConfig{
+			WaitTimeSeconds: DefaultGrubWaitSeconds,
+		},
+	}
+	yaml, err := cfg.ToYAML(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(yaml, "grub:") {
+		t.Errorf("expected grub to be omitted when it only contains default WaitTimeSeconds, got: %s", yaml)
+	}
+}
+
+func TestLoad_MalformedYAML(t *testing.T) {
+	tempDir := t.TempDir()
+	cfgPath := filepath.Join(tempDir, "config.yaml")
+	if err := os.WriteFile(cfgPath, []byte("invalid: : yaml"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(cfgPath, nil)
+	if err == nil {
+		t.Error("expected error for malformed YAML, got nil")
+	}
+}
+
+func TestLoad_ViperBindPFlagError(t *testing.T) {
+	oldViperBindPFlag := viperBindPFlag
+	viperBindPFlag = func(v *viper.Viper, key string, flag *pflag.Flag) error {
+		return fmt.Errorf("forced error")
+	}
+	defer func() { viperBindPFlag = oldViperBindPFlag }()
+
+	fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	fs.String(FlagMac, "", "")
+
+	_, err := Load("", fs)
+	if err == nil || !strings.Contains(err.Error(), "forced error") {
+		t.Errorf("expected forced error, got %v", err)
+	}
+}
+

@@ -102,3 +102,26 @@ func TestClient_Push_CreateRequestError(t *testing.T) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
+
+func TestClient_Push_NotOKResponse(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ERROR"))
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-webhook", nil)
+	err := client.PostWebhook(context.Background(), RegistrationPayload{})
+	if err == nil || !strings.Contains(err.Error(), "unexpected response from home assistant") {
+		t.Fatalf("expected unexpected response error, got %v", err)
+	}
+}
+
+func TestClient_Push_MarshalError(t *testing.T) {
+	client := NewClient("http://ha.local", "test", nil)
+	// Channels cannot be marshaled to JSON
+	err := client.PostWebhook(context.Background(), make(chan int))
+	if err == nil || !strings.Contains(err.Error(), "failed to marshal push payload") {
+		t.Fatalf("expected marshal error, got %v", err)
+	}
+}

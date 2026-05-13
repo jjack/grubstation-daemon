@@ -120,3 +120,65 @@ func TestSystemd(t *testing.T) {
 		}
 	})
 }
+
+func TestSystemd_IsInstalled(t *testing.T) {
+	oldPath := systemdServicePath
+	defer func() { systemdServicePath = oldPath }()
+
+	s := &Systemd{}
+
+	t.Run("Installed", func(t *testing.T) {
+		tmp := t.TempDir() + "/svc"
+		_ = os.WriteFile(tmp, []byte(""), 0o644)
+		systemdServicePath = tmp
+		installed, err := s.IsInstalled(context.Background())
+		if err != nil || !installed {
+			t.Errorf("expected installed=true, got %v, %v", installed, err)
+		}
+	})
+
+	t.Run("NotInstalled", func(t *testing.T) {
+		systemdServicePath = "/non/existent/path"
+		installed, err := s.IsInstalled(context.Background())
+		if err != nil || installed {
+			t.Errorf("expected installed=false, got %v, %v", installed, err)
+		}
+	})
+}
+
+func TestSystemd_CheckPermissions(t *testing.T) {
+	oldGetuid := osGetuid
+	defer func() { osGetuid = oldGetuid }()
+
+	s := &Systemd{}
+
+	t.Run("Root", func(t *testing.T) {
+		osGetuid = func() int { return 0 }
+		if err := s.CheckPermissions(context.Background()); err != nil {
+			t.Errorf("expected no error for root, got %v", err)
+		}
+	})
+
+	t.Run("NonRoot", func(t *testing.T) {
+		osGetuid = func() int { return 1000 }
+		if err := s.CheckPermissions(context.Background()); err == nil {
+			t.Error("expected error for non-root, got nil")
+		}
+	})
+}
+
+func TestSystemd_Install_AbsError(t *testing.T) {
+	// Break os.Getwd()
+	originalWD, _ := os.Getwd()
+	defer func() { _ = os.Chdir(originalWD) }()
+	
+	temp := t.TempDir()
+	_ = os.Chdir(temp)
+	_ = os.RemoveAll(temp)
+
+	s := &Systemd{}
+	err := s.Install(context.Background(), "cfg.yaml")
+	if err == nil {
+		t.Error("expected error from filepath.Abs, got nil")
+	}
+}

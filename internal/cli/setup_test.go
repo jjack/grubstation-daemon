@@ -12,11 +12,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/grubstation-daemon/internal/cli/survey"
-	"github.com/jjack/grubstation-daemon/internal/config"
-	"github.com/jjack/grubstation-daemon/internal/grub"
-	"github.com/jjack/grubstation-daemon/internal/homeassistant"
-	"github.com/jjack/grubstation-daemon/internal/servicemanager"
+	"github.com/jjack/grubstation/internal/cli/survey"
+	"github.com/jjack/grubstation/internal/config"
+	"github.com/jjack/grubstation/internal/grub"
+	"github.com/jjack/grubstation/internal/homeassistant"
+	"github.com/jjack/grubstation/internal/servicemanager"
+	"github.com/spf13/cobra"
 
 	"github.com/yarlson/tap"
 )
@@ -586,3 +587,135 @@ func (m *mockSurveyService) Install(ctx context.Context, configPath string) erro
 func (m *mockSurveyService) Uninstall(ctx context.Context) error                  { return nil }
 func (m *mockSurveyService) Start(ctx context.Context) error                      { return nil }
 func (m *mockSurveyService) Stop(ctx context.Context) error                       { return nil }
+
+func TestIsInstalled(t *testing.T) {
+	initMock := &mockInstallInitSystem{isInstalledVal: true}
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { return initMock })
+
+	deps := &CommandDeps{
+		Registry: initReg,
+	}
+
+	installed, _ := IsInstalled(context.Background(), deps)
+	if !installed {
+		t.Error("expected installed to be true")
+	}
+}
+
+func TestPerformInstall_NonRoot(t *testing.T) {
+	cfg := &config.Config{}
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { 
+		return &mockInstallInitSystem{permissionErr: errors.New("need root")} 
+	})
+
+	deps := &CommandDeps{
+		Config:   cfg,
+		Registry: initReg,
+	}
+
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	err := performInstall(cmd, deps, "config.yaml", "")
+	if err == nil || !strings.Contains(err.Error(), "need root") {
+		t.Errorf("expected permission error, got %v", err)
+	}
+}
+
+func TestPerformInstall_WithToken(t *testing.T) {
+	// Mock HA server
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}))
+	defer ts.Close()
+
+	cfg := &config.Config{
+		HomeAssistant: config.HomeAssistantConfig{URL: ts.URL, WebhookID: "fake"},
+		Daemon:        config.DaemonConfig{ReportBootOptions: true},
+	}
+
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { return &mockInstallInitSystem{} })
+
+	// Mock successful grub setup
+	oldExecLookPath := grub.ExecLookPath
+	oldExecCommand := grub.ExecCommand
+	oldHassPath := grub.HassGrubStationPath
+	grub.ExecLookPath = func(file string) (string, error) { return "/bin/true", nil }
+	grub.ExecCommand = func(ctx context.Context, command string, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "/bin/true")
+	}
+	grub.HassGrubStationPath = t.TempDir() + "/99_ha_grub_os_reporter"
+	defer func() {
+		grub.ExecLookPath = oldExecLookPath
+		grub.ExecCommand = oldExecCommand
+		grub.HassGrubStationPath = oldHassPath
+	}()
+
+	tempGrub := t.TempDir() + "/grub.cfg"
+	_ = os.WriteFile(tempGrub, []byte("menuentry 'OS' {}"), 0o644)
+
+	deps := &CommandDeps{
+		Config:   cfg,
+		Grub:     &grub.Grub{ConfigPath: tempGrub},
+		Registry: initReg,
+	}
+
+	// Suppress tap output
+	tap.SetTermIO(nil, tap.NewMockWritable())
+	defer tap.SetTermIO(nil, nil)
+
+	cmd := &cobra.Command{}
+	cmd.SetContext(context.Background())
+	err := performInstall(cmd, deps, "config.yaml", "secret-token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSurveyDepsAdapter_IsInstalled(t *testing.T) {
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { 
+		return &mockInstallInitSystem{isInstalledVal: true} 
+	})
+
+	deps := &CommandDeps{
+		Registry: initReg,
+		Grub:     &grub.Grub{ConfigPath: t.TempDir() + "/grub.cfg"},
+	}
+
+	adapter := surveyDepsAdapter{deps: deps}
+	installed, err := adapter.IsInstalled(context.Background())
+	if err != nil || !installed {
+		t.Errorf("expected installed=true, got %v, %v", installed, err)
+	}
+}
+
+func TestIsInstalled_Error(t *testing.T) {
+	initReg := servicemanager.NewRegistry()
+	initReg.Register("mock-init", func() servicemanager.Manager { 
+		return &mockInstallInitSystem{isInstalledErr: errors.New("fail")} 
+	})
+
+	deps := &CommandDeps{
+		Registry: initReg,
+		Grub:     &grub.Grub{ConfigPath: t.TempDir() + "/grub.cfg"},
+	}
+
+	_, err := IsInstalled(context.Background(), deps)
+	if err == nil {
+		t.Error("expected error, got nil")
+	}
+}
+
+func TestApplyCmd_NoManager(t *testing.T) {
+	initReg := servicemanager.NewRegistry()
+	deps := &CommandDeps{Registry: initReg}
+	cmd := NewApplyCmd(deps)
+	cmd.Flags().String("config", "config.yaml", "")
+	if err := cmd.Execute(); err == nil {
+		t.Error("expected error, got nil")
+	}
+}

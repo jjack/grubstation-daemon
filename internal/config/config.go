@@ -94,7 +94,7 @@ func (c *Config) ToYAML(maskWebhook bool) (string, error) {
 		if displayCfg.Grub.WaitTimeSeconds == DefaultGrubWaitSeconds {
 			displayCfg.Grub.WaitTimeSeconds = 0
 		}
-		if displayCfg.Grub.WaitTimeSeconds == DefaultGrubWaitSeconds && displayCfg.Grub.ConfigPath == "" {
+		if displayCfg.Grub.WaitTimeSeconds == 0 && displayCfg.Grub.ConfigPath == "" && displayCfg.Grub.URL == "" {
 			displayCfg.Grub = nil
 		}
 	}

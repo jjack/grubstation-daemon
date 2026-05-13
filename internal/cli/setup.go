@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jjack/grubstation-daemon/internal/cli/survey"
-	"github.com/jjack/grubstation-daemon/internal/config"
-	"github.com/jjack/grubstation-daemon/internal/grub"
-	"github.com/jjack/grubstation-daemon/internal/reporter"
-	"github.com/jjack/grubstation-daemon/internal/servicemanager"
+	"github.com/jjack/grubstation/internal/cli/survey"
+	"github.com/jjack/grubstation/internal/config"
+	"github.com/jjack/grubstation/internal/grub"
+	"github.com/jjack/grubstation/internal/reporter"
+	"github.com/jjack/grubstation/internal/servicemanager"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/yarlson/tap"
@@ -139,7 +139,11 @@ func (a surveyDepsAdapter) GetSystemResolver() survey.SystemResolver {
 }
 
 func (a surveyDepsAdapter) IsInstalled(ctx context.Context) (bool, error) {
-	mgr, err := ensureSupport(ctx, a.deps)
+	return IsInstalled(ctx, a.deps)
+}
+
+func IsInstalled(ctx context.Context, deps *CommandDeps) (bool, error) {
+	mgr, err := ensureSupport(ctx, deps)
 	if err != nil {
 		return false, err
 	}

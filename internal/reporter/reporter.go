@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jjack/grubstation-daemon/internal/config"
-	"github.com/jjack/grubstation-daemon/internal/grub"
-	ha "github.com/jjack/grubstation-daemon/internal/homeassistant"
+	"github.com/jjack/grubstation/internal/config"
+	"github.com/jjack/grubstation/internal/grub"
+	ha "github.com/jjack/grubstation/internal/homeassistant"
 )
 
 var ErrMissingHAConfig = errors.New("homeassistant url and webhook_id must be configured")

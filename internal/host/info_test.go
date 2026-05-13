@@ -264,3 +264,45 @@ func TestGetFQDN(t *testing.T) {
 		t.Errorf("expected fallback to short hostname 'my-host', got %s", fqdn)
 	}
 }
+
+func TestGetLastIP_16ByteMask(t *testing.T) {
+	// IPv4 mapped IPv6 address with a 16-byte mask
+	ip := net.ParseIP("192.168.1.50")
+	mask := net.CIDRMask(24, 32)
+	// Make it 16 bytes like net.IPNet sometimes has
+	fullMask := make(net.IPMask, 16)
+	copy(fullMask[12:], mask)
+	
+	ipnet := &net.IPNet{IP: ip, Mask: fullMask}
+	last := getLastIP(ipnet)
+	if last.String() != "192.168.1.255" {
+		t.Errorf("expected 192.168.1.255, got %s", last)
+	}
+}
+
+func TestGetLastIP_InvalidMask(t *testing.T) {
+	ip := net.ParseIP("192.168.1.50")
+	// Invalid mask length (e.g. 5 bytes)
+	mask := make(net.IPMask, 5)
+	
+	ipnet := &net.IPNet{IP: ip, Mask: mask}
+	last := getLastIP(ipnet)
+	if last != nil {
+		t.Errorf("expected nil for invalid mask, got %v", last)
+	}
+}
+
+func TestIsWOLCapableInterface_DeviceNotFound(t *testing.T) {
+	oldOsStat := osStat
+	defer func() { osStat = oldOsStat }()
+
+	osStat = func(name string) (os.FileInfo, error) {
+		return nil, os.ErrNotExist
+	}
+
+	mac, _ := net.ParseMAC("aa:bb:cc:dd:ee:ff")
+	inf := net.Interface{Name: "eth0", HardwareAddr: mac, Flags: net.FlagUp}
+	if isWOLCapableInterface(inf) {
+		t.Error("expected isWOLCapableInterface to be false when device file is missing")
+	}
+}

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/grubstation-daemon/internal/config"
-	"github.com/jjack/grubstation-daemon/internal/daemon"
-	"github.com/jjack/grubstation-daemon/internal/grub"
-	"github.com/jjack/grubstation-daemon/internal/servicemanager"
+	"github.com/jjack/grubstation/internal/config"
+	"github.com/jjack/grubstation/internal/daemon"
+	"github.com/jjack/grubstation/internal/grub"
+	"github.com/jjack/grubstation/internal/servicemanager"
 )
 
 type mockDaemonRunner struct {

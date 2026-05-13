@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jjack/grubstation-daemon/internal/config"
+	"github.com/jjack/grubstation/internal/config"
 )
 
 func TestDefaultSystemResolver(t *testing.T) {
@@ -124,4 +124,19 @@ func TestCLI_PersistentPreRun_Setup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected nil error, got %v", err)
 	}
+}
+
+func TestBootCmd(t *testing.T) {
+	deps := &CommandDeps{}
+	cmd := NewBootCmd(deps)
+	if cmd.Use != "boot" {
+		t.Errorf("expected Use 'boot', got %q", cmd.Use)
+	}
+}
+
+func TestDefaultSystemResolver_DiscoverGrubConfig(t *testing.T) {
+	resolver := &DefaultSystemResolver{}
+	// This will call grub.DiscoverConfigPath which checks for /boot/grub/grub.cfg etc.
+	// It's fine if it returns an error or empty string as long as it doesn't panic.
+	_, _ = resolver.DiscoverGrubConfig(context.Background())
 }

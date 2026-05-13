@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jjack/grubstation-daemon/internal/config"
-	"github.com/jjack/grubstation-daemon/internal/grub"
-	ha "github.com/jjack/grubstation-daemon/internal/homeassistant"
+	"github.com/jjack/grubstation/internal/config"
+	"github.com/jjack/grubstation/internal/grub"
+	ha "github.com/jjack/grubstation/internal/homeassistant"
 )
 
 func TestReporter_PushBootOptions_MissingConfig(t *testing.T) {
@@ -228,5 +228,53 @@ func TestReporter_PushBootOptions_PushError(t *testing.T) {
 	err := r.PushBootOptions(context.Background())
 	if err == nil {
 		t.Fatal("expected error when HA push fails, got nil")
+	}
+}
+
+func TestReporter_RegisterDaemon_MissingConfig(t *testing.T) {
+	cfg := &config.Config{}
+	r := New(cfg, nil, "test-manager")
+
+	err := r.RegisterDaemon(context.Background(), "token")
+	if err != ErrMissingHAConfig {
+		t.Errorf("expected ErrMissingHAConfig, got %v", err)
+	}
+}
+
+func TestReporter_RegisterDaemon_PushError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{
+		HomeAssistant: config.HomeAssistantConfig{
+			URL:       server.URL,
+			WebhookID: "webhook123",
+		},
+	}
+	r := New(cfg, nil, "test-manager")
+
+	err := r.RegisterDaemon(context.Background(), "token")
+	if err == nil {
+		t.Fatal("expected error when HA push fails, got nil")
+	}
+}
+
+func TestReporter_PushBootOptions_NoWOL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}))
+	defer server.Close()
+
+	cfg := &config.Config{
+		HomeAssistant: config.HomeAssistantConfig{URL: server.URL, WebhookID: "id"},
+		WakeOnLan:     nil,
+	}
+	r := New(cfg, nil, "manager")
+	err := r.PushBootOptions(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

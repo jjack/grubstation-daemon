@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jjack/grubstation-daemon/internal/config"
-	"github.com/jjack/grubstation-daemon/internal/homeassistant"
+	"github.com/jjack/grubstation/internal/config"
+	"github.com/jjack/grubstation/internal/homeassistant"
 	"github.com/spf13/cobra"
 	"github.com/yarlson/tap"
 )
@@ -368,11 +368,10 @@ func buildWolSelectOptions(hostAddress string, ips []string, ipBroadcasts map[st
 			continue
 		}
 		isIPv4 := net.ParseIP(ip).To4() != nil
-		if isSelectedIPv4 && !isIPv4 {
+		if isSelectedIPv4 != isIPv4 {
 			continue
 		}
-		if !seenBroadcasts[bc] {
-			seenBroadcasts[bc] = true
+		if !seenBroadcasts[bc] {			seenBroadcasts[bc] = true
 			opts = append(opts, tap.SelectOption[string]{
 				Value: bc,
 				Label: fmt.Sprintf("%s (Subnet broadcast for %s)", bc, ip),
