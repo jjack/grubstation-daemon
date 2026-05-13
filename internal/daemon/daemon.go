@@ -16,7 +16,6 @@ import (
 
 var (
 	execCommand = exec.Command
-	osExit      = os.Exit
 )
 
 func generateToken() (string, error) {
@@ -90,7 +89,7 @@ func (d *Daemon) run(ctx context.Context) error {
 					return
 				default:
 					if err := d.RegisterHandler(ctx, token); err != nil {
-						slog.Error("Initial registration failed, retrying...", "error", err, "retry_in", backoff)
+						slog.Warn("Initial registration failed, retrying...", "error", err, "retry_in", backoff)
 						select {
 						case <-ctx.Done():
 							return
@@ -156,20 +155,24 @@ func (d *Daemon) run(ctx context.Context) error {
 				}
 
 				slog.Info("Shutdown requested via HTTP")
+
+				// Perform pre-shutdown push (synchronous)
+				if d.Config.ReportBootOptions && d.UpdateHandler != nil {
+					slog.Info("Performing pre-shutdown GRUB report push")
+					if err := d.UpdateHandler(ctx); err != nil {
+						slog.Error("Pre-shutdown push failed", "error", err)
+					}
+				}
+
+				if err := d.performOSShutdown(); err != nil {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					_ = json.NewEncoder(w).Encode(map[string]string{"status": "error", "error": err.Error()})
+					return
+				}
+
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-
-				// Execute final push and shutdown in a goroutine
-				go func() {
-					// Final push before OS shutdown if we are via HTTP
-					if d.Config.ReportBootOptions && d.UpdateHandler != nil {
-						slog.Info("Performing pre-shutdown GRUB report push")
-						if err := d.UpdateHandler(ctx); err != nil {
-							slog.Error("Pre-shutdown push failed", "error", err)
-						}
-					}
-					d.performOSShutdown()
-				}()
 				return
 			}
 
@@ -210,14 +213,7 @@ func (d *Daemon) run(ctx context.Context) error {
 	return srv.Shutdown(shutdownCtx)
 }
 
-func (d *Daemon) performOSShutdown() {
-	// Wait a bit to ensure the HTTP response is sent
-	delay := 1 * time.Second
-	if d.Config.ShutdownDelay != 0 {
-		delay = d.Config.ShutdownDelay
-	}
-	time.Sleep(delay)
-
+func (d *Daemon) performOSShutdown() error {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		cmd = execCommand("shutdown", "/s", "/t", "0")
@@ -226,7 +222,7 @@ func (d *Daemon) performOSShutdown() {
 	}
 
 	if err := cmd.Run(); err != nil {
-		slog.Error("Failed to execute shutdown command", "error", err)
-		osExit(1)
+		return fmt.Errorf("failed to execute shutdown command: %w", err)
 	}
+	return nil
 }

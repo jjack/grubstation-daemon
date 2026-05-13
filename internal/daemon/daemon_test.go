@@ -500,29 +500,69 @@ func TestDaemon_FinalPush(t *testing.T) {
 
 func TestDaemon_PerformOSShutdown_Error(t *testing.T) {
 	oldExec := execCommand
-	oldExit := osExit
 	defer func() {
 		execCommand = oldExec
-		osExit = oldExit
 	}()
 
-	exitCalled := make(chan bool, 1)
 	execCommand = func(name string, arg ...string) *exec.Cmd {
 		return exec.Command("nonexistent-command-12345")
 	}
-	osExit = func(code int) {
-		if code == 1 {
-			exitCalled <- true
-		}
+
+	d := New(Config{APIKey: "test-key"}, Metadata{}, nil, nil)
+	err := d.performOSShutdown()
+
+	if err == nil {
+		t.Error("expected error from performOSShutdown, got nil")
+	}
+}
+
+func TestDaemon_Shutdown_CommandError(t *testing.T) {
+	oldExec := execCommand
+	defer func() { execCommand = oldExec }()
+
+	execCommand = func(name string, arg ...string) *exec.Cmd {
+		return exec.Command("nonexistent-command-12345")
 	}
 
-	d := New(Config{APIKey: "test-key", ShutdownDelay: time.Millisecond}, Metadata{}, nil, nil)
-	d.performOSShutdown()
+	port := getFreePort(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	select {
-	case <-exitCalled:
-		// success
-	case <-time.After(2 * time.Second):
-		t.Error("os.Exit(1) not called on shutdown error")
+	token := "token"
+	d := New(Config{
+		Port:   port,
+		APIKey: token,
+	}, Metadata{}, nil, nil)
+
+	done := make(chan error, 1)
+	go func() { done <- d.run(ctx) }()
+
+	if err := waitForServer(port); err != nil {
+		cancel()
+		t.Fatal(err)
 	}
+
+	req, _ := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:%d/shutdown", port), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := getTestClient().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", resp.StatusCode)
+	}
+
+	var result map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+
+	if result["status"] != "error" || result["error"] == "" {
+		t.Errorf("unexpected JSON response: %v", result)
+	}
+
+	cancel()
+	<-done
 }
