@@ -133,14 +133,14 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 	}
 
 	// 5. Daemon Port
-	var daemonPort int
+	var AgentPort int
 	if runsDaemon {
-		defaultValue := strconv.Itoa(config.DefaultDaemonPort)
+		defaultValue := strconv.Itoa(config.DefaultAgentPort)
 		if currentPort > 0 {
 			defaultValue = strconv.Itoa(currentPort)
 		}
 		portStr := tap.Text(ctx, tap.TextOptions{
-			Message:      fmt.Sprintf("Daemon Port (default: %d)", config.DefaultDaemonPort),
+			Message:      fmt.Sprintf("Daemon Port (default: %d)", config.DefaultAgentPort),
 			DefaultValue: defaultValue,
 			InitialValue: defaultValue,
 			Validate: func(s string) error {
@@ -150,7 +150,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 		if ctx.Err() != nil {
 			return nil, false, ctx.Err()
 		}
-		daemonPort, _ = strconv.Atoi(portStr)
+		AgentPort, _ = strconv.Atoi(portStr)
 	}
 
 	// 6. WOL Address & Port
@@ -316,7 +316,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 			WebhookID: haWebhook,
 		},
 		Daemon: config.DaemonConfig{
-			Port:              daemonPort,
+			Port:              AgentPort,
 			ReportBootOptions: reportsBoot,
 		},
 		Grub: &config.GrubConfig{
@@ -371,7 +371,8 @@ func buildWolSelectOptions(hostAddress string, ips []string, ipBroadcasts map[st
 		if isSelectedIPv4 != isIPv4 {
 			continue
 		}
-		if !seenBroadcasts[bc] {			seenBroadcasts[bc] = true
+		if !seenBroadcasts[bc] {
+			seenBroadcasts[bc] = true
 			opts = append(opts, tap.SelectOption[string]{
 				Value: bc,
 				Label: fmt.Sprintf("%s (Subnet broadcast for %s)", bc, ip),

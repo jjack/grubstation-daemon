@@ -15,7 +15,7 @@ import (
 const (
 	DefaultWolBroadcastAddress = "255.255.255.255"
 	DefaultWolBroadcastPort    = 9
-	DefaultDaemonPort          = 8081
+	DefaultAgentPort           = 8081
 	DefaultGrubWaitSeconds     = 2
 )
 
@@ -34,7 +34,7 @@ const (
 	FlagWolBroadcastPort    = "broadcast-port"
 	FlagHassURL             = "homeassistant-url"
 	FlagHassWebhook         = "homeassistant-webhook-id"
-	FlagDaemonPort          = "daemon-port"
+	FlagAgentPort           = "daemon-port"
 	FlagDaemonKey           = "daemon-key"
 )
 
@@ -130,7 +130,7 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 			"wake_on_lan.port":         FlagWolBroadcastPort,
 			"homeassistant.url":        FlagHassURL,
 			"homeassistant.webhook_id": FlagHassWebhook,
-			"daemon.port":              FlagDaemonPort,
+			"daemon.port":              FlagAgentPort,
 			"daemon.api_key":           FlagDaemonKey,
 		}
 		for configKey, flagName := range flagMap {
@@ -157,7 +157,7 @@ func Load(cfgFile string, flags *pflag.FlagSet) (*Config, error) {
 	}
 
 	if cfg.Daemon.Port == 0 {
-		cfg.Daemon.Port = DefaultDaemonPort
+		cfg.Daemon.Port = DefaultAgentPort
 	}
 
 	// Ensure sub-structs exist if we want to apply defaults

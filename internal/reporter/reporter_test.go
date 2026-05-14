@@ -71,11 +71,11 @@ func TestReporter_RegisterDaemon_Success(t *testing.T) {
 	if receivedPayload.Action != ha.ActionRegisterAction {
 		t.Errorf("expected action register_agent_token, got %s", receivedPayload.Action)
 	}
-	if receivedPayload.DaemonToken != "tofu-token" {
-		t.Errorf("expected token tofu-token, got %s", receivedPayload.DaemonToken)
+	if receivedPayload.AgentToken != "tofu-token" {
+		t.Errorf("expected token tofu-token, got %s", receivedPayload.AgentToken)
 	}
-	if receivedPayload.DaemonPort != 8081 {
-		t.Errorf("expected port 8081, got %d", receivedPayload.DaemonPort)
+	if receivedPayload.AgentPort != 8081 {
+		t.Errorf("expected port 8081, got %d", receivedPayload.AgentPort)
 	}
 }
 

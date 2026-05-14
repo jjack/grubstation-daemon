@@ -37,8 +37,8 @@ type CommonPayload struct {
 
 type RegistrationPayload struct {
 	CommonPayload
-	DaemonToken string `json:"daemon_token,omitempty"`
-	DaemonPort  int    `json:"daemon_port,omitempty"`
+	AgentToken string `json:"agent_token,omitempty"`
+	AgentPort  int    `json:"agent_port,omitempty"`
 }
 
 type UpdatePayload struct {

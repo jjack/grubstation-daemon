@@ -50,8 +50,8 @@ func (r *Reporter) RegisterDaemon(ctx context.Context, token string) error {
 			MACAddress: hostCfg.MACAddress,
 			Address:    hostCfg.Address,
 		},
-		DaemonToken: token,
-		DaemonPort:  daemonCfg.Port,
+		AgentToken: token,
+		AgentPort:  daemonCfg.Port,
 	}
 
 	slog.Debug("Registering daemon with Home Assistant")
