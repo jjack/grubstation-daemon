@@ -207,17 +207,19 @@ func TestGenerateWaitList(t *testing.T) {
 
 func TestGrub_Uninstall(t *testing.T) {
 	tempDir := t.TempDir()
+	oldPath := HassGrubStationPath
+	oldExecLookPath := ExecLookPath
+	oldExecCommand := ExecCommand
+	defer func() {
+		HassGrubStationPath = oldPath
+		ExecLookPath = oldExecLookPath
+		ExecCommand = oldExecCommand
+	}()
+
 	HassGrubStationPath = tempDir + "/99_grubstation"
 
 	// Pre-create file
 	_ = os.WriteFile(HassGrubStationPath, []byte(""), 0o755)
-
-	oldExecLookPath := ExecLookPath
-	oldExecCommand := ExecCommand
-	defer func() {
-		ExecLookPath = oldExecLookPath
-		ExecCommand = oldExecCommand
-	}()
 
 	ExecLookPath = func(file string) (string, error) {
 		if file == "update-grub" {
@@ -242,7 +244,19 @@ func TestGrub_Uninstall(t *testing.T) {
 
 func TestGrub_Uninstall_NoFile(t *testing.T) {
 	tempDir := t.TempDir()
+	oldPath := HassGrubStationPath
+	oldLook := ExecLookPath
+	oldCmd := ExecCommand
+	defer func() {
+		HassGrubStationPath = oldPath
+		ExecLookPath = oldLook
+		ExecCommand = oldCmd
+	}()
+
 	HassGrubStationPath = tempDir + "/non-existent"
+	ExecLookPath = func(file string) (string, error) {
+		return "", errors.New("not found")
+	}
 
 	g := &Grub{}
 	err := g.Uninstall(context.Background())
@@ -254,6 +268,11 @@ func TestGrub_Uninstall_NoFile(t *testing.T) {
 func TestGrub_Uninstall_RemoveError(t *testing.T) {
 	// Use a non-empty directory to cause remove error
 	tempDir := t.TempDir()
+	oldPath := HassGrubStationPath
+	defer func() {
+		HassGrubStationPath = oldPath
+	}()
+
 	HassGrubStationPath = tempDir
 	_ = os.WriteFile(filepath.Join(tempDir, "keep"), []byte(""), 0o644)
 
@@ -266,14 +285,16 @@ func TestGrub_Uninstall_RemoveError(t *testing.T) {
 
 func TestGrub_Uninstall_Grub2Mkconfig(t *testing.T) {
 	tempDir := t.TempDir()
-	HassGrubStationPath = tempDir + "/99_grubstation"
-
+	oldPath := HassGrubStationPath
 	oldExecLookPath := ExecLookPath
 	oldExecCommand := ExecCommand
 	defer func() {
+		HassGrubStationPath = oldPath
 		ExecLookPath = oldExecLookPath
 		ExecCommand = oldExecCommand
 	}()
+
+	HassGrubStationPath = tempDir + "/99_grubstation"
 
 	ExecLookPath = func(file string) (string, error) {
 		if file == "grub2-mkconfig" {
@@ -293,9 +314,11 @@ func TestGrub_Uninstall_Grub2Mkconfig(t *testing.T) {
 }
 
 func TestGrub_Uninstall_UpdateGrubError(t *testing.T) {
+	oldPath := HassGrubStationPath
 	oldExecLookPath := ExecLookPath
 	oldExecCommand := ExecCommand
 	defer func() {
+		HassGrubStationPath = oldPath
 		ExecLookPath = oldExecLookPath
 		ExecCommand = oldExecCommand
 	}()
@@ -318,9 +341,11 @@ func TestGrub_Uninstall_UpdateGrubError(t *testing.T) {
 }
 
 func TestGrub_Uninstall_Grub2MkconfigError(t *testing.T) {
+	oldPath := HassGrubStationPath
 	oldExecLookPath := ExecLookPath
 	oldExecCommand := ExecCommand
 	defer func() {
+		HassGrubStationPath = oldPath
 		ExecLookPath = oldExecLookPath
 		ExecCommand = oldExecCommand
 	}()
