@@ -1,3 +1,5 @@
+//go:build linux
+
 package cli
 
 import (
@@ -116,7 +118,7 @@ func TestBootPushCmd_Socket(t *testing.T) {
 		return nil
 	})
 	go d.Run(ctx)
-	
+
 	// Wait for socket
 	found := false
 	for i := 0; i < 20; i++ {

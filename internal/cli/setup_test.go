@@ -49,81 +49,6 @@ func (m *mockInstallInitSystem) Uninstall(ctx context.Context) error { return ni
 func (m *mockInstallInitSystem) Start(ctx context.Context) error     { return m.startErr }
 func (m *mockInstallInitSystem) Stop(ctx context.Context) error      { return nil }
 
-func TestApplyCmd_GrubError(t *testing.T) {
-	cfg := &config.Config{
-		Daemon: config.DaemonConfig{ReportBootOptions: true},
-	}
-
-	initReg := servicemanager.NewRegistry()
-	initReg.Register("mock-init", func() servicemanager.Manager { return &mockInstallInitSystem{} })
-
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/invalid/path/grub.cfg"}, Registry: initReg}
-	cmd := NewApplyCmd(deps)
-	cmd.Flags().String("config", "config.yaml", "")
-
-	// Suppress tap output
-	tap.SetTermIO(nil, tap.NewMockWritable())
-	defer tap.SetTermIO(nil, nil)
-
-	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "failed to install grub") {
-		t.Fatalf("expected grub install error, got %v", err)
-	}
-}
-
-func TestApplyCmd_MissingConfigFlag(t *testing.T) {
-	cfg := &config.Config{}
-
-	initReg := servicemanager.NewRegistry()
-	initReg.Register("mock-init", func() servicemanager.Manager { return &mockInstallInitSystem{} })
-
-	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{}, Registry: initReg}
-	cmd := NewApplyCmd(deps) // Missing binding the "config" flag locally
-
-	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "flag accessed but not defined") {
-		t.Fatalf("expected flag missing error, got %v", err)
-	}
-}
-
-func TestApplyCmd_AbsConfigError(t *testing.T) {
-	// Save the original working directory so we can restore it after the test
-	originalWD, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to get current working directory: %v", err)
-	}
-	defer func() { _ = os.Chdir(originalWD) }()
-
-	// Create a temp dir, change into it, and then delete it to break os.Getwd()
-	tempDir := t.TempDir()
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("failed to chdir to temp dir: %v", err)
-	}
-	if err := os.RemoveAll(tempDir); err != nil {
-		t.Fatalf("failed to remove temp dir: %v", err)
-	}
-
-	cfg := &config.Config{}
-
-	initReg := servicemanager.NewRegistry()
-	initReg.Register("mock-init", func() servicemanager.Manager { return &mockInstallInitSystem{} })
-
-	deps := &CommandDeps{
-		Config:   cfg,
-		Grub:     &grub.Grub{},
-		Registry: initReg,
-	}
-
-	cmd := NewApplyCmd(deps)
-	cmd.Flags().String("config", "relative-config.yaml", "") // Must be relative to trigger os.Getwd()
-
-	// Suppress tap output
-	tap.SetTermIO(nil, tap.NewMockWritable())
-	defer tap.SetTermIO(nil, nil)
-
-	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "failed to resolve config path") {
-		t.Fatalf("expected filepath.Abs error, got %v", err)
-	}
-}
-
 func TestSetupCmd_Execute(t *testing.T) {
 	oldRunGenerateSurvey := survey.RunGenerateSurvey
 	defer func() {
@@ -483,40 +408,6 @@ func TestSurveyDepsAdapter(t *testing.T) {
 	}
 }
 
-func TestApplyCmd_StartServiceWarning(t *testing.T) {
-	cfg := &config.Config{}
-
-	initReg := servicemanager.NewRegistry()
-	initReg.Register("mock-init", func() servicemanager.Manager { return &mockInstallInitSystem{startErr: errors.New("start failed")} })
-
-	deps := &CommandDeps{
-		Config:   cfg,
-		Grub:     &grub.Grub{},
-		Registry: initReg,
-	}
-
-	cmd := NewApplyCmd(deps)
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-
-	// Capture tap output
-	tapOut := tap.NewMockWritable()
-	tap.SetTermIO(nil, tapOut)
-	defer tap.SetTermIO(nil, nil)
-
-	cmd.Flags().String("config", "config.yaml", "")
-
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "failed to start service: start failed") {
-		t.Fatalf("expected error about service start failure, got %v", err)
-	}
-}
-
 type mockSystemResolver struct {
 	discoverHomeAssistantFunc func(ctx context.Context) ([]homeassistant.ServiceInstance, error)
 	detectSystemHostnameFunc  func() (string, error)
@@ -533,7 +424,6 @@ func (m *mockSystemResolver) DiscoverHomeAssistant(ctx context.Context) ([]homea
 	}
 	return []homeassistant.ServiceInstance{{Name: "Home", URLs: []string{"http://homeassistant.local:8123"}}}, nil
 }
-
 
 func (m *mockSystemResolver) DiscoverGrubConfig(ctx context.Context) (string, error) {
 	if m.discoverGrubConfigFunc != nil {
@@ -606,8 +496,8 @@ func TestIsInstalled(t *testing.T) {
 func TestPerformInstall_NonRoot(t *testing.T) {
 	cfg := &config.Config{}
 	initReg := servicemanager.NewRegistry()
-	initReg.Register("mock-init", func() servicemanager.Manager { 
-		return &mockInstallInitSystem{permissionErr: errors.New("need root")} 
+	initReg.Register("mock-init", func() servicemanager.Manager {
+		return &mockInstallInitSystem{permissionErr: errors.New("need root")}
 	})
 
 	deps := &CommandDeps{
@@ -677,8 +567,8 @@ func TestPerformInstall_WithToken(t *testing.T) {
 
 func TestSurveyDepsAdapter_IsInstalled(t *testing.T) {
 	initReg := servicemanager.NewRegistry()
-	initReg.Register("mock-init", func() servicemanager.Manager { 
-		return &mockInstallInitSystem{isInstalledVal: true} 
+	initReg.Register("mock-init", func() servicemanager.Manager {
+		return &mockInstallInitSystem{isInstalledVal: true}
 	})
 
 	deps := &CommandDeps{
@@ -695,8 +585,8 @@ func TestSurveyDepsAdapter_IsInstalled(t *testing.T) {
 
 func TestIsInstalled_Error(t *testing.T) {
 	initReg := servicemanager.NewRegistry()
-	initReg.Register("mock-init", func() servicemanager.Manager { 
-		return &mockInstallInitSystem{isInstalledErr: errors.New("fail")} 
+	initReg.Register("mock-init", func() servicemanager.Manager {
+		return &mockInstallInitSystem{isInstalledErr: errors.New("fail")}
 	})
 
 	deps := &CommandDeps{
@@ -706,16 +596,6 @@ func TestIsInstalled_Error(t *testing.T) {
 
 	_, err := IsInstalled(context.Background(), deps)
 	if err == nil {
-		t.Error("expected error, got nil")
-	}
-}
-
-func TestApplyCmd_NoManager(t *testing.T) {
-	initReg := servicemanager.NewRegistry()
-	deps := &CommandDeps{Registry: initReg}
-	cmd := NewApplyCmd(deps)
-	cmd.Flags().String("config", "config.yaml", "")
-	if err := cmd.Execute(); err == nil {
 		t.Error("expected error, got nil")
 	}
 }

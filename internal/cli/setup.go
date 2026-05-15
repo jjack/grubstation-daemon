@@ -95,26 +95,6 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string, token
 	return nil
 }
 
-func NewApplyCmd(deps *CommandDeps) *cobra.Command {
-	return &cobra.Command{
-		Use:   "apply",
-		Short: "Apply the current configuration to the grub and init system",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfgFile, err := cmd.Flags().GetString("config")
-			if err != nil {
-				return fmt.Errorf("failed to read config flag: %w", err)
-			}
-			tap.Intro("GrubStation Apply")
-			err = performInstall(cmd, deps, cfgFile, "")
-			if err != nil {
-				return err
-			}
-			tap.Outro("Apply complete!")
-			return nil
-		},
-	}
-}
-
 func ensureSupport(ctx context.Context, deps *CommandDeps) (servicemanager.Manager, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

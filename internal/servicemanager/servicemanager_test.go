@@ -18,7 +18,7 @@ type mockMgr struct {
 
 func (m *mockMgr) Name() string                                         { return m.name }
 func (m *mockMgr) IsActive(ctx context.Context) bool                    { return m.active }
-func (m *mockMgr) IsInstalled(ctx context.Context) (bool, error)         { return false, nil }
+func (m *mockMgr) IsInstalled(ctx context.Context) (bool, error)        { return false, nil }
 func (m *mockMgr) CheckPermissions(ctx context.Context) error           { return nil }
 func (m *mockMgr) Install(ctx context.Context, configPath string) error { return nil }
 func (m *mockMgr) Uninstall(ctx context.Context) error                  { return nil }

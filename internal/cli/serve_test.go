@@ -13,45 +13,45 @@ import (
 	"github.com/jjack/grubstation/internal/servicemanager"
 )
 
-type mockDaemonRunner struct {
+type mockServeRunner struct {
 	called *bool
 	runErr error
 }
 
-func (m *mockDaemonRunner) Run(ctx context.Context) error {
+func (m *mockServeRunner) Run(ctx context.Context) error {
 	if m.called != nil {
 		*m.called = true
 	}
 	return m.runErr
 }
 
-func TestNewDaemonCmd_RunEInvokesDaemon(t *testing.T) {
-	oldNewDaemon := newDaemon
-	defer func() { newDaemon = oldNewDaemon }()
+func TestNewServeCmd_RunEInvokesDaemon(t *testing.T) {
+	oldNewServe := newServe
+	defer func() { newServe = oldNewServe }()
 
 	called := false
-	newDaemon = func(cfg daemon.Config, meta daemon.Metadata, regHandler func(ctx context.Context, token string) error, updateHandler func(ctx context.Context) error) daemonRunner {
+	newServe = func(cfg daemon.Config, meta daemon.Metadata, regHandler func(ctx context.Context, token string) error, updateHandler func(ctx context.Context) error) serveRunner {
 		if cfg.Port != 1234 {
 			t.Fatalf("expected listen port 1234, got %d", cfg.Port)
 		}
 		if !cfg.ReportBootOptions {
 			t.Fatalf("expected ReportBootOptions to be true")
 		}
-		return &mockDaemonRunner{called: &called, runErr: errors.New("daemon run failed")}
+		return &mockServeRunner{called: &called, runErr: errors.New("serve run failed")}
 	}
 
 	cfg := &config.Config{
 		Daemon: config.DaemonConfig{Port: 1234, ReportBootOptions: true},
 	}
 	deps := &CommandDeps{Config: cfg, Grub: &grub.Grub{ConfigPath: "/tmp/grub.cfg"}, Registry: servicemanager.NewRegistry()}
-	cmd := NewDaemonCmd(deps)
+	cmd := NewServeCmd(deps)
 	cmd.SetOut(&bytes.Buffer{})
 
 	err := cmd.Execute()
-	if err == nil || !strings.Contains(err.Error(), "daemon run failed") {
-		t.Fatalf("expected daemon run failure, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "serve run failed") {
+		t.Fatalf("expected serve run failure, got %v", err)
 	}
 	if !called {
-		t.Fatal("expected daemon Run to be invoked")
+		t.Fatal("expected serve Run to be invoked")
 	}
 }

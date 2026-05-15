@@ -138,7 +138,7 @@ func NewCLI() *CLI {
 	rootCmd.AddCommand(NewConfigCmd(deps))
 	rootCmd.AddCommand(NewSetupCmd(deps))
 	rootCmd.AddCommand(NewServiceCmd(deps))
-	rootCmd.AddCommand(NewDaemonCmd(deps))
+	rootCmd.AddCommand(NewServeCmd(deps))
 
 	// get rid of the completion command because it doesn't make sense here
 	rootCmd.CompletionOptions.DisableDefaultCmd = true

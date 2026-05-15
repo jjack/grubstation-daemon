@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -15,7 +16,8 @@ func NewServiceCmd(deps *CommandDeps) *cobra.Command {
 		Short: "Manage the grubstation service",
 	}
 
-	cmd.AddCommand(NewServiceUninstallCmd(deps))
+	cmd.AddCommand(NewServiceInstallCmd(deps))
+	cmd.AddCommand(NewServiceRemoveCmd(deps))
 	cmd.AddCommand(NewServiceStartCmd(deps))
 	cmd.AddCommand(NewServiceStopCmd(deps))
 	cmd.AddCommand(NewServiceStatusCmd(deps))
@@ -23,9 +25,39 @@ func NewServiceCmd(deps *CommandDeps) *cobra.Command {
 	return cmd
 }
 
-func NewServiceUninstallCmd(deps *CommandDeps) *cobra.Command {
+func NewServiceInstallCmd(deps *CommandDeps) *cobra.Command {
 	return &cobra.Command{
-		Use:   "uninstall",
+		Use:   "install",
+		Short: "Install the grubstation service",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			mgr, err := deps.Manager(cmd.Context())
+			if err != nil {
+				return err
+			}
+
+			cfgFile, err := cmd.Flags().GetString("config")
+			if err != nil {
+				return fmt.Errorf("failed to get config flag: %w", err)
+			}
+			absConfig, err := filepath.Abs(cfgFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve config path: %w", err)
+			}
+
+			cmd.Printf("Installing service: %s\n", mgr.Name())
+			if err := mgr.Install(cmd.Context(), absConfig); err != nil {
+				return fmt.Errorf("failed to install manager: %w", err)
+			}
+
+			cmd.Println("Installation completed successfully.")
+			return nil
+		},
+	}
+}
+
+func NewServiceRemoveCmd(deps *CommandDeps) *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove",
 		Short: "Uninstall the grubstation service and GRUB hooks",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			mgr, err := deps.Manager(cmd.Context())
@@ -33,9 +65,9 @@ func NewServiceUninstallCmd(deps *CommandDeps) *cobra.Command {
 				return err
 			}
 
-			cmd.Printf("Uninstalling service: %s\n", mgr.Name())
+			cmd.Printf("Removing service: %s\n", mgr.Name())
 			if err := mgr.Uninstall(cmd.Context()); err != nil {
-				return fmt.Errorf("failed to uninstall manager: %w", err)
+				return fmt.Errorf("failed to remove manager: %w", err)
 			}
 
 			if deps.Config.Daemon.ReportBootOptions {
@@ -45,7 +77,7 @@ func NewServiceUninstallCmd(deps *CommandDeps) *cobra.Command {
 				}
 			}
 
-			cmd.Println("Uninstallation completed successfully.")
+			cmd.Println("Removal completed successfully.")
 			return nil
 		},
 	}

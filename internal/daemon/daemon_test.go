@@ -456,7 +456,7 @@ func TestDaemon_FinalPush(t *testing.T) {
 
 	port := getFreePort(t)
 	token := "token"
-	
+
 	var wg sync.WaitGroup
 	wg.Add(3) // 1 registration + 1 initial update + 1 final update
 
@@ -655,7 +655,7 @@ func TestDaemon_Run_UpdateError(t *testing.T) {
 
 	// Just need it to run the initial update and log error
 	time.Sleep(50 * time.Millisecond)
-	
+
 	cancel()
 	<-done
 }

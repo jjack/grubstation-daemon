@@ -234,4 +234,3 @@ func TestLoad_ViperBindPFlagError(t *testing.T) {
 		t.Errorf("expected forced error, got %v", err)
 	}
 }
-

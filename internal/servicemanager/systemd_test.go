@@ -171,7 +171,7 @@ func TestSystemd_Install_AbsError(t *testing.T) {
 	// Break os.Getwd()
 	originalWD, _ := os.Getwd()
 	defer func() { _ = os.Chdir(originalWD) }()
-	
+
 	temp := t.TempDir()
 	_ = os.Chdir(temp)
 	_ = os.RemoveAll(temp)

@@ -10,17 +10,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type daemonRunner interface {
+type serveRunner interface {
 	Run(ctx context.Context) error
 }
 
-var newDaemon = func(cfg daemon.Config, meta daemon.Metadata, regHandler func(ctx context.Context, token string) error, updateHandler func(ctx context.Context) error) daemonRunner {
+var newServe = func(cfg daemon.Config, meta daemon.Metadata, regHandler func(ctx context.Context, token string) error, updateHandler func(ctx context.Context) error) serveRunner {
 	return daemon.New(cfg, meta, regHandler, updateHandler)
 }
 
-func NewDaemonCmd(deps *CommandDeps) *cobra.Command {
+func NewServeCmd(deps *CommandDeps) *cobra.Command {
 	return &cobra.Command{
-		Use:   "daemon",
+		Use:   "serve",
 		Short: "Run the persistent agent daemon",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var regHandler func(ctx context.Context, token string) error
@@ -37,7 +37,7 @@ func NewDaemonCmd(deps *CommandDeps) *cobra.Command {
 				regHandler = rep.RegisterDaemon
 				updateHandler = rep.PushBootOptions
 			}
-			d := newDaemon(daemon.Config{
+			d := newServe(daemon.Config{
 				Port:              deps.Config.Daemon.Port,
 				ReportBootOptions: deps.Config.Daemon.ReportBootOptions,
 				APIKey:            deps.Config.Daemon.APIKey,

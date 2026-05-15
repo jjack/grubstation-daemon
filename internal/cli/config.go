@@ -11,6 +11,7 @@ func NewConfigCmd(deps *CommandDeps) *cobra.Command {
 	}
 
 	cmd.AddCommand(NewConfigValidateCmd(deps))
+	cmd.AddCommand(NewConfigInitCmd(deps))
 
 	return cmd
 }

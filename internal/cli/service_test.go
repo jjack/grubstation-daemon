@@ -47,7 +47,34 @@ func (m *mockServiceManager) Uninstall(ctx context.Context) error { return m.uni
 func (m *mockServiceManager) Start(ctx context.Context) error     { return m.startErr }
 func (m *mockServiceManager) Stop(ctx context.Context) error      { return m.stopErr }
 
-func TestServiceUninstallCmd(t *testing.T) {
+func TestServiceInstallCmd(t *testing.T) {
+	initReg := servicemanager.NewRegistry()
+	mock := &mockServiceManager{name: "mock-svc", active: true}
+	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
+
+	deps := &CommandDeps{
+		Config:   &config.Config{},
+		Registry: initReg,
+	}
+
+	cmd := NewServiceInstallCmd(deps)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.Flags().String("config", "config.yaml", "")
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out.String(), "Installing service: mock-svc") {
+		t.Errorf("expected installing message, got %q", out.String())
+	}
+	if !strings.Contains(out.String(), "Installation completed successfully.") {
+		t.Errorf("expected success message, got %q", out.String())
+	}
+}
+
+func TestServiceRemoveCmd(t *testing.T) {
 	initReg := servicemanager.NewRegistry()
 	mock := &mockServiceManager{name: "mock-svc", active: true}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
@@ -59,7 +86,7 @@ func TestServiceUninstallCmd(t *testing.T) {
 		Registry: initReg,
 	}
 
-	cmd := NewServiceUninstallCmd(deps)
+	cmd := NewServiceRemoveCmd(deps)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 
@@ -67,10 +94,10 @@ func TestServiceUninstallCmd(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if !strings.Contains(out.String(), "Uninstalling service: mock-svc") {
-		t.Errorf("expected uninstalling message, got %q", out.String())
+	if !strings.Contains(out.String(), "Removing service: mock-svc") {
+		t.Errorf("expected removing message, got %q", out.String())
 	}
-	if !strings.Contains(out.String(), "Uninstallation completed successfully.") {
+	if !strings.Contains(out.String(), "Removal completed successfully.") {
 		t.Errorf("expected success message, got %q", out.String())
 	}
 }
@@ -210,7 +237,7 @@ func TestServiceCmd(t *testing.T) {
 	}
 }
 
-func TestServiceUninstallCmd_Error(t *testing.T) {
+func TestServiceRemoveCmd_Error(t *testing.T) {
 	initReg := servicemanager.NewRegistry()
 	mock := &mockServiceManager{name: "mock-svc", active: true, uninstallErr: errors.New("uninstall failed")}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
@@ -221,13 +248,13 @@ func TestServiceUninstallCmd_Error(t *testing.T) {
 		Registry: initReg,
 	}
 
-	cmd := NewServiceUninstallCmd(deps)
+	cmd := NewServiceRemoveCmd(deps)
 	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "uninstall failed") {
 		t.Fatalf("expected uninstall error, got %v", err)
 	}
 }
 
-func TestServiceUninstallCmd_GrubError(t *testing.T) {
+func TestServiceRemoveCmd_GrubError(t *testing.T) {
 	oldExecLookPath := grub.ExecLookPath
 	oldExecCommand := grub.ExecCommand
 	defer func() {
@@ -256,7 +283,7 @@ func TestServiceUninstallCmd_GrubError(t *testing.T) {
 		Registry: initReg,
 	}
 
-	cmd := NewServiceUninstallCmd(deps)
+	cmd := NewServiceRemoveCmd(deps)
 	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "failed to uninstall grub") {
 		t.Fatalf("expected grub uninstall error, got %v", err)
 	}
