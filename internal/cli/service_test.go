@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -75,14 +76,28 @@ func TestServiceInstallCmd(t *testing.T) {
 }
 
 func TestServiceRemoveCmd(t *testing.T) {
+	oldExecLookPath := grub.ExecLookPath
+	oldExecCommand := grub.ExecCommand
+	oldHassPath := grub.HassGrubStationPath
+	t.Cleanup(func() {
+		grub.ExecLookPath = oldExecLookPath
+		grub.ExecCommand = oldExecCommand
+		grub.HassGrubStationPath = oldHassPath
+	})
+
+	grub.ExecLookPath = func(file string) (string, error) { return "/bin/true", nil }
+	grub.ExecCommand = func(ctx context.Context, command string, args ...string) *exec.Cmd {
+		return exec.CommandContext(ctx, "/bin/true")
+	}
+	grub.HassGrubStationPath = filepath.Join(t.TempDir(), "99_grubstation")
+
 	initReg := servicemanager.NewRegistry()
 	mock := &mockServiceManager{name: "mock-svc", active: true}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
 
-	grub.HassGrubStationPath = t.TempDir() + "/99_grubstation"
 	deps := &CommandDeps{
 		Config:   &config.Config{Daemon: config.DaemonConfig{ReportBootOptions: true}},
-		Grub:     &grub.Grub{ConfigPath: t.TempDir() + "/grub.cfg"},
+		Grub:     &grub.Grub{ConfigPath: filepath.Join(t.TempDir(), "grub.cfg")},
 		Registry: initReg,
 	}
 
@@ -107,7 +122,6 @@ func TestServiceStartCmd(t *testing.T) {
 	mock := &mockServiceManager{name: "mock-svc", active: true}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
 
-	grub.HassGrubStationPath = t.TempDir() + "/99_grubstation"
 	deps := &CommandDeps{Registry: initReg}
 	cmd := NewServiceStartCmd(deps)
 
@@ -121,7 +135,6 @@ func TestServiceStopCmd(t *testing.T) {
 	mock := &mockServiceManager{name: "mock-svc", active: true}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
 
-	grub.HassGrubStationPath = t.TempDir() + "/99_grubstation"
 	deps := &CommandDeps{Registry: initReg}
 	cmd := NewServiceStopCmd(deps)
 
@@ -147,7 +160,6 @@ func TestServiceStatusCmd(t *testing.T) {
 	mock := &mockServiceManager{name: "mock-svc", active: true}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
 
-	grub.HassGrubStationPath = t.TempDir() + "/99_grubstation"
 	deps := &CommandDeps{
 		Config:   &config.Config{Daemon: config.DaemonConfig{Port: port}},
 		Registry: initReg,
@@ -174,7 +186,6 @@ func TestServiceStatusCmd_Inactive(t *testing.T) {
 	mock := &mockServiceManager{name: "mock-svc", active: false}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
 
-	grub.HassGrubStationPath = t.TempDir() + "/99_grubstation"
 	deps := &CommandDeps{
 		Config:   &config.Config{Daemon: config.DaemonConfig{Port: 0}}, // Port 0 will fail
 		Registry: initReg,
@@ -209,7 +220,6 @@ func TestServiceStatusCmd_NonOK(t *testing.T) {
 	mock := &mockServiceManager{name: "mock-svc", active: true}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
 
-	grub.HassGrubStationPath = t.TempDir() + "/99_grubstation"
 	deps := &CommandDeps{
 		Config:   &config.Config{Daemon: config.DaemonConfig{Port: port}},
 		Registry: initReg,
@@ -229,7 +239,6 @@ func TestServiceStatusCmd_NonOK(t *testing.T) {
 }
 
 func TestServiceCmd(t *testing.T) {
-	grub.HassGrubStationPath = t.TempDir() + "/99_grubstation"
 	deps := &CommandDeps{}
 	cmd := NewServiceCmd(deps)
 	if cmd.Use != "service" {
@@ -242,7 +251,6 @@ func TestServiceRemoveCmd_Error(t *testing.T) {
 	mock := &mockServiceManager{name: "mock-svc", active: true, uninstallErr: errors.New("uninstall failed")}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
 
-	grub.HassGrubStationPath = t.TempDir() + "/99_grubstation"
 	deps := &CommandDeps{
 		Config:   &config.Config{},
 		Registry: initReg,
@@ -257,10 +265,12 @@ func TestServiceRemoveCmd_Error(t *testing.T) {
 func TestServiceRemoveCmd_GrubError(t *testing.T) {
 	oldExecLookPath := grub.ExecLookPath
 	oldExecCommand := grub.ExecCommand
-	defer func() {
+	oldHassPath := grub.HassGrubStationPath
+	t.Cleanup(func() {
 		grub.ExecLookPath = oldExecLookPath
 		grub.ExecCommand = oldExecCommand
-	}()
+		grub.HassGrubStationPath = oldHassPath
+	})
 
 	grub.ExecLookPath = func(file string) (string, error) {
 		if file == "update-grub" {
@@ -271,12 +281,12 @@ func TestServiceRemoveCmd_GrubError(t *testing.T) {
 	grub.ExecCommand = func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		return exec.Command("false")
 	}
+	grub.HassGrubStationPath = filepath.Join(t.TempDir(), "99_grubstation")
 
 	initReg := servicemanager.NewRegistry()
 	mock := &mockServiceManager{name: "mock-svc", active: true}
 	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
 
-	grub.HassGrubStationPath = t.TempDir() + "/99_grubstation"
 	deps := &CommandDeps{
 		Config:   &config.Config{Daemon: config.DaemonConfig{ReportBootOptions: true}},
 		Grub:     &grub.Grub{ConfigPath: "/invalid/path"},
