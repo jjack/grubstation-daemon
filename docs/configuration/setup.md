@@ -1,125 +1,92 @@
 # Agent Setup and Configuration
 
-After installation, you need to configure `grubstation` so it knows how to communicate with Home Assistant and your local network. You can do this via the automated setup wizard, or manually.
+The `grubstation` agent needs to be configured to communicate with your Home Assistant instance and identify itself on your local network. You can use the interactive setup wizard (recommended) or configure it manually.
 
-## 1. Automated Setup Wizard (Recommended)
+## 1. Interactive Setup Wizard (Recommended)
 
-The easiest way to configure the agent and install the necessary system hooks is by running the `setup` command:
+The easiest way to get started is by running the automated setup wizard. This tool will auto-detect your system settings and guide you through the integration process.
 
 ```bash
 sudo grubstation setup
 ```
 
-This command launches an interactive wizard that autodetects your system settings and prompts you for:
+### What the wizard handles:
+- **System Detection:** Identifies your Init System (e.g., `systemd`) and Bootloader (GRUB).
+- **Network Identification:** Helps you select the correct network interface and MAC address for Wake-on-LAN.
+- **Home Assistant Integration:** Configures the connection URL and secure Webhook ID.
+- **Service Installation:** Automatically installs and starts the background daemon.
 
-1. **Init System:** Autodetects and configures your init system (e.g., `systemd`) to run on shutdown.
-2. **GRUB:** Autodetects your GRUB configuration and configures the necessary network boot integration.
-3. **Host Information:** Lets you select the physical network interface, MAC address, and IP address for the machine.
-4. **Wake-on-LAN (WOL):** Configures the broadcast address and port for WOL packets.
-5. **Home Assistant:** Configures the URL and Webhook ID for integration (often auto-discovered on your network).
+## 2. Applying Configuration Directly
 
-## 2. Applying Configuration Later
-
-If you answered "no" to the installation prompt during `setup`, or if you created the `config.yaml` manually (e.g., via Ansible), you can apply the hooks directly using the `setup --apply` command:
+If you have an existing `config.yaml` (e.g., deployed via Ansible) or want to re-apply the system hooks without going through the survey, use the `apply` flag:
 
 ```bash
 sudo grubstation setup --apply --config /etc/grubstation/config.yaml
 ```
 
-## 3. Running as a Daemon
+## 3. The GrubStation Daemon
 
-The `grubstation` can also run as a persistent daemon. This is useful for environments where you want to expose a remote shutdown endpoint or keep the agent alive for health monitoring.
+`grubstation` runs as a persistent background service (daemon). This allows it to:
+1. **Push updates:** Report available boot entries to Home Assistant whenever they change or during system events.
+2. **Handle Remote Shutdown:** Provide an API endpoint for Home Assistant to safely power off the machine.
+3. **Health Monitoring:** Provide a status endpoint for monitoring the agent's health.
 
-To start the daemon:
-```bash
-grubstation daemon
-```
+### API Endpoints
 
-### Health Monitoring
-The daemon provides a simple healthcheck endpoint that returns the status of the agent.
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/status` | `GET` | Returns the current agent status and system metadata. |
+| `/shutdown` | `POST` | Triggers a system shutdown (requires Authentication). |
 
-*   **Endpoint:** `GET /healthcheck`
-*   **Response:** `{"status": "ok"}`
+### Remote Shutdown Authentication
+The `/shutdown` endpoint is secured via an API key.
+- **TOFU (Trust On First Use):** If no key is configured, the agent generates a secure random token on startup and pushes it to Home Assistant.
+- **Static Key:** You can optionally define a static `api_key` in your configuration file.
 
-### Remote Shutdown
-The daemon also supports a remote shutdown command, secured via a "Trust On First Use" (TOFU) token or a configured API key.
+## 4. Manual Configuration Reference
 
-*   **Endpoint:** `POST /shutdown`
-*   **Auth:** `Authorization: Bearer <your-token>`
-
-## 4. Manual Configuration
-
-If you prefer to write the `config.yaml` entirely from scratch or automate it via tools like Ansible, use the structure below. Ensure this file is placed where the agent expects it (typically `/etc/grubstation/config.yaml`).
+The configuration file is typically located at `/etc/grubstation/config.yaml`.
 
 ```yaml
-# Host configuration details
+# Host identification
 host:
-  # The IP address or FQDN used to ping/check if the machine is online
-  address:     "192.168.1.50"
-  # The MAC address of the network interface for Wake-on-LAN (WOL)
-  mac:         "00:11:22:33:44:55"
+  address: "192.168.1.50"      # This machine's IP or FQDN
+  mac: "00:11:22:33:44:55"     # MAC address used for Wake-on-LAN
 
-# Wake-on-LAN configuration
+# Wake-on-LAN settings
 wake_on_lan:
-  # (Optional) Target address for WOL packets (useful for cross-VLAN setups)
-  # address: "255.255.255.255" # Default if not specified
-  # (Optional) The target UDP port for WOL packets
-  # port:    9                 # Default if not specified
+  # address: "255.255.255.255" # Optional: Custom broadcast address
+  # port: 9                    # Optional: Custom UDP port
 
-# Home Assistant integration details
+# Home Assistant connection
 homeassistant:
-  # The base URL of your Home Assistant instance
-  url:         "https://homeassistant.local:8123"
-  # The secret webhook ID generated by the HA Remote Boot integration
-  webhook_id:  "your-generated-webhook-id"
+  url: "http://ha.local:8123"  # Your Home Assistant base URL
+  webhook_id: "your_id_here"   # The unique Webhook ID from the HA Integration
 
-# Daemon configuration
+# Daemon behavior
 daemon:
-  # The port the daemon will listen on
-  port: 8081
-  # (Optional) Static API key for the daemon. If not set, a dynamic TOFU token is generated.
-  # api_key: "your-secret-api-key"
-  # Whether to report boot options to Home Assistant on startup/shutdown
-  report_boot_options: true
+  port: 8081                   # The port the daemon listens on
+  report_boot_options: true    # Enable/Disable pushing entries to HA
+  # api_key: "secure_secret"   # Optional: Static API key for /shutdown
 
-# GRUB configuration
+# Bootloader settings
 grub:
-  # The absolute path to GRUB's main configuration file
-  config_path: "/boot/grub/grub.cfg"
+  config_path: "/boot/grub/grub.cfg" # Path to your grub.cfg
 ```
 
-## 5. Webhook Payload
+## 5. Security Architecture
 
-Every time the agent pushes data to Home Assistant (e.g., during startup, shutdown, or manual `push`), it sends an enriched JSON payload. This payload includes:
+`grubstation` is designed with a "security-by-default" mindset:
 
-- **Metadata:** Agent version and the host operating system (`linux` or `windows`).
-- **Network Info:** MAC address, IP address, and WOL configuration.
-- **Boot Options:** A list of available GRUB boot entries (if enabled).
+- **Unique Webhooks:** Communication with Home Assistant is routed through a unique, non-guessable Webhook ID. This acts as a shared secret between your agent and your HA instance.
+- **Secure Shutdowns:** The remote shutdown feature is protected by a 256-bit token (either pre-configured or generated via TOFU).
+- **Minimal Surface:** The daemon only exposes a strictly defined API and does not require incoming connections from the public internet.
 
-## 6. Security
+## 6. BIOS & UEFI Requirements
 
-`grubstation` is designed to be secure by default while minimizing configuration friction. It employs two primary security mechanisms:
+For remote booting and Wake-on-LAN to function, ensure the following are enabled in your BIOS/UEFI settings:
 
-### Trust On First Use (TOFU)
-When the daemon starts without a pre-configured `api_key`, it generates a unique, cryptographically secure token. 
-- **Purpose:** This token protects the `/shutdown` endpoint from unauthorized use.
-- **How it works:** On the initial "handshake" push to Home Assistant, the agent includes this generated token in the payload. The Home Assistant integration stores this token and uses it for all subsequent authenticated requests (like remote shutdown). 
-- **Benefit:** This provides "zero-config" security. You don't have to manually manage shared secrets, but the daemon remains protected from external shutdown requests.
-
-### Generated Webhooks
-The agent communicates with Home Assistant via a unique, non-guessable Webhook ID.
-- **Purpose:** To ensure that only your specific agent can push boot options to your specific Home Assistant instance.
-- **How it works:** The Home Assistant integration generates a long, random ID (e.g., `8f2b...`) that acts as both the endpoint address and a shared secret.
-- **Benefit:** This prevents "blind" attacks where an adversary on your network might attempt to spoof your machine's boot options or trigger false events.
-
-## 7. Troubleshooting and BIOS Settings
-
-### BIOS / UEFI Configuration
-For both Wake-on-LAN and Remote Booting to function properly, you will likely need to adjust a few settings in your system's BIOS/UEFI. Depending on your motherboard, look for and modify the following:
-
-- **Enable Wake-on-LAN (WOL):** Often found under "Power Management", "Wake on PCIe", or "APM Configuration".
-- **Enable Network Stack / PXE Boot:** This is required so GRUB can access the network to receive instructions.
-- **Disable Fast Boot:** Fast boot options frequently skip initializing the network interface during early boot.
-- **Disable ErP Ready / Deep Sleep:** These power-saving features often cut all power to the network card when the PC is shut down, completely preventing Wake-on-LAN.
-
-For a more general guide on BIOS setup for Wake-on-LAN, check out this Lifewire Guide on Wake-on-LAN, or refer to your specific motherboard manufacturer's manual.
+1. **Wake-on-LAN (WOL):** Often labeled as "Wake on Magic Packet" or "Power On By PCIe".
+2. **Network Stack:** Required for GRUB to initialize the NIC and perform HTTP requests during boot.
+3. **Disable Fast Boot:** Many "Fast Boot" implementations skip network initialization.
+4. **Disable Deep Sleep (ErP):** If ErP is enabled, the NIC may lose power entirely when the PC is off, preventing it from hearing the WOL packet.

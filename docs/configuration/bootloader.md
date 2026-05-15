@@ -1,34 +1,77 @@
-# Bootloader Configuration
+# Bootloader Configuration (GRUB)
 
-> **Note:** The `sudo grubstation setup` and `sudo grubstation setup --apply` commands handle this automatically. You only need to follow these steps if you are manually configuring the system.
+The remote selection feature of `grubstation` works by installing a custom script into your GRUB configuration directory. This script runs early in the boot process, connects to Home Assistant, and determines which OS should be booted.
 
-## Configure GRUB
+> **💡 Note:** The `sudo grubstation setup` command handles this installation automatically. Manual configuration is only recommended for advanced users or troubleshooting.
 
-> **Note:** The exact GRUB networking configuration applied by this tool may not work perfectly for every motherboard due to how finicky UEFI and network firmware can be across different hardware vendors. If your system struggles to connect to the network from within GRUB, you may need to manually troubleshoot your GRUB network settings.
+## 1. How it Works
 
-Create a new GRUB config file at `/etc/grub.d/99_ha_grubstation` with the following content (making sure to replace `$hass_url`, `$mac_address`, and `$webhook_id` ith your actual Home Assistant details and the host's MAC address):
+When your computer starts, GRUB executes the scripts in `/etc/grub.d/` in numerical order. `grubstation` installs a script at `/etc/grub.d/99_grubstation`. 
+
+This script:
+1. Initializes the network interface (`insmod net`, `insmod efinet`).
+2. Performs a DHCP request (`net_bootp`).
+3. Fetches a small GRUB-compatible script from your Home Assistant instance.
+4. If a specific OS was selected in HA, it overrides the `default` boot entry.
+
+## 2. Manual Installation
+
+If you need to install the hook manually, create a file at `/etc/grub.d/99_grubstation`:
 
 ```bash
-#!/bin/sh
+#!/bin/bash
 set -e
 
-cat << EOF
+cat <<'EOF'
 insmod net
 insmod efinet
 insmod http
-net_bootp
-source (http,$hass_url)/api/grubstation/$mac_address?$webhook_id
+
+# Replace with your HA URL, MAC, and Webhook ID
+set boot_url="(http,192.168.1.100:8123)/api/grubstation/00:11:22:33:44:55?token=YOUR_WEBHOOK_ID"
+
+# Wait loop for network (helpful for STP delays)
+for i in 1 2 3 4 5; do
+    if net_bootp; then
+        if source $boot_url; then
+            break
+        fi
+    fi
+    sleep 1
+done
+
+if [ -n "$next_entry" ]; then
+    set default="$next_entry"
+fi
 EOF
 ```
 
-Make the script executable and regenerate your GRUB config:
+### Apply Changes
+After creating or modifying the script, you must regenerate your GRUB configuration:
 
+**Debian / Ubuntu:**
 ```bash
-sudo chmod +x /etc/grub.d/99_ha_grubstation
-
-# On Debian/Ubuntu
+sudo chmod +x /etc/grub.d/99_grubstation
 sudo update-grub
+```
 
-# On RHEL/Fedora
+**Fedora / RHEL / Arch:**
+```bash
+sudo chmod +x /etc/grub.d/99_grubstation
 sudo grub2-mkconfig -o /boot/grub2/grub.cfg
 ```
+
+## 3. Troubleshooting GRUB Networking
+
+GRUB's networking stack is much more limited than a full operating system. If the remote selection isn't working, consider these factors:
+
+### Required Modules
+The script attempts to load `net`, `efinet`, and `http`. Depending on your hardware (e.g., if you are using legacy BIOS instead of UEFI), you might need different modules like `pcnet` or specific vendor drivers.
+
+### Spanning Tree Protocol (STP)
+If your network switch has STP enabled, it may take 15-30 seconds for a port to transition to the "forwarding" state after the link comes up. Because GRUB initializes the link very quickly, it often fails the first few DHCP attempts.
+- **Solution:** `grubstation` includes a retry loop. You can increase the `wait_time_seconds` in your config to give the switch more time.
+- **Optimization:** If possible, set the switch port to "Edge Port" or "PortFast" mode.
+
+### Wireless & Complex Networks
+GRUB does **not** support Wi-Fi. The machine must be connected via Ethernet. Additionally, complex network setups (like 802.1X authentication or complex VLAN tagging) are generally not supported within the GRUB environment.

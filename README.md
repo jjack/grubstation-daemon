@@ -6,40 +6,125 @@
 [![CodeQL](https://github.com/jjack/grubstation/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/jjack/grubstation/actions/workflows/github-code-scanning/codeql)
 [![Codecov branch](https://img.shields.io/codecov/c/github/jjack/grubstation)](https://app.codecov.io/gh/jjack/grubstation)
 
-`grubstation` is a Go-based agent designed to manage bare-metal OS booting and selection via [Home Assistant](https://www.home-assistant.io/) and Wake-on-LAN (WOL). It helps enable a user to remotely select an operating system for a specific host, send a wake on lan packet, and have the machine dynamically boot into the chosen OS.
+`grubstation` is a Go-based agent that enables remote OS selection and booting for bare-metal servers. Integrated with [Home Assistant](https://www.home-assistant.io/), it allows you to choose your next operating system from a dashboard, wake the machine via Wake-on-LAN, and have it dynamically boot into your choice.
 
-After installation, whenever your server shuts down, `grubstation` will read the available boot options and push them to Home Assistant through a webhook. After selecting an option in Home Assistant, you can either press the "Wake" button or just power the machine on normally. It will then boot with your newly selected options.
+Perfect for dual-booting "homelab" servers or remote workstations where you need to switch between Linux and Windows without physical access.
 
+---
 
-## Supported Systems
+## ✨ Key Features
 
-| Type | Supported |
+- 🖥️ **Remote OS Selection:** Pick your boot entry directly from Home Assistant.
+- 🔍 **Auto-Discovery:** Automatically parses your GRUB configuration to find all available boot entries.
+- ⚡ **WOL Integration:** Seamlessly works with Wake-on-LAN to power on and boot into the right OS.
+- 🪄 **Setup Wizard:** An interactive CLI wizard that handles configuration and installation in seconds.
+- 🐧 **Cross-Platform:** Supports Linux (systemd) and Windows service management.
+- 🔒 **Secure:** Uses Webhooks and optional API keys for secure communication with Home Assistant.
+
+---
+
+## 🏗️ How it Works
+
+1. **Discovery:** The `grubstation` agent runs as a background service. It scans your GRUB configuration and pushes the list of available OS entries to Home Assistant.
+2. **Selection:** You select the desired OS in the [Home Assistant Integration](https://github.com/jjack/ha-grubstation).
+3. **Trigger:** You trigger a "Wake" or "Reboot" from Home Assistant.
+4. **Boot Hook:** When the machine starts, a custom GRUB script (installed by the agent) connects to your Home Assistant instance over the network.
+5. **Override:** Home Assistant tells GRUB which OS was selected. GRUB overrides the default entry and boots the chosen system.
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- [Home Assistant](https://www.home-assistant.io/) instance.
+- The [Home Assistant Grubstation](https://github.com/jjack/ha-grubstation) Integration installed in HA.
+- A machine using **GRUB** as the bootloader (for remote selection) and **systemd** (Linux) or **Windows** for the agent service.
+
+### 1. Installation
+Download the latest package for your architecture from the [Releases Page](https://github.com/jjack/grubstation/releases/latest).
+
+**Debian/Ubuntu:**
+```bash
+sudo dpkg -i grubstation_*_amd64.deb
+```
+
+**RHEL/Fedora:**
+```bash
+sudo rpm -i grubstation_*_amd64.rpm
+```
+
+### 2. Configuration Wizard
+Run the automated setup wizard. This will walk you through network detection, Home Assistant integration, and service installation:
+
+```bash
+sudo grubstation setup
+```
+
+---
+
+## 🛠️ Usage
+
+The `grubstation` CLI provides several commands for managing the agent and its integration.
+
+| Command | Description |
 | :--- | :--- |
-| **Bootloaders** | GRUB | 
-| **Init Systems** | systemd |
+| `grubstation setup` | Runs the interactive configuration and installation wizard. |
+| `grubstation boot list` | Displays all boot entries discovered in your GRUB config. |
+| `grubstation boot push` | Manually pushes the current boot entries to Home Assistant. |
+| `grubstation service status`| Checks the status of the background agent service. |
+| `grubstation config validate` | Validates your `/etc/grubstation/config.yaml` for errors. |
 
-## Quick Start
+---
 
-**Requirements:**
-- [Home Assistant](https://www.home-assistant.io/)
-- [Home Assistant Grubstation](https://github.com/jjack/ha-grubstation) Integration
-- Supported Bootloader and Init System (see above)
+## ⚙️ Configuration
 
-**Recommended Installation:**
-1. Download the latest pre-built package for your OS from the [Releases Page](https://github.com/jjack/ha-grubstation/releases/latest).
-2. Install the package (e.g., `sudo dpkg -i grubstation_*_amd64.deb`).
-3. Run the automated setup wizard to auto-detect and configure your network info, home assistant info, bootloader, and init system:
-   ```bash
-   sudo grubstation setup
-   ```
+While the `setup` wizard is recommended, you can manually edit `/etc/grubstation/config.yaml`.
 
-## Documentation
+```yaml
+host:
+  address: "192.168.1.50"      # This machine's IP
+  mac: "00:11:22:33:44:55"     # This machine's MAC (for WOL)
 
-For advanced setups or manual configuration, please refer to the documentation:
+homeassistant:
+  url: "http://ha.local:8123"  # Your HA URL
+  webhook_id: "..."            # Generated by the HA integration
 
-- **Installation**
-  - [Advanced Installation Methods](/docs/installation/advanced.md)
-- **Configuration**
-  - [Agent Setup and Configuration](/docs/configuration/setup.md)
-  - [Manual Bootloader Configuration](/docs/configuration/bootloader.md)
-  - [Manual Init System Configuration](/docs/configuration/init-system.md)
+daemon:
+  port: 8081                   # Port for the agent API
+  report_boot_options: true    # Push options on startup/shutdown
+```
+
+---
+
+## ⚠️ Important Notes on GRUB Networking
+
+The remote selection feature relies on GRUB's ability to initialize your network card and perform an HTTP request. 
+
+- **Hardware Compatibility:** UEFI and network firmware can be finicky. Some motherboards may require specific GRUB modules or have long STP (Spanning Tree Protocol) delays.
+- **Wait Time:** If your network takes a while to come up, you can adjust the `grub_wait_seconds` in your config (default is 15s).
+- **Manual Setup:** For advanced network troubleshooting, see the [Manual Bootloader Docs](/docs/configuration/bootloader.md).
+
+---
+
+## 📖 Documentation
+
+- [Advanced Installation](/docs/installation/advanced.md)
+- [Configuration Reference](/docs/configuration/setup.md)
+- [Manual GRUB Setup](/docs/configuration/bootloader.md)
+- [Manual Init System Setup](/docs/configuration/init-system.md)
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.

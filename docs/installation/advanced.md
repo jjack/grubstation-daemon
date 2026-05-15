@@ -1,46 +1,75 @@
 # Advanced Installation Methods
 
-You can install `grubstation` using the pre-built packages, binaries, or from source. The pre-built packages are recommended.
+While most users should use the standard [Quick Start](/README.md#🚀-quick-start) methods, this guide covers manual installation from binaries or source code.
 
-## Option A: Pre-built Packages (Recommended)
+## 📦 Option A: Pre-built Packages
 
-Download the appropriate package for your OS from the Releases Page.
+We provide native packages for major Linux distributions. Download the latest version from the [Releases Page](https://github.com/jjack/grubstation/releases/latest).
 
-For Debian/Ubuntu:
+### Debian / Ubuntu (`.deb`)
 ```bash
 sudo dpkg -i grubstation_*_amd64.deb
 ```
 
-## Option B: Pre-built Binaries
-
-Download the binary archive for your architecture from the Releases Page.
-
+### RHEL / Fedora / CentOS (`.rpm`)
 ```bash
-tar -xzf grubstation_*_Linux_x86_64.tar.gz
-sudo mv grubstation /usr/local/bin/
+sudo rpm -i grubstation_*_amd64.rpm
 ```
 
-## Option C: From Source
+---
 
-Ensure you have Go installed on your system.
+## 🚀 Option B: Pre-built Binaries
 
+If you prefer a standalone binary, download the archive for your architecture:
+
+1. Download and extract the archive:
+   ```bash
+   tar -xzf grubstation_*_Linux_x86_64.tar.gz
+   ```
+2. Move the binary to your system PATH:
+   ```bash
+   sudo mv grubstation /usr/local/bin/
+   sudo chmod +x /usr/local/bin/grubstation
+   ```
+
+---
+
+## 🛠️ Option C: Building from Source
+
+To build `grubstation` yourself, you'll need [Go](https://go.dev/dl/) 1.21 or higher installed.
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/jjack/grubstation.git
+   cd grubstation
+   ```
+2. Build the binary:
+   ```bash
+   go build -o grubstation ./cmd/grubstation
+   ```
+3. Install:
+   ```bash
+   sudo mv grubstation /usr/local/bin/
+   ```
+
+### Custom Versioning
+You can inject a version string at build time using Go's linker flags:
 ```bash
-git clone https://github.com/jjack/grubstation.git
-cd grubstation
-go build -o grubstation .
-sudo mv grubstation /usr/local/bin/
+go build -ldflags="-X github.com/jjack/grubstation/internal/version.Version=1.0.0" ./cmd/grubstation
 ```
 
-### Build-time Versioning
-When building from source, the version defaults to `dev`. You can inject a specific version string during the build process using Go linker flags:
+---
+
+## ✅ Verification
+
+After installation, verify that the `grubstation` command is available and working:
 
 ```bash
-go build -ldflags="-X github.com/jjack/grubstation/internal/version.Version=1.0.0" -o grubstation .
+grubstation --version
 ```
 
-This version will be reported in the Home Assistant webhook payload and visible in the agent's logs.
+You should see the version information displayed. If you get a "command not found" error, ensure that `/usr/local/bin` is in your system's `PATH`.
 
 ## Next Steps
 
-Once installed, run the automated setup wizard to configure the agent and install the necessary system hooks:
-`sudo grubstation setup`
+After verifying the installation, proceed to the [Configuration Guide](/docs/configuration/setup.md) to set up your integration with Home Assistant.
