@@ -22,3 +22,7 @@ func isPhysicalInterface(inf net.Interface) bool {
 	// It is TRUE (1) if the interface has a physical connector.
 	return (row.InterfaceAndOperStatusFlags & 0x01) != 0
 }
+
+func Platform() string {
+	return "windows"
+}

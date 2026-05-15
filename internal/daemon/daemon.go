@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os/exec"
-	"runtime"
 	"time"
 )
 
@@ -198,15 +197,7 @@ func (d *Daemon) run(ctx context.Context) error {
 	<-ctx.Done()
 	slog.Info("Shutting down daemon...")
 
-	// Final push if GRUB is enabled (for manual SIGTERM/systemd stop)
-	if d.Config.ReportBootOptions && runtime.GOOS == "linux" && d.UpdateHandler != nil {
-		slog.Info("Performing final GRUB report push")
-		pushCtx, pushCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer pushCancel()
-		if err := d.UpdateHandler(pushCtx); err != nil {
-			slog.Error("Final push failed", "error", err)
-		}
-	}
+	onShutdownHook(ctx, d)
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -214,12 +205,7 @@ func (d *Daemon) run(ctx context.Context) error {
 }
 
 func (d *Daemon) performOSShutdown() error {
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = execCommand("shutdown", "/s", "/t", "0")
-	} else {
-		cmd = execCommand("poweroff")
-	}
+	cmd := getShutdownCommand()
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to execute shutdown command: %w", err)

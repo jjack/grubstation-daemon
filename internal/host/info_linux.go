@@ -21,3 +21,7 @@ func isPhysicalInterface(inf net.Interface) bool {
 	_, err := osStat(path)
 	return !os.IsNotExist(err)
 }
+
+func Platform() string {
+	return "linux"
+}

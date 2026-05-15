@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"runtime"
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/spf13/pflag"
@@ -18,13 +16,6 @@ const (
 	DefaultAgentPort           = 8081
 	DefaultGrubWaitSeconds     = 2
 )
-
-func DefaultConfigPath() string {
-	if runtime.GOOS == "windows" {
-		return filepath.Join(os.Getenv("AppData"), "grubstation", "config.yaml")
-	}
-	return "/etc/grubstation/config.yaml"
-}
 
 const (
 	FlagGrubConfig          = "grub-config"

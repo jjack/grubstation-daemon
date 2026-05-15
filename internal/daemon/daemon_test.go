@@ -9,9 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
-	"runtime"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 )
@@ -334,10 +332,7 @@ func TestDaemon_Shutdown_Success(t *testing.T) {
 	cmdCalled := make(chan bool, 1)
 	execCommand = func(name string, arg ...string) *exec.Cmd {
 		cmdCalled <- true
-		if runtime.GOOS == "windows" {
-			return exec.Command("cmd", "/c", "exit", "0")
-		}
-		return exec.Command("true")
+		return getMockShutdownCommand()
 	}
 
 	port := getFreePort(t)
@@ -447,56 +442,6 @@ func TestDaemon_Run_HandshakeRetry(t *testing.T) {
 
 	cancel()
 	<-done
-}
-
-func TestDaemon_FinalPush(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Final push logic is linux specific")
-	}
-
-	port := getFreePort(t)
-	token := "token"
-
-	var wg sync.WaitGroup
-	wg.Add(3) // 1 registration + 1 initial update + 1 final update
-
-	d := New(Config{
-		Port:              port,
-		APIKey:            token,
-		ReportBootOptions: true,
-	}, Metadata{}, func(ctx context.Context, tok string) error {
-		wg.Done()
-		return nil
-	}, func(ctx context.Context) error {
-		wg.Done()
-		return nil
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- d.run(ctx) }()
-
-	if err := waitForServer(port); err != nil {
-		cancel()
-		t.Fatal(err)
-	}
-
-	cancel() // Stop daemon
-	<-done
-
-	// Wait for all expected calls to finish
-	finished := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(finished)
-	}()
-
-	select {
-	case <-finished:
-		// Success
-	case <-time.After(2 * time.Second):
-		t.Errorf("Timed out waiting for expected registration and updates")
-	}
 }
 
 func TestDaemon_PerformOSShutdown_Error(t *testing.T) {
@@ -660,34 +605,7 @@ func TestDaemon_Run_UpdateError(t *testing.T) {
 	<-done
 }
 
-func TestDaemon_FinalPush_UpdateError(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Final push logic is linux specific")
-	}
-
-	port := getFreePort(t)
-	d := New(Config{
-		Port:              port,
-		APIKey:            "token",
-		ReportBootOptions: true,
-	}, Metadata{}, nil, func(ctx context.Context) error {
-		return errors.New("final push fail")
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- d.run(ctx) }()
-
-	if err := waitForServer(port); err != nil {
-		cancel()
-		t.Fatal(err)
-	}
-
-	cancel() // Stop daemon, triggers final push
-	<-done
-}
-
-func TestDaemon_Shutdown_PreShutdownPushError(t *testing.T) {
+func TestDaemon_Shutdown_PrePush_Error(t *testing.T) {
 	oldExec := execCommand
 	defer func() { execCommand = oldExec }()
 	execCommand = func(name string, arg ...string) *exec.Cmd {

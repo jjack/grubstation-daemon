@@ -2,9 +2,9 @@ package cli
 
 import (
 	"context"
-	"runtime"
 
 	"github.com/jjack/grubstation/internal/daemon"
+	"github.com/jjack/grubstation/internal/host"
 	"github.com/jjack/grubstation/internal/reporter"
 	"github.com/jjack/grubstation/internal/version"
 	"github.com/spf13/cobra"
@@ -42,7 +42,7 @@ func NewServeCmd(deps *CommandDeps) *cobra.Command {
 				ReportBootOptions: deps.Config.Daemon.ReportBootOptions,
 				APIKey:            deps.Config.Daemon.APIKey,
 			}, daemon.Metadata{
-				OS:             runtime.GOOS,
+				OS:             host.Platform(),
 				Version:        version.Version,
 				ServiceManager: mgrName,
 			}, regHandler, updateHandler)
