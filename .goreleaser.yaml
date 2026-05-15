@@ -27,12 +27,16 @@ builds:
       post:
         - cmd: >-
             {{ if eq .Os "windows" }}
-              wixl -D Version={{.Version}}
-              --arch {{ if eq .Arch "amd64" }}x64{{ else }}x86{{ end }}
-              -o "../../dist/grubstation_{{.Version}}_{{.Os}}_{{.Arch}}.msi"
-              "../../.build/windows/template.wxs"
+              candle.exe -nologo -dVersion={{.Version}} -dBinaryPath="{{ .Path }}" -arch {{ if eq .Arch "amd64" }}x64{{ else }}x86{{ end }} -out "../../dist/template_{{.Arch}}.wixobj" "../../.build/windows/template.wxs"
             {{ else }}
-              echo "Skipping MSI build for {{ .Os }}"
+              go version
+            {{ end }}
+          dir: "{{ dir .Path }}"
+        - cmd: >-
+            {{ if eq .Os "windows" }}
+              light.exe -nologo -ext WixUIExtension -o "../../dist/grubstation_{{.Version}}_{{.Os}}_{{.Arch}}.msi" "../../dist/template_{{.Arch}}.wixobj"
+            {{ else }}
+              go version
             {{ end }}
           dir: "{{ dir .Path }}"
 

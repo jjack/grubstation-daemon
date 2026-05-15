@@ -1,6 +1,6 @@
 {
     "name": "GrubStation",
-    "image": "mcr.microsoft.com/devcontainers/go:1.26",
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
     "postCreateCommand": "pre-commit install",
     "customizations": {
         "vscode": {

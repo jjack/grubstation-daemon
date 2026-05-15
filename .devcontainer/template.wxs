@@ -6,8 +6,9 @@
         <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
         <MediaTemplate EmbedCab="yes" />
 
-        <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
-        <UIRef Id="WixUI_InstallDir" />
+        <UIRef Id="WixUI_Minimal" />
+        <!-- WixUI_Minimal requires an RTF formatted EULA. Point this to a local RTF file -->
+        <WixVariable Id="WixUILicenseRtf" Value=".build/windows/eula.rtf" />
 
         <!-- Add/Remove Programs Properties -->
         <Property Id="ARPCOMMENTS" Value="Agent to manage bare-metal OS booting via Home Assistant and WOL" />
