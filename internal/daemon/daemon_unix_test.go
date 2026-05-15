@@ -129,7 +129,7 @@ func TestDaemon_Run(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Send signal
-	syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+	_ = syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 
 	select {
 	case err := <-done:
@@ -148,7 +148,7 @@ func TestUnixSocket_WriteError(t *testing.T) {
 	defer func() { SocketPath = oldPath }()
 
 	l, _ := net.Listen("unix", SocketPath)
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -157,7 +157,7 @@ func TestUnixSocket_WriteError(t *testing.T) {
 	go func() {
 		conn, _ := l.Accept()
 		if conn != nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 
@@ -176,13 +176,13 @@ func TestRequestPushViaSocket_InvalidResponse(t *testing.T) {
 	defer func() { SocketPath = oldPath }()
 
 	l, _ := net.Listen("unix", SocketPath)
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	go func() {
 		conn, _ := l.Accept()
 		if conn != nil {
-			fmt.Fprintf(conn, "INVALID\n")
-			conn.Close()
+			_, _ = fmt.Fprintf(conn, "INVALID\n")
+			_ = conn.Close()
 		}
 	}()
 
@@ -199,12 +199,12 @@ func TestRequestPushViaSocket_NoResponse(t *testing.T) {
 	defer func() { SocketPath = oldPath }()
 
 	l, _ := net.Listen("unix", SocketPath)
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	go func() {
 		conn, _ := l.Accept()
 		if conn != nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 

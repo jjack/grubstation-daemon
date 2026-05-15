@@ -141,7 +141,7 @@ func TestServiceStatusCmd(t *testing.T) {
 
 	// Extract port from ts.URL
 	var port int
-	fmt.Sscanf(ts.URL, "http://127.0.0.1:%d", &port)
+	_, _ = fmt.Sscanf(ts.URL, "http://127.0.0.1:%d", &port)
 
 	initReg := servicemanager.NewRegistry()
 	mock := &mockServiceManager{name: "mock-svc", active: true}
@@ -203,7 +203,7 @@ func TestServiceStatusCmd_NonOK(t *testing.T) {
 	defer ts.Close()
 
 	var port int
-	fmt.Sscanf(ts.URL, "http://127.0.0.1:%d", &port)
+	_, _ = fmt.Sscanf(ts.URL, "http://127.0.0.1:%d", &port)
 
 	initReg := servicemanager.NewRegistry()
 	mock := &mockServiceManager{name: "mock-svc", active: true}

@@ -117,7 +117,7 @@ func TestBootPushCmd_Socket(t *testing.T) {
 	d := daemon.New(daemon.Config{}, daemon.Metadata{}, nil, func(ctx context.Context) error {
 		return nil
 	})
-	go d.Run(ctx)
+	go func() { _ = d.Run(ctx) }()
 
 	// Wait for socket
 	found := false

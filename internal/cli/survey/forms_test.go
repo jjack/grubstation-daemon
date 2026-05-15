@@ -515,10 +515,10 @@ func TestValidatePort_InUse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 	port := l.Addr().(*net.TCPAddr).Port
 
-	os.Unsetenv("GRUBSTATION_SKIP_PORT_CHECK")
+	_ = os.Unsetenv("GRUBSTATION_SKIP_PORT_CHECK")
 	err = validatePort(strconv.Itoa(port), false, 0)
 	if err == nil {
 		t.Error("expected error for in-use port, got nil")
