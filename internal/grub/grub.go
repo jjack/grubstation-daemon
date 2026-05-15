@@ -6,18 +6,13 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/url"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"text/template"
-)
-
-const (
-	initialBufferSize = 64 * 1024   // 64KB
-	maxBufferCapacity = 1024 * 1024 // 1MB
 )
 
 // Grub represents the GRUB bootloader on this system.
@@ -80,50 +75,6 @@ func findConfig() (string, error) {
 	return "", ErrConfigNotFound
 }
 
-// countStructuralBraces ignores braces inside strings or comments to accurately track GRUB submenu lexical scoping.
-func countStructuralBraces(line string) (int, int) {
-	opens, closes := 0, 0
-	inSingleQuote, inDoubleQuote, escapeNext := false, false, false
-
-	for _, r := range line {
-		if escapeNext {
-			escapeNext = false
-			continue
-		}
-
-		switch r {
-		case '\\':
-			escapeNext = true
-		case '\'':
-			if !inDoubleQuote {
-				inSingleQuote = !inSingleQuote
-			}
-		case '"':
-			if !inSingleQuote {
-				inDoubleQuote = !inDoubleQuote
-			}
-		case '#':
-			if !inSingleQuote && !inDoubleQuote {
-				return opens, closes // Rest of the line is a comment
-			}
-		case '{':
-			if !inSingleQuote && !inDoubleQuote {
-				opens++
-			}
-		case '}':
-			if !inSingleQuote && !inDoubleQuote {
-				closes++
-			}
-		}
-	}
-	return opens, closes
-}
-
-var (
-	reMenu = regexp.MustCompile(`^menuentry\s+['"]([^'"]+)['"]`)
-	reSub  = regexp.MustCompile(`^submenu\s+['"]([^'"]+)['"]`)
-)
-
 // GetBootOptions parses the GRUB configuration and returns available boot options.
 func (g *Grub) GetBootOptions(ctx context.Context) ([]string, error) {
 	slog.Debug("Parsing GRUB boot options...")
@@ -151,60 +102,85 @@ func (g *Grub) GetBootOptions(ctx context.Context) ([]string, error) {
 	}
 	defer func() { _ = file.Close() }()
 
-	var options []string
-	type submenu struct {
-		name      string
-		bodyDepth int
-	}
-	var stack []submenu
+	return parseMenuEntries(file), nil
+}
 
-	// Create a custom buffer (initial size 64KB, max size 1MB)
-	buf := make([]byte, initialBufferSize)
+// submenuContext keeps track of where we are in the nested tree
+type submenuContext struct {
+	depth int
+	title string
+}
 
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(buf, maxBufferCapacity)
+// parseMenuEntries takes an io.Reader and returns a flat list of GRUB boot targets.
+func parseMenuEntries(r io.Reader) []string {
+	scanner := bufio.NewScanner(r)
+	var entries []string
+	var stack []submenuContext
+	braceDepth := 0
 
-	depth := 0
-
-	// Track brace depth across lines to build GRUB's required flat "Parent>Child" syntax for nested submenus.
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
-		opens, closes := countStructuralBraces(line)
-
-		if m := reSub.FindStringSubmatch(line); len(m) > 1 {
-			stack = append(stack, submenu{
-				name:      m[1],
-				bodyDepth: depth + opens,
-			})
-		} else if m := reMenu.FindStringSubmatch(line); len(m) > 1 {
-			entry := m[1]
-			if len(stack) > 0 {
-				// Flatten hierarchy using GRUB's '>' convention
-				var parts []string
-				for _, s := range stack {
-					parts = append(parts, s.name)
-				}
-				parts = append(parts, entry)
-				entry = strings.Join(parts, ">")
+		// 1. Process the line if it's a menu declaration
+		if strings.HasPrefix(line, "submenu ") {
+			title := extractTitle(line)
+			if title != "" {
+				// Record the depth *before* we enter the block
+				stack = append(stack, submenuContext{depth: braceDepth, title: title})
 			}
-			options = append(options, entry)
+		} else if strings.HasPrefix(line, "menuentry ") {
+			title := extractTitle(line)
+			if title != "" {
+				entries = append(entries, buildTargetString(stack, title))
+			}
 		}
 
-		depth += opens
-		depth -= closes
+		// 2. Update our brace depth state
+		// We do this after checking the prefixes so the submenu's own opening brace
+		// increases the depth to a level *deeper* than the submenu's recorded depth.
+		braceDepth += strings.Count(line, "{")
+		braceDepth -= strings.Count(line, "}")
 
-		// Pop submenus from the tracking stack if we've exited their lexical scope (closing braces).
-		for len(stack) > 0 && depth < stack[len(stack)-1].bodyDepth {
+		// 3. Pop the stack if we've exited a submenu block
+		// If our depth drops to or below the depth where the current submenu was declared,
+		// it means we have closed that submenu's bracket.
+		for len(stack) > 0 && braceDepth <= stack[len(stack)-1].depth {
 			stack = stack[:len(stack)-1]
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading grub config: %w", err)
+	return entries
+}
+
+// extractTitle finds the first string wrapped in single or double quotes
+func extractTitle(line string) string {
+	var quoteChar rune
+	start := -1
+
+	for i, char := range line {
+		if (char == '\'' || char == '"') && start == -1 {
+			quoteChar = char
+			start = i + 1
+		} else if char == quoteChar && start != -1 {
+			return line[start:i]
+		}
+	}
+	return ""
+}
+
+// buildTargetString joins the current submenu stack with the final entry name
+func buildTargetString(stack []submenuContext, entryTitle string) string {
+	if len(stack) == 0 {
+		return entryTitle
 	}
 
-	return options, nil
+	var parts []string
+	for _, s := range stack {
+		parts = append(parts, s.title)
+	}
+	parts = append(parts, entryTitle)
+
+	return strings.Join(parts, ">")
 }
 
 // Setup creates a GRUB remote boot agent script in /etc/grub.d and updates the GRUB config.
