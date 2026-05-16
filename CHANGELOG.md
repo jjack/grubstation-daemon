@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.5.0](https://github.com/jjack/grubstation/compare/v1.4.0...v1.5.0) (2026-05-16)
+
+
+### Features
+
+* /shutdown now reports actual shutdown errors ([49464b7](https://github.com/jjack/grubstation/commit/49464b714fb2d1736b3159c4c6161ff43f48be12))
+* adding /status endpoing instead of basic /healthcheck ([5939984](https://github.com/jjack/grubstation/commit/5939984a19c229cab24be71f36cc8fa51f5d2398))
+* allowing discovery of multiple home assistant instances and addresses ([8d4b793](https://github.com/jjack/grubstation/commit/8d4b79342e5cf0c57a0de08b23502672d3f49d33))
+* supporting multiple home assistant instances, and different URLs for the agent and for grub so we can have https support ([c6e3b1b](https://github.com/jjack/grubstation/commit/c6e3b1b1822d30d93f871ce107850dca3c950ffd))
+
+
+### Bug Fixes
+
+* adding agent_port to payload ([e57879a](https://github.com/jjack/grubstation/commit/e57879a9dbf69834900dffe96ff66bb60e3eb130))
+* correcting grubstation service name ([a773e9b](https://github.com/jjack/grubstation/commit/a773e9bd9800f23fd26dd90f4d8edb3c75c16cae))
+* injecting ha client into reporter instead of rebuilding it ([b4dfc6b](https://github.com/jjack/grubstation/commit/b4dfc6b735a2ea0882c31de317aa0274273f8cb1))
+* removing token from log output ([45a7ff3](https://github.com/jjack/grubstation/commit/45a7ff37e22805152a3f3e61cc50b6ce01877313))
+* removing unused import ([fd5101f](https://github.com/jjack/grubstation/commit/fd5101f9aa4ad87168a306859eae2bd2a8902050))
+* renaming cli to grubstation ([5ad1a39](https://github.com/jjack/grubstation/commit/5ad1a398c9025b69f2d45702dd67df0fe02abcd3))
+* splitting up logic for windows vs linux physical network interface detection ([276a8fb](https://github.com/jjack/grubstation/commit/276a8fb4a3258439823f30c783e3383bfdb7a059))
+* updating payload to have correct keys ([1df1fe6](https://github.com/jjack/grubstation/commit/1df1fe63f8547eee8eabf37950136d5106790bb8))
+* updating payload to have correct keys ([39367e2](https://github.com/jjack/grubstation/commit/39367e27baeaf79fb90aab727e56e90577cf9386))
+
 ## [1.4.0](https://github.com/jjack/grub-os-reporter/compare/v1.3.2...v1.4.0) (2026-05-07)
 
 
