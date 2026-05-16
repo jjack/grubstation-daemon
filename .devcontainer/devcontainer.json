@@ -13,10 +13,13 @@
                 "files.trimFinalNewlines": false,
                 "go.lintTool": "golangci-lint",
                 "go.toolsManagement.checkForUpdates": "local",
-                "go.useLanguageServer": true
+                "go.useLanguageServer": true,
+                "go.testExplorer.enable": true,
+                "go.testExplorer.packageViews": "tree",
+                "go.testExplorer.showDynamicSubtests": true,
             },
             "extensions": [
-                "golang.Go"
+                "golang.go"
             ]
         }
     },
