@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-    <Product Id="*" Name="GrubStation" Language="1033" Version="$(var.Version)" Manufacturer="Jeremy Jack" UpgradeCode="2e8b9308-466d-4952-9d33-4f9342718712">
-        <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
-
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+    <Package Name="GrubStation" 
+             Language="1033" 
+             Version="$(var.Version)" 
+             Manufacturer="Jeremy Jack" 
+             UpgradeCode="2e8b9308-466d-4952-9d33-4f9342718712">
+        
         <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
         <MediaTemplate EmbedCab="yes" />
 
-        <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
-        <UIRef Id="WixUI_InstallDir" />
+        <!-- UI Configuration: Allow user to select installation directory -->
+        <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLDIR" />
 
         <!-- Add/Remove Programs Properties -->
         <Property Id="ARPCOMMENTS" Value="Agent to manage bare-metal OS booting via Home Assistant and WOL" />
@@ -15,14 +18,17 @@
         <Property Id="ARPHELPLINK" Value="https://github.com/jjack/grubstation" />
         <Property Id="ARPURLINFOABOUT" Value="https://github.com/jjack/grubstation" />
 
-        <Directory Id="TARGETDIR" Name="SourceDir">
-            <Directory Id="ProgramFilesFolder">
-                <Directory Id="INSTALLDIR" Name="GrubStation" />
-            </Directory>
-            <Directory Id="ProgramMenuFolder">
-                <Directory Id="ApplicationProgramsFolder" Name="GrubStation"/>
-            </Directory>
-        </Directory>
+        <StandardDirectory Id="ProgramFiles6432Folder">
+            <Directory Id="INSTALLDIR" Name="GrubStation" />
+        </StandardDirectory>
+
+        <StandardDirectory Id="ProgramMenuFolder">
+            <Directory Id="ApplicationProgramsFolder" Name="GrubStation"/>
+        </StandardDirectory>
+
+        <StandardDirectory Id="AppDataFolder">
+            <Directory Id="AppDataGrubStation" Name="grubstation" />
+        </StandardDirectory>
 
         <DirectoryRef Id="ApplicationProgramsFolder">
             <Component Id="ApplicationShortcut" Guid="*">
@@ -37,26 +43,41 @@
             </Component>
         </DirectoryRef>
 
+        <DirectoryRef Id="AppDataGrubStation">
+            <Component Id="CleanupConfig" Guid="*">
+                <RemoveFile Id="RemoveConfig" Name="*" On="uninstall" />
+                <RemoveFolder Id="RemoveConfigDir" On="uninstall" />
+                <RegistryValue Root="HKCU" Key="Software\JeremyJack\GrubStation" Name="config_cleaned" Type="integer" Value="1" KeyPath="yes" />
+            </Component>
+        </DirectoryRef>
+
         <ComponentGroup Id="ProductComponents" Directory="INSTALLDIR">
             <Component Id="Executable" Guid="*">
                 <File Id="GrubStationEXE" Name="grubstation.exe" Source="$(var.BinaryPath)" KeyPath="yes" />
+                <!-- Stop and Remove the service on uninstall. Stop="both" ensures it stops during upgrades too. -->
+                <ServiceControl Id="ServiceControl_GrubStation" 
+                                Name="GrubStation" 
+                                Stop="both" 
+                                Remove="uninstall" 
+                                Wait="yes" />
             </Component>
         </ComponentGroup>
 
         <!-- CUSTOM ACTION: Launch the TUI -->
         <CustomAction Id="LaunchConfig" 
-                      FileKey="GrubStationEXE" 
+                      FileRef="GrubStationEXE" 
                       ExeCommand="setup" 
                       Return="asyncNoWait" />
 
         <InstallExecuteSequence>
             <!-- Only run the config wizard on the first install, not on uninstalls -->
-            <Custom Action="LaunchConfig" After="InstallFinalize">NOT Installed</Custom>
+            <Custom Action="LaunchConfig" After="InstallFinalize" Condition="NOT Installed" />
         </InstallExecuteSequence>
 
         <Feature Id="ProductFeature" Title="GrubStation" Level="1">
             <ComponentGroupRef Id="ProductComponents" />
             <ComponentRef Id="ApplicationShortcut" />
+            <ComponentRef Id="CleanupConfig" />
         </Feature>
-    </Product>
+    </Package>
 </Wix>

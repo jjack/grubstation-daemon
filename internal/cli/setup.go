@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/jjack/grubstation/internal/cli/survey"
@@ -143,7 +145,14 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 			}
 			return nil // Override root config loading, we are generating it from scratch
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			if runtime.GOOS == "windows" {
+				defer func() {
+					fmt.Println("\nPress Enter to exit...")
+					_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
+				}()
+			}
+
 			if applyOnly {
 				cfgPath, _ := cmd.Flags().GetString("config")
 				return performInstall(cmd, deps, cfgPath, "")

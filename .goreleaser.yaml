@@ -27,14 +27,7 @@ builds:
       post:
         - cmd: >-
             {{ if eq .Os "windows" }}
-              candle.exe -nologo -dVersion={{.Version}} -dBinaryPath="{{ .Path }}" -arch {{ if eq .Arch "amd64" }}x64{{ else }}x86{{ end }} -out "../../dist/template_{{.Arch}}.wixobj" "../../.build/windows/template.wxs"
-            {{ else }}
-              go version
-            {{ end }}
-          dir: "{{ dir .Path }}"
-        - cmd: >-
-            {{ if eq .Os "windows" }}
-              light.exe -nologo -ext WixUIExtension -o "../../dist/grubstation_{{.Version}}_{{.Os}}_{{.Arch}}.msi" "../../dist/template_{{.Arch}}.wixobj"
+              wix build -nologo -ext WixToolset.UI.wixext -d Version={{.Version}} -d BinaryPath="{{ .Path }}" -arch {{ if eq .Arch "amd64" }}x64{{ else if eq .Arch "arm64" }}arm64{{ else }}x86{{ end }} -o "../../dist/grubstation_{{.Version}}_{{.Os}}_{{.Arch}}.msi" "../../.build/windows/template.wxs"
             {{ else }}
               go version
             {{ end }}
@@ -63,6 +56,8 @@ nfpms:
       - deb
       - rpm
       - apk
+    scripts:
+      postremove: .build/linux/postremove.sh
 
 changelog:
   sort: asc

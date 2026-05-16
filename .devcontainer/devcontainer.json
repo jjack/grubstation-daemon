@@ -16,7 +16,7 @@
                 "go.useLanguageServer": true,
                 "go.testExplorer.enable": true,
                 "go.testExplorer.packageViews": "tree",
-                "go.testExplorer.showDynamicSubtests": true,
+                "go.testExplorer.showDynamicSubtests": true
             },
             "extensions": [
                 "golang.go"
