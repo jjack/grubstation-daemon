@@ -84,12 +84,12 @@ func (w *WindowsService) Install(ctx context.Context, configPath string) error {
 		return err
 	}
 
-	// The service will run: grubstation.exe daemon --config C:\path\to\config.yaml
+	// The service will run: grubstation.exe serve --config C:\path\to\config.yaml
 	s, err = m.CreateService(windowsServiceName, exepath, mgr.Config{
 		DisplayName:    windowsServiceDisplayName,
 		Description:    windowsServiceDescription,
 		StartType:      mgr.StartAutomatic,
-		BinaryPathName: fmt.Sprintf("%s daemon --config %s", exepath, absConfig),
+		BinaryPathName: fmt.Sprintf("%s serve --config %s", exepath, absConfig),
 	})
 	if err != nil {
 		return err

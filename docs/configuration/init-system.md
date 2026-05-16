@@ -19,7 +19,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/grubstation daemon --config /etc/grubstation/config.yaml
+ExecStart=/usr/local/bin/grubstation serve --config /etc/grubstation/config.yaml
 Restart=always
 RestartSec=5
 

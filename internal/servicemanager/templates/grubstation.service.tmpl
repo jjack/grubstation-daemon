@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart={{ .ExecPath }} daemon --config {{ .ConfigPath }}
+ExecStart={{ .ExecPath }} serve --config {{ .ConfigPath }}
 Restart=always
 RestartSec=5
 
