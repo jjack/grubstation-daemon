@@ -8,5 +8,5 @@ import (
 )
 
 func DefaultConfigPath() string {
-	return filepath.Join(os.Getenv("AppData"), "grubstation", "config.yaml")
+	return filepath.Join(os.Getenv("AppData"), "GrubStation", "config.yaml")
 }

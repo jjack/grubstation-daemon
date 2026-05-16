@@ -9,8 +9,14 @@
         <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
         <MediaTemplate EmbedCab="yes" />
 
-        <!-- UI Configuration: Allow user to select installation directory -->
-        <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLDIR" />
+        <!-- UI Configuration: Allow user to select installation directory, but skip the EULA -->
+        <UI>
+            <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLDIR" />
+            <!-- Hijack Welcome screen 'Next' button to jump straight to InstallDirDlg -->
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="99">1</Publish>
+            <!-- Hijack InstallDirDlg 'Back' button to return directly to WelcomeDlg -->
+            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="99">1</Publish>
+        </UI>
 
         <!-- Add/Remove Programs Properties -->
         <Property Id="ARPCOMMENTS" Value="Agent to manage bare-metal OS booting via Home Assistant and WOL" />
@@ -27,7 +33,7 @@
         </StandardDirectory>
 
         <StandardDirectory Id="AppDataFolder">
-            <Directory Id="AppDataGrubStation" Name="grubstation" />
+            <Directory Id="AppDataGrubStation" Name="GrubStation" />
         </StandardDirectory>
 
         <DirectoryRef Id="ApplicationProgramsFolder">
