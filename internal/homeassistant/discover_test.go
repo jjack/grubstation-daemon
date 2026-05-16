@@ -2,16 +2,21 @@ package homeassistant
 
 import (
 	"context"
-	"errors"
 	"net"
 	"testing"
 	"time"
 
-	"github.com/grandcat/zeroconf"
+	"github.com/hashicorp/mdns"
 )
 
 func TestDiscover_Timeout(t *testing.T) {
-	// Use a short timeout so the test doesn't wait the full 3s discoveryTimeout
+	// Provide a short-circuit mock so we don't actually wait the full 5s
+	oldQuery := mdnsQuery
+	defer func() { mdnsQuery = oldQuery }()
+	mdnsQuery = func(params *mdns.QueryParam) error {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 	urls, err := Discover(ctx)
@@ -23,62 +28,25 @@ func TestDiscover_Timeout(t *testing.T) {
 	}
 }
 
-type mockResolver struct {
-	browseFunc func(ctx context.Context, service string, domain string, entries chan<- *zeroconf.ServiceEntry) error
-}
-
-func (m *mockResolver) Browse(ctx context.Context, service string, domain string, entries chan<- *zeroconf.ServiceEntry) error {
-	return m.browseFunc(ctx, service, domain, entries)
-}
-
-func TestDiscover_NewResolverError(t *testing.T) {
-	oldNewResolver := newResolver
-	defer func() { newResolver = oldNewResolver }()
-	newResolver = func() (mdnsResolver, error) {
-		return nil, errors.New("mock resolver error")
-	}
-
-	_, err := Discover(context.Background())
-	if err == nil || err.Error() != "mock resolver error" {
-		t.Fatalf("expected 'mock resolver error', got %v", err)
-	}
-}
-
-func TestDiscover_BrowseError(t *testing.T) {
-	oldNewResolver := newResolver
-	defer func() { newResolver = oldNewResolver }()
-	newResolver = func() (mdnsResolver, error) {
-		return &mockResolver{
-			browseFunc: func(ctx context.Context, service string, domain string, entries chan<- *zeroconf.ServiceEntry) error {
-				return errors.New("mock browse error")
-			},
-		}, nil
-	}
-
-	_, err := Discover(context.Background())
-	if err == nil || err.Error() != "mock browse error" {
-		t.Fatalf("expected 'mock browse error', got %v", err)
-	}
-}
-
 func TestDiscover_Success(t *testing.T) {
-	oldNewResolver := newResolver
-	defer func() { newResolver = oldNewResolver }()
-	newResolver = func() (mdnsResolver, error) {
-		return &mockResolver{
-			browseFunc: func(ctx context.Context, service string, domain string, entries chan<- *zeroconf.ServiceEntry) error {
-				entries <- &zeroconf.ServiceEntry{
-					ServiceRecord: zeroconf.ServiceRecord{
-						Instance: "Home",
-					},
-					AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
-					Port:     8123,
-					Text:     []string{"internal_url=http://ha.local:8123"},
-				}
-				close(entries)
-				return nil
-			},
-		}, nil
+	oldNetInterfaces := netInterfaces
+	defer func() { netInterfaces = oldNetInterfaces }()
+	netInterfaces = func() ([]net.Interface, error) {
+		return nil, nil // Return no interfaces to force a single global query
+	}
+
+	oldQuery := mdnsQuery
+	defer func() { mdnsQuery = oldQuery }()
+	mdnsQuery = func(params *mdns.QueryParam) error {
+		params.Entries <- &mdns.ServiceEntry{
+			Name:       "Home." + homeAssistantService + ".local.",
+			AddrV4:     net.ParseIP("192.168.1.100"),
+			Port:       8123,
+			InfoFields: []string{"internal_url=http://ha.local:8123"},
+		}
+		// Hashicorp's Query runs synchronously for the timeout duration,
+		// but since we are mocking it, we should just return immediately.
+		return nil
 	}
 
 	instances, err := Discover(context.Background())
@@ -86,7 +54,7 @@ func TestDiscover_Success(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 	if len(instances) != 1 || instances[0].Name != "Home" {
-		t.Errorf("expected 1 instance named 'Home', got %v", instances)
+		t.Fatalf("expected 1 instance named 'Home', got %v", instances)
 	}
 	urls := instances[0].URLs
 	if len(urls) != 2 || urls[0] != "http://ha.local:8123" || urls[1] != "http://192.168.1.100:8123" {
@@ -95,31 +63,33 @@ func TestDiscover_Success(t *testing.T) {
 }
 
 func TestDiscover_MultipleSuccess(t *testing.T) {
-	oldNewResolver := newResolver
-	defer func() { newResolver = oldNewResolver }()
-	newResolver = func() (mdnsResolver, error) {
-		return &mockResolver{
-			browseFunc: func(ctx context.Context, service string, domain string, entries chan<- *zeroconf.ServiceEntry) error {
-				entries <- &zeroconf.ServiceEntry{
-					ServiceRecord: zeroconf.ServiceRecord{
-						Instance: "Home1",
-					},
-					AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
-					Port:     8123,
-					Text:     []string{"internal_url=http://ha1.local:8123"},
-				}
-				entries <- &zeroconf.ServiceEntry{
-					ServiceRecord: zeroconf.ServiceRecord{
-						Instance: "Home2",
-					},
-					AddrIPv4: []net.IP{net.ParseIP("192.168.1.101")},
-					Port:     8123,
-					Text:     []string{"internal_url=http://ha2.local:8123"},
-				}
-				close(entries)
-				return nil
-			},
-		}, nil
+	oldNetInterfaces := netInterfaces
+	defer func() { netInterfaces = oldNetInterfaces }()
+	netInterfaces = func() ([]net.Interface, error) {
+		return nil, nil
+	}
+
+	oldQuery := mdnsQuery
+	defer func() { mdnsQuery = oldQuery }()
+	var called bool
+	mdnsQuery = func(params *mdns.QueryParam) error {
+		// Only send on the first query to avoid duplicates if there are multiple interfaces
+		if !called {
+			called = true
+			params.Entries <- &mdns.ServiceEntry{
+				Name:       "Home1." + homeAssistantService + ".local.",
+				AddrV4:     net.ParseIP("192.168.1.100"),
+				Port:       8123,
+				InfoFields: []string{"internal_url=http://ha1.local:8123"},
+			}
+			params.Entries <- &mdns.ServiceEntry{
+				Name:       "Home2." + homeAssistantService + ".local.",
+				AddrV4:     net.ParseIP("192.168.1.101"),
+				Port:       8123,
+				InfoFields: []string{"internal_url=http://ha2.local:8123"},
+			}
+		}
+		return nil
 	}
 
 	instances, err := Discover(context.Background())
@@ -131,20 +101,20 @@ func TestDiscover_MultipleSuccess(t *testing.T) {
 	}
 }
 
-func TestDiscover_ClosedChannelOrEmptyURL(t *testing.T) {
-	oldNewResolver := newResolver
-	defer func() { newResolver = oldNewResolver }()
-	newResolver = func() (mdnsResolver, error) {
-		return &mockResolver{
-			browseFunc: func(ctx context.Context, service string, domain string, entries chan<- *zeroconf.ServiceEntry) error {
-				entries <- &zeroconf.ServiceEntry{} // empty, should be ignored
-				close(entries)
-				return nil
-			},
-		}, nil
+func TestDiscover_EmptyEntry(t *testing.T) {
+	oldNetInterfaces := netInterfaces
+	defer func() { netInterfaces = oldNetInterfaces }()
+	netInterfaces = func() ([]net.Interface, error) {
+		return nil, nil
 	}
 
-	// Short timeout to avoid waiting 3 full seconds for the test to pass
+	oldQuery := mdnsQuery
+	defer func() { mdnsQuery = oldQuery }()
+	mdnsQuery = func(params *mdns.QueryParam) error {
+		params.Entries <- &mdns.ServiceEntry{} // empty, should be ignored
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 
@@ -160,73 +130,65 @@ func TestDiscover_ClosedChannelOrEmptyURL(t *testing.T) {
 func TestExtractURLs(t *testing.T) {
 	tests := []struct {
 		name     string
-		entry    *zeroconf.ServiceEntry
+		entry    *mdns.ServiceEntry
 		expected []string
 	}{
 		{
 			name: "internal_url and ip present",
-			entry: &zeroconf.ServiceEntry{
-				Text:     []string{"internal_url=http://ha.local:8123", "base_url=http://base.local"},
-				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
-				Port:     8123,
+			entry: &mdns.ServiceEntry{
+				InfoFields: []string{"internal_url=http://ha.local:8123", "base_url=http://base.local"},
+				AddrV4:     net.ParseIP("192.168.1.100"),
+				Port:       8123,
 			},
 			expected: []string{"http://ha.local:8123", "http://base.local", "http://192.168.1.100:8123"},
 		},
 		{
 			name: "base_url present",
-			entry: &zeroconf.ServiceEntry{
-				Text:     []string{"base_url=http://base.local:8123"},
-				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
-				Port:     8123,
+			entry: &mdns.ServiceEntry{
+				InfoFields: []string{"base_url=http://base.local:8123"},
+				AddrV4:     net.ParseIP("192.168.1.100"),
+				Port:       8123,
 			},
 			expected: []string{"http://base.local:8123", "http://192.168.1.100:8123"},
 		},
 		{
 			name: "empty txt records only ip",
-			entry: &zeroconf.ServiceEntry{
-				Text:     []string{"internal_url=", "base_url="},
-				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
-				Port:     8123,
+			entry: &mdns.ServiceEntry{
+				InfoFields: []string{"internal_url=", "base_url="},
+				AddrV4:     net.ParseIP("192.168.1.100"),
+				Port:       8123,
 			},
 			expected: []string{"http://192.168.1.100:8123"},
 		},
 		{
 			name: "include https internal_url",
-			entry: &zeroconf.ServiceEntry{
-				Text:     []string{"internal_url=https://ha.local:8123", "base_url=http://base.local:8123"},
-				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
-				Port:     8123,
+			entry: &mdns.ServiceEntry{
+				InfoFields: []string{"internal_url=https://ha.local:8123", "base_url=http://base.local:8123"},
+				AddrV4:     net.ParseIP("192.168.1.100"),
+				Port:       8123,
 			},
 			expected: []string{"https://ha.local:8123", "http://base.local:8123", "http://192.168.1.100:8123"},
 		},
 		{
 			name: "include https base_url",
-			entry: &zeroconf.ServiceEntry{
-				Text:     []string{"base_url=https://base.local:8123"},
-				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100")},
-				Port:     8123,
+			entry: &mdns.ServiceEntry{
+				InfoFields: []string{"base_url=https://base.local:8123"},
+				AddrV4:     net.ParseIP("192.168.1.100"),
+				Port:       8123,
 			},
 			expected: []string{"https://base.local:8123", "http://192.168.1.100:8123"},
 		},
 		{
 			name: "no txt records only ip",
-			entry: &zeroconf.ServiceEntry{
-				AddrIPv4: []net.IP{net.ParseIP("10.0.0.5")},
-				Port:     8123,
+			entry: &mdns.ServiceEntry{
+				AddrV4: net.ParseIP("10.0.0.5"),
+				Port:   8123,
 			},
 			expected: []string{"http://10.0.0.5:8123"},
 		},
 		{
-			name: "multiple ips",
-			entry: &zeroconf.ServiceEntry{
-				AddrIPv4: []net.IP{net.ParseIP("192.168.1.100"), net.ParseIP("10.0.0.5")},
-				Port:     8123,
-			},
-			expected: []string{"http://192.168.1.100:8123", "http://10.0.0.5:8123"},
-		},
-		{
 			name:     "no useful info",
-			entry:    &zeroconf.ServiceEntry{},
+			entry:    &mdns.ServiceEntry{},
 			expected: nil,
 		},
 	}
