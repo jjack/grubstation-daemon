@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -56,7 +57,9 @@ func NewServiceInstallCmd(deps *CommandDeps) *cobra.Command {
 }
 
 func NewServiceRemoveCmd(deps *CommandDeps) *cobra.Command {
-	return &cobra.Command{
+	var purge bool
+
+	cmd := &cobra.Command{
 		Use:   "remove",
 		Short: "Uninstall the grubstation service and GRUB hooks",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -77,10 +80,22 @@ func NewServiceRemoveCmd(deps *CommandDeps) *cobra.Command {
 				}
 			}
 
+			if purge {
+				cfgDir := filepath.Dir(deps.ConfigFile)
+				cmd.Printf("Purging configuration: %s\n", cfgDir)
+				if err := os.RemoveAll(cfgDir); err != nil {
+					return fmt.Errorf("failed to purge configuration: %w", err)
+				}
+			}
+
 			cmd.Println("Removal completed successfully.")
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&purge, "purge", false, "Remove configuration files and directory")
+
+	return cmd
 }
 
 func NewServiceStartCmd(deps *CommandDeps) *cobra.Command {

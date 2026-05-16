@@ -59,6 +59,7 @@ func (d *DefaultSystemResolver) DiscoverGrubConfig(ctx context.Context) (string,
 
 type CommandDeps struct {
 	Config         *config.Config
+	ConfigFile     string
 	Grub           *grub.Grub
 	Registry       *servicemanager.Registry
 	SystemResolver SystemResolver
@@ -111,6 +112,7 @@ func NewCLI() *CLI {
 			}
 
 			*deps.Config = *cfg
+			deps.ConfigFile = cfgFile
 			cli.Config = deps.Config
 
 			if cfg.Grub != nil && cfg.Grub.ConfigPath != "" {
