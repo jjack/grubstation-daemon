@@ -22,6 +22,8 @@ import (
 
 var osMkdirAll = os.MkdirAll
 
+var ErrElevated = errors.New("elevated")
+
 func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string, token string) error {
 	mgr, err := deps.Manager(cmd.Context())
 	if err != nil {
@@ -29,6 +31,12 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string, token
 	}
 
 	if err := mgr.CheckPermissions(cmd.Context()); err != nil {
+		if runtime.GOOS == "windows" {
+			if elevateErr := ElevateAndApply(cmd.Context(), cfgFile); elevateErr != nil {
+				return fmt.Errorf("elevation failed: %v. Original error: %v", elevateErr, err)
+			}
+			return ErrElevated
+		}
 		return err
 	}
 
@@ -148,8 +156,13 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			if runtime.GOOS == "windows" {
 				defer func() {
-					fmt.Println("\nPress Enter to exit...")
-					_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
+					if err != nil && err != ErrElevated {
+						tap.Outro(fmt.Sprintf("Error: %v", err))
+					}
+					if applyOnly || (err != nil && err != ErrElevated) {
+						fmt.Println("\nPress Enter to exit...")
+						_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
+					}
 				}()
 			}
 
@@ -213,6 +226,9 @@ func NewSetupCmd(deps *CommandDeps) *cobra.Command {
 			// We update the deps config with our freshly generated config so the installer can use it
 			*deps.Config = *cfg
 			if err := performInstall(cmd, deps, cfgPath, ""); err != nil {
+				if err == ErrElevated {
+					return nil
+				}
 				return err
 			}
 
