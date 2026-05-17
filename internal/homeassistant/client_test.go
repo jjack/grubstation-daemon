@@ -56,6 +56,33 @@ func TestClient_Push(t *testing.T) {
 	}
 }
 
+func TestClient_UnregisterHost(t *testing.T) {
+	var receivedPayload CommonPayload
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &receivedPayload)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-webhook", nil)
+	payload := CommonPayload{
+		Action:     ActionUnregisterHost,
+		MACAddress: "aa:bb:cc:dd",
+		Address:    "10.0.0.1",
+	}
+
+	err := client.PostWebhook(context.Background(), payload)
+	if err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+
+	if receivedPayload.Action != ActionUnregisterHost {
+		t.Errorf("expected action %s, got %s", ActionUnregisterHost, receivedPayload.Action)
+	}
+}
+
 func TestClient_Push_InvalidURL(t *testing.T) {
 	client := NewClient(":\x00invalid%url", "test", nil)
 	err := client.PostWebhook(context.Background(), RegistrationPayload{})
