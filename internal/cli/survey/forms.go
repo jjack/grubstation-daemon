@@ -371,19 +371,19 @@ func buildWolSelectOptions(hostAddress string, ips []string, ipBroadcasts map[st
 		{Value: config.DefaultWolBroadcastAddress, Label: fmt.Sprintf("%s (Default)", config.DefaultWolBroadcastAddress)},
 	}
 
-	selectedIP := net.ParseIP(hostAddress)
-	isSelectedIPv4 := selectedIP != nil && selectedIP.To4() != nil
-
 	seenBroadcasts := make(map[string]bool)
 	for _, ip := range ips {
 		bc, ok := ipBroadcasts[ip]
 		if !ok {
 			continue
 		}
-		isIPv4 := net.ParseIP(ip).To4() != nil
-		if isSelectedIPv4 != isIPv4 {
+		
+		// WOL is almost exclusively an IPv4 UDP broadcast mechanism.
+		// We only want to present IPv4 subnet broadcasts.
+		if net.ParseIP(bc).To4() == nil {
 			continue
 		}
+
 		if !seenBroadcasts[bc] {
 			seenBroadcasts[bc] = true
 			opts = append(opts, tap.SelectOption[string]{

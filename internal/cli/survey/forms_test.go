@@ -529,11 +529,12 @@ func TestBuildWolSelectOptions_IPv6(t *testing.T) {
 		"192.168.1.50": "192.168.1.255",
 	}
 
-	// Host address is IPv6, should filter out IPv4 broadcasts
+	// Host address is IPv6, but we should still offer the IPv4 subnet broadcast
+	// because WOL is an IPv4 mechanism and the interface supports it.
 	opts := buildWolSelectOptions("fd00::1", ips, broadcasts)
 
-	if len(opts) != 1 {
-		t.Fatalf("expected 1 option (default only), got %d", len(opts))
+	if len(opts) != 2 {
+		t.Fatalf("expected 2 options (default + IPv4 broadcast), got %d", len(opts))
 	}
 }
 
