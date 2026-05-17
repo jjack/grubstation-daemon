@@ -27,6 +27,7 @@ type Action string
 const (
 	ActionRegisterAction Action = "register_agent_token"
 	ActionUpdateAction   Action = "update_boot_options"
+	ActionUnregisterHost Action = "unregister_host"
 )
 
 type CommonPayload struct {

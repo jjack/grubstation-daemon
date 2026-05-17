@@ -3,8 +3,10 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
@@ -296,6 +298,109 @@ func TestServiceRemoveCmd_GrubError(t *testing.T) {
 	cmd := NewServiceRemoveCmd(deps)
 	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "failed to uninstall grub") {
 		t.Fatalf("expected grub uninstall error, got %v", err)
+	}
+}
+
+func TestServiceRemoveCmd_Unregister(t *testing.T) {
+	var receivedPayload map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.Contains(r.URL.Path, "api/webhook/test-webhook") {
+			_ = json.NewDecoder(r.Body).Decode(&receivedPayload)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("OK"))
+		}
+	}))
+	defer ts.Close()
+
+	initReg := servicemanager.NewRegistry()
+	mock := &mockServiceManager{name: "mock-svc", active: true}
+	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
+
+	deps := &CommandDeps{
+		Config: &config.Config{
+			Host: config.HostConfig{
+				Address:    "1.2.3.4",
+				MACAddress: "AA:BB:CC:DD:EE:FF",
+			},
+			HomeAssistant: config.HomeAssistantConfig{
+				URL:       ts.URL,
+				WebhookID: "test-webhook",
+			},
+		},
+		Registry: initReg,
+	}
+
+	cmd := NewServiceRemoveCmd(deps)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(out.String(), "Unregistering from Home Assistant...") {
+		t.Errorf("expected unregistering message, got %q", out.String())
+	}
+
+	if receivedPayload == nil {
+		t.Fatal("expected to receive payload at Home Assistant mock")
+	}
+
+	if receivedPayload["action"] != "unregister_host" {
+		t.Errorf("expected action 'unregister_host', got %v", receivedPayload["action"])
+	}
+	if receivedPayload["mac"] != "AA:BB:CC:DD:EE:FF" {
+		t.Errorf("expected mac 'AA:BB:CC:DD:EE:FF', got %v", receivedPayload["mac"])
+	}
+	if receivedPayload["address"] != "1.2.3.4" {
+		t.Errorf("expected address '1.2.3.4', got %v", receivedPayload["address"])
+	}
+}
+
+func TestServiceRemoveCmd_UnregisterFallback(t *testing.T) {
+	var receivedPayload map[string]any
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&receivedPayload)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}))
+	defer ts.Close()
+
+	initReg := servicemanager.NewRegistry()
+	mock := &mockServiceManager{name: "mock-svc", active: true}
+	initReg.Register("mock-svc", func() servicemanager.Manager { return mock })
+
+	hwAddr, _ := net.ParseMAC("00:11:22:33:44:55")
+	mockResolver := &mockSystemResolver{
+		getWOLInterfacesFunc: func() ([]net.Interface, error) {
+			return []net.Interface{{HardwareAddr: hwAddr}}, nil
+		},
+		getIPInfoFunc: func(inf net.Interface) ([]string, map[string]string) {
+			return []string{"192.168.1.10"}, nil
+		},
+	}
+
+	deps := &CommandDeps{
+		Config: &config.Config{
+			HomeAssistant: config.HomeAssistantConfig{
+				URL:       ts.URL,
+				WebhookID: "test-webhook",
+			},
+		},
+		Registry:       initReg,
+		SystemResolver: mockResolver,
+	}
+
+	cmd := NewServiceRemoveCmd(deps)
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if receivedPayload["mac"] != "00:11:22:33:44:55" {
+		t.Errorf("expected detected mac '00:11:22:33:44:55', got %v", receivedPayload["mac"])
+	}
+	if receivedPayload["address"] != "192.168.1.10" {
+		t.Errorf("expected detected address '192.168.1.10', got %v", receivedPayload["address"])
 	}
 }
 
