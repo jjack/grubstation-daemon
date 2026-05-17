@@ -153,7 +153,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 		AgentPort, _ = strconv.Atoi(portStr)
 	}
 
-	// 6. WOL Address & Port
+	// 6. WOL Address
 	WolBroadcastAddress := tap.Select(ctx, tap.SelectOptions[string]{
 		Message: "WOL Broadcast Address (you may need to choose subnet broadcast for cross-VLAN setups)",
 		Options: buildWolSelectOptions(hostAddress, ips, broadcasts),
@@ -161,20 +161,6 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 	if ctx.Err() != nil {
 		return nil, false, ctx.Err()
 	}
-
-	defaultValue := strconv.Itoa(config.DefaultWolBroadcastPort)
-	wolBroadcastPortStr := tap.Text(ctx, tap.TextOptions{
-		Message:      fmt.Sprintf("WOL Broadcast Port (default: %s)", defaultValue),
-		DefaultValue: defaultValue,
-		InitialValue: defaultValue,
-		Validate: func(s string) error {
-			return config.ValidatePort(s)
-		},
-	})
-	if ctx.Err() != nil {
-		return nil, false, ctx.Err()
-	}
-	wolBroadcastPort, _ := strconv.Atoi(wolBroadcastPortStr)
 
 	var grubWaitTime int
 	if reportsBoot {
@@ -309,7 +295,6 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 		},
 		WakeOnLan: &config.WakeOnLanConfig{
 			Address: WolBroadcastAddress,
-			Port:    wolBroadcastPort,
 		},
 		HomeAssistant: config.HomeAssistantConfig{
 			URL:       haURL,

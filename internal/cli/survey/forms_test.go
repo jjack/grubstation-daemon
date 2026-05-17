@@ -161,9 +161,6 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 	if cfg.Host.Address != "detected-host.local" {
 		t.Errorf("expected address detected-host.local, got %s", cfg.Host.Address)
 	}
-	if cfg.WakeOnLan.Port != 9 {
-		t.Errorf("expected Port 9, got %d", cfg.WakeOnLan.Port)
-	}
 }
 
 func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
