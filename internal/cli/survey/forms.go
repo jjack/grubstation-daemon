@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jjack/grubstation/internal/config"
 	"github.com/jjack/grubstation/internal/homeassistant"
@@ -269,7 +271,33 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 		haURL = tap.Text(ctx, tap.TextOptions{
 			Message: "Home Assistant URL",
 			Validate: func(s string) error {
-				return config.ValidateURL(s)
+				if err := config.ValidateURL(s); err != nil {
+					return err
+				}
+
+				// Optional: Allow skipping the check via environment variable
+				if os.Getenv("GRUBSTATION_SKIP_URL_CHECK") == "true" {
+					return nil
+				}
+
+				// Perform a quick connection check
+				client := &http.Client{
+					Timeout: 3 * time.Second,
+				}
+				req, err := http.NewRequestWithContext(ctx, http.MethodGet, s, nil)
+				if err != nil {
+					return fmt.Errorf("invalid request: %v", err)
+				}
+
+				resp, err := client.Do(req)
+				if err != nil {
+					return fmt.Errorf("could not connect to URL: %v", err)
+				}
+				defer resp.Body.Close()
+
+				// We don't necessarily care about the status code (it might be 401/404 for HA without auth),
+				// just that the server is reachable.
+				return nil
 			},
 		})
 		if ctx.Err() != nil {

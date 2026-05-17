@@ -98,6 +98,7 @@ func setupSurveyDeps(t *testing.T) *mockSurveyDeps {
 
 func TestGenerateConfigSurvey_Success(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -128,19 +129,15 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 		in.EmitKeypress("", tap.Key{Name: "return"})
 		time.Sleep(20 * time.Millisecond)
 
-		// 6. WOL Port: Default "9"
+		// 6. GRUB Wait Time: Default "2"
 		in.EmitKeypress("", tap.Key{Name: "return"})
 		time.Sleep(20 * time.Millisecond)
 
-		// 7. GRUB Wait Time: Default "2"
+		// 7. HA URL: Default (auto-discovered)
 		in.EmitKeypress("", tap.Key{Name: "return"})
 		time.Sleep(20 * time.Millisecond)
 
-		// 8. HA URL: Default (auto-discovered)
-		in.EmitKeypress("", tap.Key{Name: "return"})
-		time.Sleep(20 * time.Millisecond)
-
-		// 9. HA Webhook: Type ID
+		// 8. HA Webhook: Type ID
 		webhook := strings.Repeat("a", 64)
 		for _, r := range webhook {
 			in.EmitKeypress(string(r), tap.Key{})
@@ -165,6 +162,7 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 
 func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -174,22 +172,22 @@ func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 
-		for i := 0; i < 7; i++ {
+		for i := 0; i < 6; i++ {
 			in.EmitKeypress("", tap.Key{Name: "return"})
 			time.Sleep(20 * time.Millisecond)
 		}
 
-		// 8. HA Instance Selection: Select second option (Home2)
+		// 7. HA Instance Selection: Select second option (Home2)
 		in.EmitKeypress("", tap.Key{Name: "down"})
 		time.Sleep(20 * time.Millisecond)
 		in.EmitKeypress("", tap.Key{Name: "return"})
 		time.Sleep(20 * time.Millisecond)
 
-		// 8.1 HA Agent URL Selection: Select first option (http://ha2.local:8123)
+		// 7.1 HA Agent URL Selection: Select first option (http://ha2.local:8123)
 		in.EmitKeypress("", tap.Key{Name: "return"})
 		time.Sleep(20 * time.Millisecond)
 
-		// 9. HA Webhook: Type ID
+		// 8. HA Webhook: Type ID
 		webhook := strings.Repeat("a", 64)
 		for _, r := range webhook {
 			in.EmitKeypress(string(r), tap.Key{})
@@ -217,6 +215,7 @@ func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
 
 func TestGenerateConfigSurvey_HTTPS_HA(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -424,6 +423,7 @@ func TestPrintConfigSummary(t *testing.T) {
 
 func TestGenerateConfigSurvey_NoGrub(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -465,6 +465,7 @@ func TestGenerateConfigSurvey_NoGrub(t *testing.T) {
 
 func TestGenerateConfigSurvey_ManualHA(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -473,18 +474,18 @@ func TestGenerateConfigSurvey_ManualHA(t *testing.T) {
 
 	go func() {
 		time.Sleep(50 * time.Millisecond)
-		for i := 0; i < 7; i++ {
+		for i := 0; i < 6; i++ {
 			in.EmitKeypress("", tap.Key{Name: "return"})
 			time.Sleep(20 * time.Millisecond)
 		}
-		// 8. HA URL: Type manually
+		// 7. HA URL: Type manually
 		haURL := "http://manual.ha:8123"
 		for _, r := range haURL {
 			in.EmitKeypress(string(r), tap.Key{})
 		}
 		in.EmitKeypress("", tap.Key{Name: "return"})
 		time.Sleep(20 * time.Millisecond)
-		// 9. HA Webhook
+		// 8. HA Webhook
 		webhook := strings.Repeat("a", 64)
 		for _, r := range webhook {
 			in.EmitKeypress(string(r), tap.Key{})
