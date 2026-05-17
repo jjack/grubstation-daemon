@@ -32,12 +32,12 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string, token
 
 	if err := mgr.CheckPermissions(cmd.Context()); err != nil {
 		if runtime.GOOS == "windows" {
-			if elevateErr := ElevateAndApply(cmd.Context(), cfgFile); elevateErr != nil {
-				return fmt.Errorf("elevation failed: %v. Original error: %v", elevateErr, err)
-			}
-			return ErrElevated
+			// On Windows, the MSI handles the service installation as SYSTEM.
+			// The TUI only needs to write the config (which is in AppData),
+			// so we don't need to elevate here anymore.
+		} else {
+			return err
 		}
-		return err
 	}
 
 	absConfig, err := filepath.Abs(cfgFile)
@@ -91,13 +91,26 @@ func performInstall(cmd *cobra.Command, deps *CommandDeps, cfgFile string, token
 	}
 
 	tap.Message(fmt.Sprintf("Installing into service manager: %s", mgr.Name()))
-	if err := mgr.Install(cmd.Context(), absConfig); err != nil {
-		return fmt.Errorf("failed to install manager: %w", err)
-	}
+	if runtime.GOOS != "windows" {
+		if err := mgr.Install(cmd.Context(), absConfig); err != nil {
+			return fmt.Errorf("failed to install manager: %w", err)
+		}
 
-	tap.Message("Starting service...")
-	if err := mgr.Start(cmd.Context()); err != nil {
-		return fmt.Errorf("failed to start service: %v", err)
+		tap.Message("Starting service...")
+		if err := mgr.Start(cmd.Context()); err != nil {
+			return fmt.Errorf("failed to start service: %v", err)
+		}
+	} else {
+		tap.Message("Service management handled by Windows Installer.")
+		// We still need to restart the service to pick up the new config
+		tap.Message("Restarting service...")
+		_ = mgr.Stop(cmd.Context())
+		if err := mgr.Start(cmd.Context()); err != nil {
+			// We don't fail here because the service might not be installed yet
+			// if the user is running setup for the first time before the MSI finishes.
+			// However, in our flow, MSI installs the service first.
+			tap.Message(fmt.Sprintf("Note: could not restart service (may not be installed yet): %v", err))
+		}
 	}
 
 	tap.Message("Installation completed successfully.")
