@@ -4,4 +4,6 @@
     <String Id="ExitDialogDescription" Value="Click 'Finish' to close this window and launch the interactive terminal to complete your configuration." Overridable="yes" />
     
     <String Id="ExitDialogTitle" Value="{\WixUI_Font_Bigger}GrubStation Installed" Overridable="yes" />
+
+    <String Id="MaintenanceTypeDlgChangeLabel" Value="Re-runs the setup wizard in a terminal window to update your configuration." Overridable="yes" />
 </WixLocalization>

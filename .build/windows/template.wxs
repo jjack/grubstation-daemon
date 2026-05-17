@@ -17,15 +17,25 @@
             <!-- Hijack InstallDirDlg 'Back' button to return directly to WelcomeDlg -->
             <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="99" Condition="1" />
 
-            <!-- Launch the TUI on Finish if the checkbox is checked -->
+            <Publish Dialog="MaintenanceTypeDlg" Control="ChangeButton" Event="NewDialog" Value="VerifyReadyDlg" />
+
+            <!-- Launch the TUI on Finish for installs, repairs, and modifications -->
             <Publish Dialog="ExitDialog" 
                      Control="Finish" 
                      Event="DoAction" 
                      Value="LaunchConfig" 
-                     Condition="NOT Installed" />
+                     Condition="NOT REMOVE=&quot;ALL&quot;" />
         </UI>
 
-        <!-- Add/Remove Programs Properties -->
+        <!-- Custom Actions to enable 'Change' and 'Repair' -->
+        <CustomAction Id="SetARPNOMODIFY" Property="ARPNOMODIFY" Value="" />
+        <CustomAction Id="SetARPNOREPAIR" Property="ARPNOREPAIR" Value="" />
+
+        <InstallUISequence>
+            <Custom Action="SetARPNOMODIFY" After="AppSearch" />
+            <Custom Action="SetARPNOREPAIR" After="AppSearch" />
+        </InstallUISequence>
+
         <Property Id="ARPCOMMENTS" Value="Agent to manage bare-metal OS booting via Home Assistant and WOL" />
         <Property Id="ARPCONTACT" Value="Jeremy Jack" />
         <Property Id="ARPHELPLINK" Value="https://github.com/jjack/grubstation" />
@@ -69,7 +79,20 @@
         <ComponentGroup Id="ProductComponents" Directory="INSTALLDIR">
             <Component Id="Executable" Guid="*">
                 <File Id="GrubStationEXE" Name="grubstation.exe" Source="$(var.BinaryPath)" KeyPath="yes" />
-                <!-- Stop and Remove the service on uninstall. Stop="both" ensures it stops during upgrades too. -->
+                
+                <!-- Native Windows Service Installation -->
+                <!-- We use the default AppData path for the config to keep it consistent -->
+                <ServiceInstall Id="ServiceInstall_GrubStation"
+                                Type="ownProcess"
+                                Name="GrubStation"
+                                DisplayName="GrubStation"
+                                Description="Agent to manage bare-metal OS booting via Home Assistant and WOL"
+                                Start="auto"
+                                Account="LocalSystem"
+                                ErrorControl="normal"
+                                Arguments="serve" />
+
+                <!-- Stop/remove on uninstall. We don't start on install because the TUI creates the config later. -->
                 <ServiceControl Id="ServiceControl_GrubStation" 
                                 Name="GrubStation" 
                                 Stop="both" 
@@ -85,6 +108,8 @@
                       Return="asyncNoWait" />
 
         <InstallExecuteSequence>
+            <Custom Action="SetARPNOMODIFY" After="AppSearch" />
+            <Custom Action="SetARPNOREPAIR" After="AppSearch" />
         </InstallExecuteSequence>
 
         <Feature Id="ProductFeature" Title="GrubStation" Level="1">
