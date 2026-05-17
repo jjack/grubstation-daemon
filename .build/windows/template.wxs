@@ -13,9 +13,16 @@
         <UI>
             <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLDIR" />
             <!-- Hijack Welcome screen 'Next' button to jump straight to InstallDirDlg -->
-            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="99">1</Publish>
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="99" Condition="1" />
             <!-- Hijack InstallDirDlg 'Back' button to return directly to WelcomeDlg -->
-            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="99">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="99" Condition="1" />
+
+            <!-- Launch the TUI on Finish if the checkbox is checked -->
+            <Publish Dialog="ExitDialog" 
+                     Control="Finish" 
+                     Event="DoAction" 
+                     Value="LaunchConfig" 
+                     Condition="NOT Installed" />
         </UI>
 
         <!-- Add/Remove Programs Properties -->
@@ -23,6 +30,7 @@
         <Property Id="ARPCONTACT" Value="Jeremy Jack" />
         <Property Id="ARPHELPLINK" Value="https://github.com/jjack/grubstation" />
         <Property Id="ARPURLINFOABOUT" Value="https://github.com/jjack/grubstation" />
+        <Property Id="ARPPRODUCTICON" Value="grubstation.ico" />
 
         <StandardDirectory Id="ProgramFiles6432Folder">
             <Directory Id="INSTALLDIR" Name="GrubStation" />
@@ -43,7 +51,8 @@
                           Description="Configure GrubStation"
                           Target="[INSTALLDIR]grubstation.exe"
                           Arguments="setup"
-                          WorkingDirectory="INSTALLDIR" />
+                          WorkingDirectory="INSTALLDIR"
+                          Icon="grubstation.ico" />
                 <RemoveFolder Id="CleanUpShortCut" On="uninstall"/>
                 <RegistryValue Root="HKCU" Key="Software\JeremyJack\GrubStation" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
             </Component>
@@ -76,8 +85,6 @@
                       Return="asyncNoWait" />
 
         <InstallExecuteSequence>
-            <!-- Only run the config wizard on the first install, not on uninstalls -->
-            <Custom Action="LaunchConfig" After="InstallFinalize" Condition="NOT Installed" />
         </InstallExecuteSequence>
 
         <Feature Id="ProductFeature" Title="GrubStation" Level="1">
@@ -86,4 +93,9 @@
             <ComponentRef Id="CleanupConfig" />
         </Feature>
     </Package>
+
+    <Fragment>
+        <Icon Id="grubstation.ico" SourceFile="..\..\.build\windows\grubstation.ico" />
+    </Fragment>
+
 </Wix>

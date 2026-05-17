@@ -3,6 +3,8 @@ package homeassistant
 import (
 	"context"
 	"fmt"
+	"io"
+	"log"
 	"net"
 	"strings"
 	"sync"
@@ -70,6 +72,9 @@ func Discover(ctx context.Context) ([]ServiceInstance, error) {
 		}
 	}()
 
+	// Quiet hashicorp/mdns's spammy logging
+	silentLogger := log.New(io.Discard, "", 0)
+
 	// Query either all interfaces or specific ones
 	if len(ifaces) == 0 {
 		params := &mdns.QueryParam{
@@ -78,6 +83,7 @@ func Discover(ctx context.Context) ([]ServiceInstance, error) {
 			Timeout:     discoveryTimeout,
 			Entries:     entriesCh,
 			DisableIPv6: true,
+			Logger:      silentLogger,
 		}
 		_ = mdnsQuery(params)
 	} else {
@@ -94,6 +100,7 @@ func Discover(ctx context.Context) ([]ServiceInstance, error) {
 					Entries:     entriesCh,
 					Interface:   &iface,
 					DisableIPv6: true,
+					Logger:      silentLogger,
 				}
 				_ = mdnsQuery(params)
 			}(inf)

@@ -27,7 +27,7 @@ builds:
       post:
         - cmd: >-
             {{ if eq .Os "windows" }}
-              wix build -nologo -ext WixToolset.UI.wixext -d Version={{.Version}} -d BinaryPath="{{ .Path }}" -arch {{ if eq .Arch "amd64" }}x64{{ else if eq .Arch "arm64" }}arm64{{ else }}x86{{ end }} -o "../../dist/grubstation_{{.Version}}_{{.Os}}_{{.Arch}}.msi" "../../.build/windows/template.wxs"
+              wix build -nologo -ext WixToolset.UI.wixext -culture en-US -d Version={{.Version}} -d BinaryPath="{{ .Path }}" -arch {{ if eq .Arch "amd64" }}x64{{ else if eq .Arch "arm64" }}arm64{{ else }}x86{{ end }} -o "../../dist/grubstation_{{.Version}}_{{.Os}}_{{.Arch}}.msi" "../../.build/windows/template.wxs" "../../.build/windows/localization.wxl"
             {{ else }}
               go version
             {{ end }}

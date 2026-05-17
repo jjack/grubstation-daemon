@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 )
@@ -84,13 +85,14 @@ func (w *WindowsService) Install(ctx context.Context, configPath string) error {
 		return err
 	}
 
-	// The service will run: grubstation.exe serve --config C:\path\to\config.yaml
+	// The service will run: "C:\path\to\grubstation.exe" serve --config "C:\path\to\config.yaml"
+	args := []string{"serve", "--config", absConfig}
 	s, err = m.CreateService(windowsServiceName, exepath, mgr.Config{
 		DisplayName:    windowsServiceDisplayName,
 		Description:    windowsServiceDescription,
 		StartType:      mgr.StartAutomatic,
-		BinaryPathName: fmt.Sprintf("%s serve --config %s", exepath, absConfig),
-	})
+		BinaryPathName: exepath,
+	}, args...)
 	if err != nil {
 		return err
 	}
@@ -133,7 +135,15 @@ func (w *WindowsService) Start(ctx context.Context) error {
 	}
 	defer s.Close()
 
-	return s.Start()
+	err = s.Start()
+	if err != nil {
+		// If the service is already running, we consider it a success
+		if errno, ok := err.(windows.Errno); ok && errno == windows.ERROR_SERVICE_ALREADY_RUNNING {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func (w *WindowsService) Stop(ctx context.Context) error {
