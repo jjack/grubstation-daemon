@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.6.0](https://github.com/jjack/grubstation/compare/v1.5.0...v1.6.0) (2026-05-17)
+
+
+### Features
+
+* removing host from ha on uninstall ([c235e06](https://github.com/jjack/grubstation/commit/c235e0661f3a7dd9b0967a94fbac55241be3ba5e))
+* validating homeassistant url before continuing ([79dea81](https://github.com/jjack/grubstation/commit/79dea81e686fa13ffac758de4f4bd0fa0584d394))
+
+
+### Bug Fixes
+
+* "serve" not "daemon" ([deacba7](https://github.com/jjack/grubstation/commit/deacba792d74d93767b13d4d3aedae40bd40c595))
+* adding reinstall option to windows and moving user elevation to the .wsx so things are less weird ([eb69eb1](https://github.com/jjack/grubstation/commit/eb69eb146b0040e527c896f94247b4d63f35197e))
+* elevating privileges on windows so this can actually install ([88cd458](https://github.com/jjack/grubstation/commit/88cd4586dab511387189838cc978d700dc4fbe69))
+* ensuring proper config path dirname ([3b921e4](https://github.com/jjack/grubstation/commit/3b921e4e431636f8d31c2564dbf9ad802e552f50))
+* getting rid of bad ascii escaping in windows installer ([48241e2](https://github.com/jjack/grubstation/commit/48241e241e8d507a68b16868ebce995b951c1948))
+* hardening the mdns discovery to work better with mdns reflection across vlans. ([0ed0f05](https://github.com/jjack/grubstation/commit/0ed0f058b93a309d277ac2f31364c4aa4e8d2617))
+* hardening the mdns discovery to work better with mdns reflection across vlans. ([d2f5bc0](https://github.com/jjack/grubstation/commit/d2f5bc0fa729de34f8d3a39e8f3807724a25ef99))
+* moving user elevation in windows to .wsx ([d5b80be](https://github.com/jjack/grubstation/commit/d5b80bee2ed3b9f62e375659b5088aadeb50de44))
+* removing config file when uninstalling ([fb3f34d](https://github.com/jjack/grubstation/commit/fb3f34d132d1c178f09f4048c5d15c15d3dddafe))
+* showing vlan subnet broadcast for installer even if just a hostname or fqdn is selected ([c4346b9](https://github.com/jjack/grubstation/commit/c4346b9231eb1fd230341da6f6376828f733208e))
+* windows installer now has install path as an option. plus uninstaller removes config files. ([455152f](https://github.com/jjack/grubstation/commit/455152ff5e3ce02f6cc76569af0cabb2daba17a1))
+
 ## [1.5.0](https://github.com/jjack/grubstation/compare/v1.4.0...v1.5.0) (2026-05-16)
 
 
