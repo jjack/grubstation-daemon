@@ -98,7 +98,7 @@ func setupSurveyDeps(t *testing.T) *mockSurveyDeps {
 
 func TestGenerateConfigSurvey_Success(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
-	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_HA_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -162,7 +162,7 @@ func TestGenerateConfigSurvey_Success(t *testing.T) {
 
 func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
-	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_HA_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -215,7 +215,7 @@ func TestGenerateConfigSurvey_MultipleHA(t *testing.T) {
 
 func TestGenerateConfigSurvey_HTTPS_HA(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
-	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_HA_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -423,7 +423,7 @@ func TestPrintConfigSummary(t *testing.T) {
 
 func TestGenerateConfigSurvey_NoGrub(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
-	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_HA_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()
@@ -465,7 +465,7 @@ func TestGenerateConfigSurvey_NoGrub(t *testing.T) {
 
 func TestGenerateConfigSurvey_ManualHA(t *testing.T) {
 	t.Setenv("GRUBSTATION_SKIP_PORT_CHECK", "true")
-	t.Setenv("GRUBSTATION_SKIP_URL_CHECK", "true")
+	t.Setenv("GRUBSTATION_SKIP_HA_URL_CHECK", "true")
 	ctx := context.Background()
 	in := tap.NewMockReadable()
 	out := tap.NewMockWritable()

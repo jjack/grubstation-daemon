@@ -276,7 +276,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 				}
 
 				// Optional: Allow skipping the check via environment variable
-				if os.Getenv("GRUBSTATION_SKIP_URL_CHECK") == "true" {
+				if os.Getenv("GRUBSTATION_SKIP_HA_URL_CHECK") == "true" {
 					return nil
 				}
 
@@ -291,7 +291,7 @@ func generateConfigInteractive(ctx context.Context, deps SurveyDeps, isReinstall
 
 				resp, err := client.Do(req)
 				if err != nil {
-					return fmt.Errorf("could not connect to URL: %v", err)
+					return fmt.Errorf("could not connect to HA URL: %v", err)
 				}
 				defer resp.Body.Close()
 
